@@ -1,0 +1,267 @@
+﻿{
+    "tool":  "regress",
+    "time":  "2026-10-11T13:43:56",
+    "gamePath":  "D:\\SteamLibrary\\steamapps\\common\\Probably Stolen Demo",
+    "logPath":  "D:\\SteamLibrary\\steamapps\\common\\Probably Stolen Demo\\MelonLoader\\Latest.log",
+    "suiteVersion":  "1.7.8",
+    "stats":  {
+                  "Suite 版本":  "1.7.8",
+                  "PASS":  32,
+                  "FAIL":  0,
+                  "WARN":  0
+              },
+    "rows":  [
+                 {
+                     "detail":  "",
+                     "status":  "INFO",
+                     "id":  "suite.version",
+                     "desc":  "SuiteVersion.cs = 1.7.8"
+                 },
+                 {
+                     "detail":  "CC1422B75A957DA5",
+                     "status":  "PASS",
+                     "id":  "deploy",
+                     "desc":  "已部署 CustomInfrastructure.dll (258560B)"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "diag.gate",
+                     "desc":  "DiagLog 已为 true，回归断言可消费诊断标记"
+                 },
+                 {
+                     "detail":  "D:\\SteamLibrary\\steamapps\\common\\Probably Stolen Demo\\Probably Stolen.exe",
+                     "status":  "INFO",
+                     "id":  "launch",
+                     "desc":  "启动游戏，等待加载完成..."
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "launch",
+                     "desc":  "加载完成，耗时 17 秒；再等 8 秒稳定期"
+                 },
+                 {
+                     "detail":  "10-11 13:43:53",
+                     "status":  "PASS",
+                     "id":  "log.present",
+                     "desc":  "日志已读入: 1086 行"
+                 },
+                 {
+                     "detail":  "[13:43:41.096] [CustomInfrastructure] ContainerSuite v1.7.8（基础设施 v1.2.2 / 扩容仓库 v1.3.2 / 容器升级 v1.8.3 / 共享库 v1.0.0）",
+                     "status":  "PASS",
+                     "id":  "suite.banner",
+                     "desc":  "套件启动横幅与版本一致"
+                 },
+                 {
+                     "detail":  "[13:43:41.117] [CustomInfrastructure] 已加载。生效容器：trashcan=12x12, dossier=12x12, cassette_player=8x8",
+                     "status":  "PASS",
+                     "id":  "containers.load",
+                     "desc":  "生效容器清单已打印"
+                 },
+                 {
+                     "detail":  "[13:43:41.134] [CustomInfrastructure] [SaveBagExpand] 分页已初始化：2 页",
+                     "status":  "PASS",
+                     "id":  "sbe.paging.text",
+                     "desc":  "分页已初始化（文本兜底）"
+                 },
+                 {
+                     "detail":  "14/14",
+                     "status":  "PASS",
+                     "id":  "wage.avoid.text",
+                     "desc":  "Wage 避让 N/N（文本兜底）"
+                 },
+                 {
+                     "detail":  "[13:43:48.388] [CustomInfrastructure] [SBE-JIT] 预热完成：modeA=23 耗时=24ms",
+                     "status":  "PASS",
+                     "id":  "jit.warm.text",
+                     "desc":  "SBE JIT 预热流程完成（Mode B 默认关，改判完成而非 prepared 数量）"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "no.jitprobe",
+                     "desc":  "未触发 Mode B PrepareMethod 全量探针（默认应关闭）"
+                 },
+                 {
+                     "detail":  "[13:43:41.378] [CustomInfrastructure] 已加载。读档尺寸恢复=开",
+                     "status":  "PASS",
+                     "id":  "restore.onload",
+                     "desc":  "读档恢复开关已就绪"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "no.suite.error",
+                     "desc":  "本套件无 [ERROR]"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "no.patch.fail",
+                     "desc":  "无补丁安装失败"
+                 },
+                 {
+                     "detail":  "[13:43:41.128] [CustomInfrastructure] [REG] id=ci.containers status=PASS detail=count=3",
+                     "status":  "PASS",
+                     "id":  "reg.ci.containers",
+                     "desc":  "[REG] CI 生效容器"
+                 },
+                 {
+                     "detail":  "[13:43:41.128] [CustomInfrastructure] [REG] id=ci.patch status=PASS detail=count=2",
+                     "status":  "PASS",
+                     "id":  "reg.ci.patch",
+                     "desc":  "[REG] CI 补丁挂载"
+                 },
+                 {
+                     "detail":  "[13:43:41.178] [CustomInfrastructure] [REG] id=sbe.patch status=PASS detail=installed=7 failed=0",
+                     "status":  "PASS",
+                     "id":  "reg.sbe.patch",
+                     "desc":  "[REG] SBE 补丁安装"
+                 },
+                 {
+                     "detail":  "[13:43:41.178] [CustomInfrastructure] [REG] id=sbe.init status=PASS",
+                     "status":  "PASS",
+                     "id":  "reg.sbe.init",
+                     "desc":  "[REG] SBE 模块初始化"
+                 },
+                 {
+                     "detail":  "[13:43:41.135] [CustomInfrastructure] [REG] id=sbe.paging status=PASS detail=pages=2",
+                     "status":  "PASS",
+                     "id":  "reg.sbe.paging",
+                     "desc":  "[REG] 分页初始化"
+                 },
+                 {
+                     "detail":  "[13:43:48.388] [CustomInfrastructure] [REG] id=sbe.jit status=PASS detail=modeA=23",
+                     "status":  "PASS",
+                     "id":  "reg.sbe.jit",
+                     "desc":  "[REG] JIT 预热完成"
+                 },
+                 {
+                     "detail":  "[13:43:41.303] [CustomInfrastructure] [REG] id=diy.patch status=PASS detail=installed=18 skipped=0 failed=0",
+                     "status":  "PASS",
+                     "id":  "reg.diy.patch",
+                     "desc":  "[REG] DIY 补丁安装"
+                 },
+                 {
+                     "detail":  "[13:43:41.375] [CustomInfrastructure] [REG] id=diy.patch.summary status=PASS detail=count=41",
+                     "status":  "PASS",
+                     "id":  "reg.diy.summary",
+                     "desc":  "[REG] DIY 补丁汇总"
+                 },
+                 {
+                     "detail":  "[13:43:41.378] [CustomInfrastructure] [REG] id=diy.init status=PASS",
+                     "status":  "PASS",
+                     "id":  "reg.diy.init",
+                     "desc":  "[REG] DIY 模块初始化"
+                 },
+                 {
+                     "detail":  "expect id=ci.restore",
+                     "status":  "INFO",
+                     "id":  "reg.ci.restore",
+                     "desc":  "[REG] CI 读档恢复无漏项（未读档时不适用）（未产出标记，不适用）"
+                 },
+                 {
+                     "detail":  "[13:43:41.364] [CustomInfrastructure] [REG] id=wage.avoid status=PASS detail=14/14",
+                     "status":  "PASS",
+                     "id":  "reg.wage.avoid",
+                     "desc":  "[REG] Wage 避让"
+                 },
+                 {
+                     "detail":  "[13:43:41.379] [CustomInfrastructure] [REG] id=suite.ready status=PASS detail=version=1.7.8",
+                     "status":  "PASS",
+                     "id":  "reg.suite.ready",
+                     "desc":  "[REG] 套件就绪"
+                 },
+                 {
+                     "detail":  "expect id=sbe.bind",
+                     "status":  "INFO",
+                     "id":  "reg.sbe.bind",
+                     "desc":  "[REG] SBE 分页绑定（含距门禁首次放行秒数；读档态才有，菜单态不适用）（未产出标记，不适用）"
+                 },
+                 {
+                     "detail":  "expect id=sbe.reconcile",
+                     "status":  "INFO",
+                     "id":  "reg.sbe.reconcile",
+                     "desc":  "[REG] SBE 页归属自愈（读档后外页物品已归位；无外页物品/菜单态时不适用）（未产出标记，不适用）"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）",
+                     "status":  "PASS",
+                     "id":  "offset.id.resolved",
+                     "desc":  "GameItem#Id 偏移由字段名解析命中且=448（未命中=硬编码不再可自证，需人工复核）"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）",
+                     "status":  "PASS",
+                     "id":  "offset.tag.resolved",
+                     "desc":  "GameItem#TagSystem 偏移由字段名解析命中且=432"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）",
+                     "status":  "PASS",
+                     "id":  "bp.offset.id",
+                     "desc":  "断点·GameItem#Id 偏移解析结果"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）",
+                     "status":  "PASS",
+                     "id":  "bp.offset.tag",
+                     "desc":  "断点·GameItem#TagSystem 偏移解析结果"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "INFO",
+                     "id":  "bp.arbiter.abandon",
+                     "desc":  "断点·恢复仲裁放弃（无 applier/超次）：断点未触发（交互期才产生）"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "INFO",
+                     "id":  "bp.diy.restore",
+                     "desc":  "断点·DIY 读档恢复就绪：断点未触发（交互期才产生）"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "INFO",
+                     "id":  "bp.jitwarmup.missing",
+                     "desc":  "断点·声明式预热清单缺失（仅当有叶子漏打 [JitWarmup] 时才触发；正常无此行）：断点未触发（交互期才产生）"
+                 },
+                 {
+                     "detail":  "[13:43:44.134] [良心商人] [段名修正] 已把 1 处 [良心商人] 改写为 [\"良心商人\"]  —— Tomlet 写盘不给非 ASCII 段名加引号（char.IsLetterOrDigit 对中文返回 true）。Tomlet 自己解析裸中文段名不会崩，此举属**规范化**（TOML 规范的 bare key 只允许 ASCII），以防将来解析器严格化或别的严格工具（如 Python tomllib）读这份 cfg 时出错。",
+                     "status":  "PASS",
+                     "id":  "cfg.section.fix.lm",
+                     "desc":  "中文段名已修正（良心商人）"
+                 },
+                 {
+                     "detail":  "[13:43:41.395] [DIY_捕鼠夹] [段名修正] 已把 1 处 [DIY捕鼠夹] 改写为 [\"DIY捕鼠夹\"]  —— Tomlet 写盘不给非 ASCII 段名加引号（char.IsLetterOrDigit 对中文返回 true）。Tomlet 自己解析裸中文段名不会崩，此举属**规范化**（TOML 规范的 bare key 只允许 ASCII），以防将来解析器严格化或别的严格工具（如 Python tomllib）读这份 cfg 时出错。",
+                     "status":  "PASS",
+                     "id":  "cfg.section.fix.diy",
+                     "desc":  "中文段名已修正（DIY 捕鼠夹）"
+                 },
+                 {
+                     "detail":  "[13:43:52.157] [CustomInfrastructure] [cfg 自检] MelonPreferences.cfg TOML 终态合法性检查通过（608 行）。",
+                     "status":  "PASS",
+                     "id":  "cfg.toml.final.legal",
+                     "desc":  "启动后终态自检通过（启动终态探针）"
+                 },
+                 {
+                     "detail":  "",
+                     "status":  "PASS",
+                     "id":  "cfg.toml.final.illegal",
+                     "desc":  "终态无非法 TOML 报告"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）",
+                     "status":  "INFO",
+                     "id":  "bp",
+                     "desc":  "断点留痕"
+                 },
+                 {
+                     "detail":  "[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）",
+                     "status":  "INFO",
+                     "id":  "bp",
+                     "desc":  "断点留痕"
+                 }
+             ]
+}

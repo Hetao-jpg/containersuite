@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+# 2026-10-06：4 个 DLL 合并成 1 个之后，本解决方案只剩一个编译入口。
+#   ContainerSuite.Shared / .SaveBag / .DIYUpgrade 三个工程的源码仍留在原目录，
+#   由 ContainerSuite.Infrastructure.csproj 的 <Compile Include="..\X\**\*.cs"> 拉进来编译，
+#   它们的 csproj 已改名 *.csproj.disabled，不再单独产出 DLL。
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContainerSuite.Infrastructure", "ContainerSuite.Infrastructure\ContainerSuite.Infrastructure.csproj", "{EB2EEC01-95EC-017C-1B5B-A19FE33EAFF1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB2EEC01-95EC-017C-1B5B-A19FE33EAFF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB2EEC01-95EC-017C-1B5B-A19FE33EAFF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB2EEC01-95EC-017C-1B5B-A19FE33EAFF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB2EEC01-95EC-017C-1B5B-A19FE33EAFF1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1A38046C-1211-4218-A830-3F04303F22EA}
+	EndGlobalSection
+EndGlobal

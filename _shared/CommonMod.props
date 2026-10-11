@@ -1,0 +1,117 @@
+<Project>
+
+  <!--
+    Probably Stolen mod —— 受管项目的公共构建属性。
+
+    【为什么用显式 Import 而不是 Directory.Build.props】
+    工作区里还有 20+ 个未纳入管理的项目。Directory.Build.props 是"自动向上查找并套用"的，
+    会一并改掉它们的构建行为。所以这里做成一份独立文件，由受管项目自己 Import，
+    影响范围精确可控。
+
+    【为什么这里直接赋值、不加 Condition="'$(X)' == ''"】★ 踩过的坑
+    AllowUnsafeBlocks / Nullable / LangVersion / ImplicitUsings 等属性，SDK 的 props 里 
+    已经给过默认值。等本文件被求值时它们"非空"，于是 Condition 判不出"用户其实没设过"，
+    兜底静默失效 —— 表现为"自定义伪人 突然报 CS0227 不安全代码"。
+    改为直接赋值即可：本文件由项目在自家 PropertyGroup **之前** Import，
+    所以项目里显式写的值天然覆盖这里；命令行 -p:GamePath=... 是全局属性，优先级更高。
+
+    【换游戏目录】改下面 GamePath 一处，或构建时 -p:GamePath="..." 覆盖。
+    【新增受管项目】在它的 csproj 里加一行：
+        <Import Project="..\_shared\CommonMod.props" />
+  -->
+
+  <!-- ① 游戏路径与派生目录 -->
+  <PropertyGroup>
+    <GamePath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo</GamePath>
+    <MLNet>$(GamePath)\MelonLoader\net6</MLNet>
+    <MLIl2Cpp>$(GamePath)\MelonLoader\Il2CppAssemblies</MLIl2Cpp>
+  </PropertyGroup>
+
+  <!-- ② 通用编译属性（项目里写了同名的会覆盖这里） -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+        <!-- 输出到 bin/<配置>/<Dll>.dll（不带 net6.0 子目录），部署脚本好找 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- ③ P1-3（2026-10-10）：诊断脚手架的条件编译总闸。
+       ResizeDiag / R1Probe / CrashProbe 的实现只在显式开启时才编进产物，
+       Release 默认**不含**（源码里这些段用 #if DIAG 包起来）。
+       开启方式：dotnet build ContainerSuite.sln -c Release -p:Diag=true
+       为什么放在这里而不是各 csproj：4 个受管工程都 Import 本文件，
+       一处开关即可让整个套件的诊断代码同进同出，不会出现半个模块带诊断。 -->
+  <PropertyGroup Condition="'$(Diag)' == 'true'">
+    <DefineConstants>$(DefineConstants);DIAG</DefineConstants>
+  </PropertyGroup>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       P4（2026-10-02）：套件版本一致性检查。
+
+       目标：SuiteVersion.Suite 与 4 个 AssemblyInfo.cs 里的 AssemblyVersion
+             必须一致。改了 SuiteVersion.Suite 忘记同步 AssemblyInfo 时，
+             编译直接失败。
+
+       实现：PowerShell 脚本（_shared\check-suite-version.ps1）+ MSBuild Exec。
+       ★ 不用 RoslynCodeTaskFactory —— 本机 MSBuild 不支持它，会让
+         CommonMod.props 加载失败、整个解决方案崩掉（2026-10-02 踩过）。
+
+       检查时机：编译 ContainerSuite.Infrastructure 时跑一次
+                 （其它 3 个工程不重复跑）。
+       ═══════════════════════════════════════════════════════════════════ -->
+  <Target Name="CheckSuiteVersionConsistencyTarget" BeforeTargets="Build"
+          Condition="'$(MSBuildProjectName)' == 'ContainerSuite.Infrastructure'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)check-suite-version.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       DOC（2026-10-06）：README 默认尺寸表 与 代码默认值 一致性检查。
+
+       目标：README 4.2 的「默认尺寸」一行，必须与
+             SaveBagExpandConfig.cs 里 CreateEntry 的默认值逐个相等。
+             文档写 24×16 而代码是 24×10 这种漂移，编译期直接失败。
+
+       实现：_shared\check-readme-defaults.ps1（纯 ASCII / 无正则，
+             与 check-suite-version.ps1 同一套防坑规矩）。
+
+       检查时机：同样只在编译 ContainerSuite.Infrastructure 时跑一次。
+       ═══════════════════════════════════════════════════════════════════ -->
+	<!-- 
+  <Target Name="CheckReadmeDefaultsTarget" BeforeTargets="Build"
+          Condition="'$(MSBuildProjectName)' == 'ContainerSuite.Infrastructure'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)check-readme-defaults.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+  -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       FBD（2026-10-06；R1 于 2026-10-07 修订）：禁止事项 #21 / #22 的静态拦截。
+
+       #21  EmporiumEntry.Validate(...) 的实参必须是命名常量
+            SaveBagExpandCore.EmporiumForceValidate：禁止裸布尔字面量与裸
+            Validate()（裸调用 == Validate(true)，因该方法的元数据默认值就是
+            true）。★ 旧版规则「不许带实参」建立在错误前提上，已推翻 ——
+            详见 readme.mod维护日志.md 禁止事项 #21。
+       #22  .Expel / .SetShape / .UncheckedAccept /
+            ForceRecomputeDynamicBackground / .ClearGrid 所在文件必须引用
+            WorldReadyGate，或在脚本的 $allowGate 里显式登记。
+
+       实现：_shared\check-forbidden.ps1（纯 ASCII）。
+       检查时机：同样只在编译 ContainerSuite.Infrastructure 时跑一次。
+       ═══════════════════════════════════════════════════════════════════ -->
+  <Target Name="CheckForbiddenPatternsTarget" BeforeTargets="Build"
+          Condition="'$(MSBuildProjectName)' == 'ContainerSuite.Infrastructure'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)check-forbidden.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+
+</Project>

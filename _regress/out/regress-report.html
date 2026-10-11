@@ -1,0 +1,244 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ContainerSuite 快速回归</title>
+<style>
+:root{--bg:#f7f8fa;--card:#ffffff;--bd:rgba(0,0,0,.10);--tx:#1f2328;--tx2:#656d76;--mono:ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.6 -apple-system,Segoe UI,Roboto,"Microsoft YaHei",sans-serif;padding:24px}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:18px;font-weight:500;margin:0 0 4px}
+.sub{color:var(--tx2);font-size:13px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border:.5px solid var(--bd);border-radius:10px;padding:12px 14px}
+.stat .k{color:var(--tx2);font-size:12px}
+.stat .v{font-size:22px;font-weight:500;margin-top:2px}
+.card{background:var(--card);border:.5px solid var(--bd);border-radius:12px;overflow:hidden}
+.row{display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-top:.5px solid var(--bd)}
+.row:first-child{border-top:0}
+.tag{flex:none;width:52px;text-align:center;font-size:11px;font-weight:500;border-radius:4px;padding:2px 0}
+.t-PASS{background:#E1F5EE;color:#0F6E56}
+.t-FAIL{background:#FCEBEB;color:#A32D2D}
+.t-WARN{background:#FAEEDA;color:#854F0B}
+.t-INFO{background:#E6F1FB;color:#0C447C}
+.rid{flex:none;width:170px;font-family:var(--mono);font-size:12px;color:var(--tx2);word-break:break-all}
+.rd{flex:1;min-width:0}
+.rd .d{color:var(--tx2);font-family:var(--mono);font-size:12px;word-break:break-all;white-space:pre-wrap;margin-top:2px}
+.foot{margin-top:14px;color:var(--tx2);font-size:12px}
+</style>
+</head><body><div class="wrap">
+<h1>ContainerSuite 快速回归</h1>
+<div class="sub">game = D:\SteamLibrary\steamapps\common\Probably Stolen Demo   |   log = 10-11 13:43:53</div>
+<div class="stats">
+<div class="stat"><div class="k">PASS</div><div class="v">32</div></div>
+<div class="stat"><div class="k">FAIL</div><div class="v">0</div></div>
+<div class="stat"><div class="k">WARN</div><div class="v">0</div></div>
+<div class="stat"><div class="k">Suite 版本</div><div class="v">1.7.8</div></div>
+</div>
+<div class="card">
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">suite.version</div>
+<div class="rd">SuiteVersion.cs = 1.7.8
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">deploy</div>
+<div class="rd">已部署 CustomInfrastructure.dll (258560B)
+<div class="d">CC1422B75A957DA5</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">diag.gate</div>
+<div class="rd">DiagLog 已为 true，回归断言可消费诊断标记
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">launch</div>
+<div class="rd">启动游戏，等待加载完成...
+<div class="d">D:\SteamLibrary\steamapps\common\Probably Stolen Demo\Probably Stolen.exe</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">launch</div>
+<div class="rd">加载完成，耗时 17 秒；再等 8 秒稳定期
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">log.present</div>
+<div class="rd">日志已读入: 1086 行
+<div class="d">10-11 13:43:53</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">suite.banner</div>
+<div class="rd">套件启动横幅与版本一致
+<div class="d">[13:43:41.096] [CustomInfrastructure] ContainerSuite v1.7.8（基础设施 v1.2.2 / 扩容仓库 v1.3.2 / 容器升级 v1.8.3 / 共享库 v1.0.0）</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">containers.load</div>
+<div class="rd">生效容器清单已打印
+<div class="d">[13:43:41.117] [CustomInfrastructure] 已加载。生效容器：trashcan=12x12, dossier=12x12, cassette_player=8x8</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">sbe.paging.text</div>
+<div class="rd">分页已初始化（文本兜底）
+<div class="d">[13:43:41.134] [CustomInfrastructure] [SaveBagExpand] 分页已初始化：2 页</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">wage.avoid.text</div>
+<div class="rd">Wage 避让 N/N（文本兜底）
+<div class="d">14/14</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">jit.warm.text</div>
+<div class="rd">SBE JIT 预热流程完成（Mode B 默认关，改判完成而非 prepared 数量）
+<div class="d">[13:43:48.388] [CustomInfrastructure] [SBE-JIT] 预热完成：modeA=23 耗时=24ms</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.jitprobe</div>
+<div class="rd">未触发 Mode B PrepareMethod 全量探针（默认应关闭）
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">restore.onload</div>
+<div class="rd">读档恢复开关已就绪
+<div class="d">[13:43:41.378] [CustomInfrastructure] 已加载。读档尺寸恢复=开</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.suite.error</div>
+<div class="rd">本套件无 [ERROR]
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.patch.fail</div>
+<div class="rd">无补丁安装失败
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.ci.containers</div>
+<div class="rd">[REG] CI 生效容器
+<div class="d">[13:43:41.128] [CustomInfrastructure] [REG] id=ci.containers status=PASS detail=count=3</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.ci.patch</div>
+<div class="rd">[REG] CI 补丁挂载
+<div class="d">[13:43:41.128] [CustomInfrastructure] [REG] id=ci.patch status=PASS detail=count=2</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.sbe.patch</div>
+<div class="rd">[REG] SBE 补丁安装
+<div class="d">[13:43:41.178] [CustomInfrastructure] [REG] id=sbe.patch status=PASS detail=installed=7 failed=0</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.sbe.init</div>
+<div class="rd">[REG] SBE 模块初始化
+<div class="d">[13:43:41.178] [CustomInfrastructure] [REG] id=sbe.init status=PASS</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.sbe.paging</div>
+<div class="rd">[REG] 分页初始化
+<div class="d">[13:43:41.135] [CustomInfrastructure] [REG] id=sbe.paging status=PASS detail=pages=2</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.sbe.jit</div>
+<div class="rd">[REG] JIT 预热完成
+<div class="d">[13:43:48.388] [CustomInfrastructure] [REG] id=sbe.jit status=PASS detail=modeA=23</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.diy.patch</div>
+<div class="rd">[REG] DIY 补丁安装
+<div class="d">[13:43:41.303] [CustomInfrastructure] [REG] id=diy.patch status=PASS detail=installed=18 skipped=0 failed=0</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.diy.summary</div>
+<div class="rd">[REG] DIY 补丁汇总
+<div class="d">[13:43:41.375] [CustomInfrastructure] [REG] id=diy.patch.summary status=PASS detail=count=41</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.diy.init</div>
+<div class="rd">[REG] DIY 模块初始化
+<div class="d">[13:43:41.378] [CustomInfrastructure] [REG] id=diy.init status=PASS</div>
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">reg.ci.restore</div>
+<div class="rd">[REG] CI 读档恢复无漏项（未读档时不适用）（未产出标记，不适用）
+<div class="d">expect id=ci.restore</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.wage.avoid</div>
+<div class="rd">[REG] Wage 避让
+<div class="d">[13:43:41.364] [CustomInfrastructure] [REG] id=wage.avoid status=PASS detail=14/14</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">reg.suite.ready</div>
+<div class="rd">[REG] 套件就绪
+<div class="d">[13:43:41.379] [CustomInfrastructure] [REG] id=suite.ready status=PASS detail=version=1.7.8</div>
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">reg.sbe.bind</div>
+<div class="rd">[REG] SBE 分页绑定（含距门禁首次放行秒数；读档态才有，菜单态不适用）（未产出标记，不适用）
+<div class="d">expect id=sbe.bind</div>
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">reg.sbe.reconcile</div>
+<div class="rd">[REG] SBE 页归属自愈（读档后外页物品已归位；无外页物品/菜单态时不适用）（未产出标记，不适用）
+<div class="d">expect id=sbe.reconcile</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">offset.id.resolved</div>
+<div class="rd">GameItem#Id 偏移由字段名解析命中且=448（未命中=硬编码不再可自证，需人工复核）
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">offset.tag.resolved</div>
+<div class="rd">GameItem#TagSystem 偏移由字段名解析命中且=432
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">bp.offset.id</div>
+<div class="rd">断点&#183;GameItem#Id 偏移解析结果
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">bp.offset.tag</div>
+<div class="rd">断点&#183;GameItem#TagSystem 偏移解析结果
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）</div>
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">bp.arbiter.abandon</div>
+<div class="rd">断点&#183;恢复仲裁放弃（无 applier/超次）：断点未触发（交互期才产生）
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">bp.diy.restore</div>
+<div class="rd">断点&#183;DIY 读档恢复就绪：断点未触发（交互期才产生）
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">bp.jitwarmup.missing</div>
+<div class="rd">断点&#183;声明式预热清单缺失（仅当有叶子漏打 [JitWarmup] 时才触发；正常无此行）：断点未触发（交互期才产生）
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">cfg.section.fix.lm</div>
+<div class="rd">中文段名已修正（良心商人）
+<div class="d">[13:43:44.134] [良心商人] [段名修正] 已把 1 处 [良心商人] 改写为 [&quot;良心商人&quot;]  —— Tomlet 写盘不给非 ASCII 段名加引号（char.IsLetterOrDigit 对中文返回 true）。Tomlet 自己解析裸中文段名不会崩，此举属**规范化**（TOML 规范的 bare key 只允许 ASCII），以防将来解析器严格化或别的严格工具（如 Python tomllib）读这份 cfg 时出错。</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">cfg.section.fix.diy</div>
+<div class="rd">中文段名已修正（DIY 捕鼠夹）
+<div class="d">[13:43:41.395] [DIY_捕鼠夹] [段名修正] 已把 1 处 [DIY捕鼠夹] 改写为 [&quot;DIY捕鼠夹&quot;]  —— Tomlet 写盘不给非 ASCII 段名加引号（char.IsLetterOrDigit 对中文返回 true）。Tomlet 自己解析裸中文段名不会崩，此举属**规范化**（TOML 规范的 bare key 只允许 ASCII），以防将来解析器严格化或别的严格工具（如 Python tomllib）读这份 cfg 时出错。</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">cfg.toml.final.legal</div>
+<div class="rd">启动后终态自检通过（启动终态探针）
+<div class="d">[13:43:52.157] [CustomInfrastructure] [cfg 自检] MelonPreferences.cfg TOML 终态合法性检查通过（608 行）。</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">cfg.toml.final.illegal</div>
+<div class="rd">终态无非法 TOML 报告
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">bp</div>
+<div class="rd">断点留痕
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.448 detail=resolved=448 applied=448 how=命中字段 _identifier_k__BackingField，偏移 448（与硬编码一致）</div>
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">bp</div>
+<div class="rd">断点留痕
+<div class="d">[13:43:41.377] [CustomInfrastructure] [REG.BP] name=offset.GameItem.432 detail=resolved=432 applied=432 how=命中字段 _state_k__BackingField，偏移 432（与硬编码一致）</div>
+</div></div>
+</div>
+<div class="foot">生成时间：2026-10-11 13:43:56</div>
+<div class="foot">PASS=通过  FAIL=回归  WARN=留意  INFO=信息</div>
+<div class="foot">断言表：</div>
+<div class="foot">D:\games\open code work\ContainerSuite\_regress\checks.json</div>
+</div></body></html>

@@ -1,0 +1,9 @@
+[11:00:06.629] [CustomInfrastructure] [ContainerSuite] WorldReadyGate 关门（SceneLoaded）
+[11:00:07.196] [CustomInfrastructure] [ContainerSuite] WorldReadyGate 关门（CI.LoadGame）
+[11:00:07.196] [CustomInfrastructure] [SaveBagExpand] 主仓库分页已重置（等待下次进店重绑定）
+[11:00:07.214] [CustomInfrastructure] [ContainerSuite] WorldReadyGate 关门（DIY.LoadGame）
+[11:00:07.754] [CustomInfrastructure] [ContainerSuite] WorldReadyGate 开门（CI.RestoreDone，距上次关门 0.54s）
+[11:00:09.483] [CustomInfrastructure] [ContainerSuite] WorldReadyGate 开门（DIY.RestoreReady）
+[11:00:09.809] [容器升级] 读档恢复完成，处理了 36 个容器，补记基准 34 个
+[11:00:13.468] [CustomInfrastructure] [SaveBagExpand] 已为存档槽 227 加载分页配置（2 页，旁路文件）
+[11:00:13.568] [CustomInfrastructure] [SaveBagExpand] 主仓库分页已绑定（存档槽 227，2 页）

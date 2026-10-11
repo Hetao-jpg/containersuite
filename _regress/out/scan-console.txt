@@ -1,0 +1,6 @@
+﻿mods-scan: game = D:\SteamLibrary\steamapps\common\Probably Stolen Demo
+mods-scan: log  = D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\Latest.log
+
+mods-scan: PASS=43 FAIL=0 WARN=1
+report: D:\games\open code work\_regress\out\mods-report.html
+json:   D:\games\open code work\_regress\out\mods-report.json

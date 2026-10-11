@@ -1,0 +1,219 @@
+{
+ "version": "2.0",
+ "note": "ContainerSuite 回归断言表。kind: exists/absent/num/twoEqual/reg/bp。reg 断言消费 mod 输出的 [REG] 行（结构化，不受中文字符串漂移影响）。{suiteVersion} 由 regress.ps1 从 SuiteVersion.cs 注入。",
+ "checks": [
+  {
+   "id": "suite.banner",
+   "desc": "套件启动横幅与版本一致",
+   "kind": "exists",
+   "pattern": "\\[CustomInfrastructure\\] ContainerSuite v{suiteVersion}"
+  },
+  {
+   "id": "containers.load",
+   "desc": "生效容器清单已打印",
+   "kind": "exists",
+   "pattern": "已加载。生效容器："
+  },
+  {
+   "id": "sbe.paging.text",
+   "desc": "分页已初始化（文本兜底）",
+   "kind": "exists",
+   "pattern": "\\[SaveBagExpand\\] 分页已初始化："
+  },
+  {
+   "id": "wage.avoid.text",
+   "desc": "Wage 避让 N/N（文本兜底）",
+   "kind": "twoEqual",
+   "pattern": "Wage 避让：(\\d+)/(\\d+)",
+   "optional": true
+  },
+  {
+   "id": "jit.warm.text",
+   "desc": "SBE JIT 预热流程完成（Mode B 默认关，改判完成而非 prepared 数量）",
+   "kind": "exists",
+   "pattern": "\\[SBE-JIT\\] 预热完成："
+  },
+  {
+   "id": "no.jitprobe",
+   "desc": "未触发 Mode B PrepareMethod 全量探针（默认应关闭）",
+   "kind": "absent",
+   "pattern": "\\[SBE-JIT\\] Prep "
+  },
+  {
+   "id": "restore.onload",
+   "desc": "读档恢复开关已就绪",
+   "kind": "exists",
+   "pattern": "已加载。读档尺寸恢复="
+  },
+  {
+   "id": "no.suite.error",
+   "desc": "本套件无 [ERROR]",
+   "kind": "absent",
+   "pattern": "\\[ERROR\\].*(CustomInfrastructure|SaveBagExpand|DIYUpgrade|ContainerSuite)"
+  },
+  {
+   "id": "no.patch.fail",
+   "desc": "无补丁安装失败",
+   "kind": "absent",
+   "pattern": "Patch 安装失败|补丁安装失败|Prep 失败"
+  },
+  {
+   "id": "reg.ci.containers",
+   "desc": "[REG] CI 生效容器",
+   "kind": "reg",
+   "regId": "ci.containers"
+  },
+  {
+   "id": "reg.ci.patch",
+   "desc": "[REG] CI 补丁挂载",
+   "kind": "reg",
+   "regId": "ci.patch"
+  },
+  {
+   "id": "reg.sbe.patch",
+   "desc": "[REG] SBE 补丁安装",
+   "kind": "reg",
+   "regId": "sbe.patch"
+  },
+  {
+   "id": "reg.sbe.init",
+   "desc": "[REG] SBE 模块初始化",
+   "kind": "reg",
+   "regId": "sbe.init"
+  },
+  {
+   "id": "reg.sbe.paging",
+   "desc": "[REG] 分页初始化",
+   "kind": "reg",
+   "regId": "sbe.paging"
+  },
+  {
+   "id": "reg.sbe.jit",
+   "desc": "[REG] JIT 预热完成",
+   "kind": "reg",
+   "regId": "sbe.jit"
+  },
+  {
+   "id": "reg.diy.patch",
+   "desc": "[REG] DIY 补丁安装",
+   "kind": "reg",
+   "regId": "diy.patch"
+  },
+  {
+   "id": "reg.diy.summary",
+   "desc": "[REG] DIY 补丁汇总",
+   "kind": "reg",
+   "regId": "diy.patch.summary"
+  },
+  {
+   "id": "reg.diy.init",
+   "desc": "[REG] DIY 模块初始化",
+   "kind": "reg",
+   "regId": "diy.init"
+  },
+  {
+   "id": "reg.ci.restore",
+   "desc": "[REG] CI 读档恢复无漏项（未读档时不适用）",
+   "kind": "reg",
+   "regId": "ci.restore",
+   "optional": true
+  },
+  {
+   "id": "reg.wage.avoid",
+   "desc": "[REG] Wage 避让",
+   "kind": "reg",
+   "regId": "wage.avoid"
+  },
+  {
+   "id": "reg.suite.ready",
+   "desc": "[REG] 套件就绪",
+   "kind": "reg",
+   "regId": "suite.ready"
+  },
+  {
+   "id": "reg.sbe.bind",
+   "desc": "[REG] SBE 分页绑定（含距门禁首次放行秒数；读档态才有，菜单态不适用）",
+   "kind": "reg",
+   "regId": "sbe.bind",
+   "optional": true
+  },
+  {
+   "id": "reg.sbe.reconcile",
+   "desc": "[REG] SBE 页归属自愈（读档后外页物品已归位；无外页物品/菜单态时不适用）",
+   "kind": "reg",
+   "regId": "sbe.reconcile",
+   "optional": true
+  },
+  {
+   "id": "offset.id.resolved",
+   "desc": "GameItem#Id 偏移由字段名解析命中且=448（未命中=硬编码不再可自证，需人工复核）",
+   "kind": "exists",
+   "pattern": "\\[REG\\.BP\\] name=offset\\.GameItem\\.448 detail=resolved=448 applied=448 how=命中字段"
+  },
+  {
+   "id": "offset.tag.resolved",
+   "desc": "GameItem#TagSystem 偏移由字段名解析命中且=432",
+   "kind": "exists",
+   "pattern": "\\[REG\\.BP\\] name=offset\\.GameItem\\.432 detail=resolved=432 applied=432 how=命中字段"
+  },
+  {
+   "id": "bp.offset.id",
+   "desc": "断点·GameItem#Id 偏移解析结果",
+   "kind": "bp",
+   "bpName": "offset.GameItem.448",
+   "optional": true
+  },
+  {
+   "id": "bp.offset.tag",
+   "desc": "断点·GameItem#TagSystem 偏移解析结果",
+   "kind": "bp",
+   "bpName": "offset.GameItem.432",
+   "optional": true
+  },
+  {
+   "id": "bp.arbiter.abandon",
+   "desc": "断点·恢复仲裁放弃（无 applier/超次）",
+   "kind": "bp",
+   "bpName": "arbiter.abandon",
+   "optional": true
+  },
+  {
+   "id": "bp.diy.restore",
+   "desc": "断点·DIY 读档恢复就绪",
+   "kind": "bp",
+   "bpName": "diy.restore.ready",
+   "optional": true
+  },
+  {
+   "id": "bp.jitwarmup.missing",
+   "desc": "断点·声明式预热清单缺失（仅当有叶子漏打 [JitWarmup] 时才触发；正常无此行）",
+   "kind": "bp",
+   "bpName": "jitwarmup.missing",
+   "optional": true
+  },
+  {
+   "id": "cfg.section.fix.lm",
+   "desc": "中文段名已修正（良心商人）",
+   "kind": "exists",
+   "pattern": "\\[良心商人\\] \\[段名修正\\] 已把 1 处 \\[良心商人\\] 改写为"
+  },
+  {
+   "id": "cfg.section.fix.diy",
+   "desc": "中文段名已修正（DIY 捕鼠夹）",
+   "kind": "exists",
+   "pattern": "DIY_捕鼠夹\\] \\[段名修正\\] 已把 1 处 \\[DIY捕鼠夹\\] 改写为"
+  },
+  {
+   "id": "cfg.toml.final.legal",
+   "desc": "启动后终态自检通过（启动终态探针）",
+   "kind": "exists",
+   "pattern": "\\[cfg 自检\\] MelonPreferences.cfg TOML 终态合法性检查通过"
+  },
+  {
+   "id": "cfg.toml.final.illegal",
+   "desc": "终态无非法 TOML 报告",
+   "kind": "absent",
+   "pattern": "\\[cfg 自检\\] ⚠ 启动后终态检查"
+  }
+ ]
+}

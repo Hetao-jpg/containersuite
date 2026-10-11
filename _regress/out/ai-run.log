@@ -1,0 +1,6 @@
+﻿EXIT=0
+regress: game = D:\SteamLibrary\steamapps\common\Probably Stolen Demo
+
+regress: PASS=26 FAIL=0 WARN=0
+report: D:\games\open code work\_regress\out\regress-report.html
+

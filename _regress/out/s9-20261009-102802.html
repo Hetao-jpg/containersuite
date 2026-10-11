@@ -1,0 +1,76 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S9 分页读档窗口 &#183; 实机验收</title>
+<style>
+:root{--bg:#f7f8fa;--card:#ffffff;--bd:rgba(0,0,0,.10);--tx:#1f2328;--tx2:#656d76;--mono:ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.6 -apple-system,Segoe UI,Roboto,"Microsoft YaHei",sans-serif;padding:24px}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:18px;font-weight:500;margin:0 0 4px}
+.sub{color:var(--tx2);font-size:13px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border:.5px solid var(--bd);border-radius:10px;padding:12px 14px}
+.stat .k{color:var(--tx2);font-size:12px}
+.stat .v{font-size:22px;font-weight:500;margin-top:2px}
+.card{background:var(--card);border:.5px solid var(--bd);border-radius:12px;overflow:hidden}
+.row{display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-top:.5px solid var(--bd)}
+.row:first-child{border-top:0}
+.tag{flex:none;width:52px;text-align:center;font-size:11px;font-weight:500;border-radius:4px;padding:2px 0}
+.t-PASS{background:#E1F5EE;color:#0F6E56}
+.t-FAIL{background:#FCEBEB;color:#A32D2D}
+.t-WARN{background:#FAEEDA;color:#854F0B}
+.t-INFO{background:#E6F1FB;color:#0C447C}
+.rid{flex:none;width:170px;font-family:var(--mono);font-size:12px;color:var(--tx2);word-break:break-all}
+.rd{flex:1;min-width:0}
+.rd .d{color:var(--tx2);font-family:var(--mono);font-size:12px;word-break:break-all;white-space:pre-wrap;margin-top:2px}
+.foot{margin-top:14px;color:var(--tx2);font-size:12px}
+</style>
+</head><body><div class="wrap">
+<h1>S9 分页读档窗口 &#183; 实机验收</h1>
+<div class="sub">日志 D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\Latest.log ｜ 2026-10-09 10:28:02</div>
+<div class="stats">
+<div class="stat"><div class="k">SBE峰值us</div><div class="v">0</div></div>
+<div class="stat"><div class="k">PASS</div><div class="v">4</div></div>
+<div class="stat"><div class="k">FAIL</div><div class="v">3</div></div>
+<div class="stat"><div class="k">WARN</div><div class="v">0</div></div>
+</div>
+<div class="card">
+<div class="row"><div class="tag t-FAIL">FAIL</div>
+<div class="rid">s9.loaded</div>
+<div class="rd">本次日志没有任何读档记录
+<div class="d">先读一次档，再跑本脚本（regress.ps1 不读档）</div>
+</div></div>
+<div class="row"><div class="tag t-FAIL">FAIL</div>
+<div class="rid">sbe.bind</div>
+<div class="rd">没有 sbe.bind 标记（分页未绑定）
+<div class="d">读档后 1 秒内应出现；缺失=绑定链没跑到</div>
+</div></div>
+<div class="row"><div class="tag t-FAIL">FAIL</div>
+<div class="rid">sbe.reconcile</div>
+<div class="rd">没有自愈记录，但 ids 文件说本槽应外移 8 件
+<div class="d">第二页物品仍会叠在第一页</div>
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.fatal</div>
+<div class="rd">无 0x80131506 / Fatal error
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.jitprobe</div>
+<div class="rd">未触发 PrepareMethod 全量探针
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.suite.error</div>
+<div class="rd">本套件无 [ERROR]
+</div></div>
+<div class="row"><div class="tag t-PASS">PASS</div>
+<div class="rid">no.mergeloss</div>
+<div class="rd">无存档合并丢失告警
+</div></div>
+<div class="row"><div class="tag t-INFO">INFO</div>
+<div class="rid">sbe.perf</div>
+<div class="rd">日志里没有 Perf 行（DiagLog 关闭时不打）
+</div></div>
+</div>
+<div class="foot">判据：sbe.bind.at &lt;=1.0s；无 0x80131506；sbe.reconcile.moved == ids 文件里页2+件数</div>
+</div></body></html>

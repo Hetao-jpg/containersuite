@@ -1,0 +1,698 @@
+RatPrinterProbe = { Enabled = true }
+ILoveGenshin = '"{ ToggleKey = "F8", AutoShow = true, Verbose = false }"'
+[customercredit]
+# 
+creditsperboost = 100
+# 
+boostpercent = 5
+
+[ExtraPerks_WideConnections]
+LastOutsideGrant = "|1"
+
+[AquaSense]
+AutoReplaceFilters = true
+ShowFilterDurability = true
+AutoUpdateWaterLabels = true
+
+[EmptyNukeBarrel]
+BarrelCapacityMl = 1000000
+WaterJugCapacityMl = 1000000
+ScavengeDropChance = 0.05000000074505806
+
+[KeycardPack]
+thief_stock_chance = 0.25
+batch_deposit = true
+drag_highlight = true
+
+[ModuleUpgrade]
+MaxLevel = 6
+
+[EnhancedTradeDisplay]
+# 交易成交后自动关闭平板窗口(游戏内按 F6 切换)
+AutoCloseTrade = true
+# 每天开始的夜间报告中追加当天的销售额/进货支出/净收益(游戏内按 F6 切换)
+NightReportProfit = true
+# 议价界面每个档位按钮上追加成功率/走人率/声望倍率(游戏内按 F6 切换)
+BargainHelper = true
+
+[ModManager]
+# Show numeric preference rows / 显示数值类配置
+ShowFloatPreferences = true
+# Show original mod names / 显示 Mod 原名称
+ShowOriginalNames = false
+# Show footer community and site information / 显示底部信息
+ShowFooterInfo = true
+# Open panel on game launch / 启动游戏时自动打开面板
+OpenOnStartup = true
+# Toggle panel hotkey / 面板开关热键
+ToggleHotkey = "`"
+# Panel X position / 面板 X 坐标
+PanelPosX = 0.0
+# Panel Y position / 面板 Y 坐标
+PanelPosY = 76.0
+# Panel width / 面板宽度
+PanelWidth = 641.0
+# Panel height / 面板高度
+PanelHeight = 865.0
+# Delete cfg sections no installed mod registers (backup kept) / 自动清理无人认领的配置段（留档备份）
+AutoCleanPreferences = true
+
+[NotEnoughItems]
+# Panel toggle hotkey
+Hotkey = "Home"
+# Allow spawning items when clicking entries in the panel
+SpawnEnabled = true
+# UI scale (0 = auto by resolution, e.g. 1.5 or 2.0)
+UiScale = 0.0
+
+[PPerkPack]
+# 拥有“垃圾场挖掘者”天赋时，在垃圾场（倾倒区）可额外挖掘的次数。
+JunkyardDigBonus = 3
+# 拥有“夜猫子+”天赋时，打烊后额外增加的出门次数。
+NightVisitBonus = 1
+# 拥有“鉴定之神”天赋时，每位额外鉴定顾客的出现概率（百分比）。范围 0-200：0 为永不出现，100 为必定出现。
+AppraisalClientChance = 30
+# 拥有“强健体魄”天赋时，对重伤概率的减免量。1.0=100%（不再受重伤）；填 >1 无额外效果；填 0 等于无减免；负数会被钳制为 0。
+MajorWoundReduction = 2.0
+# 拥有“鉴定之神”天赋时，每天的顾客总数增加的数量。范围 0-10：0 表示不增加。
+AppraisalTotalCustomerBonus = 2
+# 拥有“鉴定之神”天赋时，每天最多额外出现的鉴定顾客数量。范围 0-100：0 为不出现额外鉴定顾客。
+AppraisalExtraClients = 2
+
+[ProbablyStolenInspector]
+window_pos_x = -540.0
+window_pos_y = -112.0
+value_window_pos_x = -72.0
+value_window_pos_y = -154.0
+aug_window_pos_x = 0.0
+aug_window_pos_y = -11.0
+wanted_window_pos_x = -96.0
+wanted_window_pos_y = -386.0
+EnableAuthenticity = true
+EnableAppraisal = true
+EnableAugAlert = true
+EnableWantedAlert = true
+EnableBerryQualityDisplay = true
+LegacyMigrated = false
+ShowAugPressure = false
+ShowBerryQualityValue = false
+LargeUI = false
+EnableFillEstimate = false
+
+[SpeedUp]
+# Enable faster dialogue / 启用对话加速
+Enabled = true
+# Typewriter speed multiplier (higher = faster) / 打字速度倍率（越大越快）
+SpeedMultiplier = 4.0
+# Delay between dialogue lines (higher = faster) / 句间等待倍率（越大越快）
+QueueDelayMultiplier = 1.0
+# Skip typewriter effect / 跳过打字机效果（瞬间显示）
+InstantText = false
+# Dialogue speed up hotkey combo / 对话加速组合键
+SpeedUpHotkey = "Alt+Equals"
+# Dialogue speed down hotkey combo / 对话减速组合键
+SpeedDownHotkey = "Alt+Minus"
+# Animation speed up hotkey combo (customers + shutter) / 动画加速组合键（顾客 + 卷帘门）
+AnimSpeedUpHotkey = "Equals"
+# Animation speed down hotkey combo (customers + shutter) / 动画减速组合键（顾客 + 卷帘门）
+AnimSpeedDownHotkey = "Minus"
+# Speed up customer + shutter animation / 加速顾客与卷帘门动画
+ClientAnimEnabled = true
+# Walk-in + shutter opening multiplier (1 = vanilla) / 进店走位·卷帘门开启倍率（1 = 原速）
+ClientArriveSpeed = 3.0
+# Walk-out + shutter closing multiplier (1 = vanilla) / 离店走位·卷帘门关闭倍率（1 = 原速）
+ClientLeaveSpeed = 3.0
+
+[PerkPointMod]
+# Perk 点数的最大上限值
+MaxPerkPoint = 500
+# Perk 数量的最大上限值
+MaxPerkCount = 500
+
+[WagesPerks]
+HardMode = false
+ContainerHalfEnabled = false
+MadnessExtraSlots = 3
+ContainerUpgradeEnabled = false
+CleanDailyLoss = 2
+CleanScavCost = 2
+CleanToothpaste = 15
+CleanToiletPaper = 30
+CleanShampoo = 45
+CleanPaperTowel = 45
+BeverageSatiety = 10
+BeverageThirst = 15
+SnackMood = 10
+AlcoholMood = 15
+NarcoticMood = 20
+DailySatLoss = 20
+DailyThirstLoss = 25
+DailyHealthGain = 10
+DailySleepGain = 30
+SleepScavLoss = 7
+DailySocialGain = 5
+DailySocialLoss = 5
+MoodUp = 5
+MoodDown = 10
+MoodStart = 60
+SipMl = 200
+CleanStart = 100
+SleepStart = 100
+SocialStart = 50
+GranaryDays = 7
+ElevEvery = 2
+ElevMax = 5
+ButcherVisitDay = 13
+LiBeiwenVisitDay = 20
+CallArriveDays = 1
+CallCooldownDays = 2
+BaseChance = 0
+UpgradeChance = 1
+LevelupEvery = 15
+LuckMaxChance = 1
+LuckMaxChanceHard = 2
+DoctorVisitInterval = 7
+DoctorExtraItems = 10
+NeuralChanceHard = 2
+NeuralChanceNormal = 1
+NeuralRollChance = 1
+DiceTriggerValue = 400
+DiceUninstallRefund = 50
+AlcoholVisitInterval = 7
+WaterVisitInterval = 7
+GunsmithVisitInterval = 7
+ContainerMaxStage = 5
+BoxWidths = "3,10,20,32,42,52"
+BoxHeights = "3,10,10,10,10,10"
+UpgradeCosts = "1,10,20,40,50"
+CannibalInterval = 10
+CannibalAbsorbPct = 10
+CannibalCap = 150
+BatteryInterval = 8
+InspectInterval = 15
+GuMachinePrice = 3000
+GuChargeDays = 3
+GuForgeMult = 120
+GuForgeCap = 150
+AiGenPrice = 5000
+AiSuccessPct = 50
+AiStableCap = 75
+AiUnstableCap = 150
+ProtectorPrice = 1500
+DoctorBuybackPct = 80
+DoctorSupplyPricePct = 60
+DoctorSupplyCountMin = 3
+DoctorSupplyCountMax = 5
+ProtectorSupplyCount = 1
+WageGirlBudgetMultLow = 1.5
+WageGirlBudgetMultMid = 2.5
+WageGirlBudgetMultHigh = 4.0
+WageGirlBudgetAffLow = 30
+WageGirlBudgetAffMid = 60
+WageGirlStatInit = 60
+WageGirlStatMax = 100
+WageGirlDailyDecay = 2
+WageGirlSleepRecover = 15
+WageGirlAffMax = 100
+WageGirlAffDecayMin = 1
+WageGirlAffDecayMax = 2
+WageGirlAffDecayLowMin = 2
+WageGirlAffDecayLowMax = 5
+WageGirlStealInterval = 5
+WageGirlStealFirstAmount = 50
+WageGirlStealBaseMax = 100
+WageGirlStealAffReduction = 90
+WageGirlStealSleepDebt = 20
+WageGirlSnatchValueLow = 50
+WageGirlSnatchValueMid = 100
+WageGirlSnatchValueHigh = 200
+WageGirlSnatchSleepDebt = 10
+WageGirlStealNoStealAff = 80
+WageGirlWashCostPerItem = 50
+WageGirlRunawayLowStat = 20
+WageGirlRunawayStreak = 5
+WageGirlRunawayDays = 14
+WageGirlFenceDays = 2
+WageGirlFenceFeeBasePct = 15
+WageGirlFenceFeeMinPct = 5
+WageGirlFenceSleepDebt = 20
+WageGirlAllowanceSteps = "100,300,500"
+WageGirlGiftAff = 50
+WageGirlGiftInterval = 7
+WageGirlFenceAffBonusPct = 20
+WageGirlFenceMarginBasePct = 10
+WageGirlFenceMarginLow = -10
+WageGirlFenceMarginHigh = 30
+WageGirlFenceBoxCount = "1,3"
+WageGirlFenceCardCount = "1,3"
+WageGirlFenceInjectorCount = "1,2"
+WageGirlFenceItemCount = "3,8"
+WageGirlAutoMove = false
+CompatTradeClamp = true
+CompatBudgetRestore = true
+CompatWineNameProtect = true
+CompatPhoneLocalization = true
+WageBrotherVisitInterval = 10
+CannibalismSeasonEnabled = false
+GuBeastCap = 999
+PerkGrowthTotalDays = 66
+PerkGrowthApplied = 0
+PerkGrowthLastDay = 0
+
+[XIAOWOTradeOwnerDeal]
+# Master switch for the whole mod.
+Enabled = true
+# Landlord wholesale discount percent.
+DiscountPercent = 15
+# Spawn landlord + merchant on each former rent day.
+WeeklyVisitors = true
+# Allow the cash buyout dialogue option.
+CashBuyout = true
+# Minimum items the landlord stocks per visit.
+StockMin = 3
+# Maximum items the landlord stocks per visit.
+StockMax = 6
+# Chance percent to include a restricted neural core.
+RestrictedNeuralChancePercent = 5
+# Chance percent to include an unrestricted neural core.
+UnrestrictedNeuralChancePercent = 1
+
+[SentinelTracker]
+# 是否默认显示哨兵监控面板
+ShowUI = false
+# 默认 F3
+ToggleKey = "F3"
+# 面板在屏幕上的 X 位置
+PanelX = 20.0
+# 面板在屏幕上的 Y 位置
+PanelY = 20.0
+# 面板宽度（拖右下角调整）
+PanelWidth = 260.0
+# 面板高度（拖右下角调整）
+PanelHeight = 180.0
+# 窗口背景/边框/标题栏的透明度：1.0=不透明，0.3=很透明，0.1=几乎看不见
+PanelOpacity = 1.0
+# 面板内所有文字的透明度：1.0=完全不透明（推荐），0.5=半透明
+TextOpacity = 1.0
+# 右下角缩放手柄的透明度，独立于面板背景。1.0=完全不透明，0.0=完全隐藏（不推荐，会失去视觉提示）
+HandleOpacity = 0.6000000238418579
+
+[FullMachineUpgrades]
+PowerBlocTier1 = "printer_plastic:4,nuts_metal:2"
+PowerBlocTier2 = "common_electronic:2,nuts_metal:3"
+RechargerExpand = "printer_plastic:2,nuts_metal:2"
+RechargerFast = "electronic:1,wire:2"
+RechargerVisibleCols = 4
+WineWidth = "nuts_metal:2"
+WineWidthMaxLevels = 6
+WineBottleCol = "empty_beer_bottle:1"
+WineBottleColMaxLevels = 6
+WineCircuit = "electronic:1"
+WineWire = "wire:1"
+ModuleBay_furnace = "wire:2"
+ModuleBayMax_furnace = 6
+ModuleBay_moisture_farm = "glass_shard:2"
+ModuleBayMax_moisture_farm = 6
+ModuleBay_water_purifier = "glass_shard:2"
+ModuleBayMax_water_purifier = 6
+ModuleBay_security_alarm = "wire:2"
+ModuleBayMax_security_alarm = 6
+ModuleBay_mirage_projector = "glass_shard:2"
+ModuleBayMax_mirage_projector = 6
+ModuleBay_projector = "glass_shard:2"
+ModuleBayMax_projector = 6
+ModuleBay_desequencer = "common_electronic:1"
+ModuleBayMax_desequencer = 6
+PurifierFilter = "water_filter:1"
+PurifierFilterMaxParts = 50
+PurifierIngot = "metal_ingot:1"
+PurifierIngotMax = 10
+FurnaceIngot = "nuts_metal:2"
+FurnaceIngotMax = 10
+FurnaceCircuit = "electronic:1"
+FurnaceCircuitMax = 10
+MoistureCircuit = "printer_plastic:3"
+MoistureCircuitMax = 10
+MoistureWire = "metal_ingot:1"
+MoistureWireMax = 5
+ProjectorCircuit = "electronic:1"
+ProjectorPlastic = "nuts_metal:2"
+ProjectorPlasticMax = 5
+ProjectorWire = "wire:1"
+ProjectorIngot = "metal_ingot:1"
+WineLabelUnlock = "glass_shard:4"
+WineLabelChance = 0.25
+PurifierClearUnlock = "water_filter_adv:1"
+PurifierClearChance = 0.25
+DeseqInstantUnlock = "common_electronic:1,printer_plastic:2"
+DeseqInstantChance = 0.25
+
+[SciRat]
+# Saved window X
+NativePosX = 0.0
+# Saved window Y
+NativePosY = 0.0
+# Saved window width
+NativeWidth = 720.0
+# Saved window height
+NativeHeight = -1.0
+# Open/close rat monitor
+ToggleKey = "F6"
+# Monitor UI zoom: 0=1x, 1=1.5x, 2=2x
+UiZoomLevel = 0
+FilterMale = false
+FilterFemale = false
+FilterPregnant = false
+FilterNotPregnant = false
+FilterNeutered = false
+FilterIntact = false
+FilterUnderfed = false
+FilterFedOk = false
+SortGene = "ANIMAL_GROWTH_RATE_TAG"
+SortDesc = true
+IncludeAlleles = false
+# 一次怀孕最多可编辑几个基因；0=不限制
+MaxGeneEditsPerPregnancy = 0
+
+[DebugConsole]
+Hotkey = "LeftControl+LeftShift+I"
+Verbose = false
+LightTheme = false
+Mode = "hybrid"
+Favorites = ""
+Language = "zh"
+
+["良心商人"]
+Enabled = true
+FreeGift = true
+VarietyBuy = true
+BuyPriceBonus = 15
+Language = "zh"
+ContrabandCrimePercent = 50
+GiftCash = 100
+FirstDay = 1
+VisitIntervalDays = 7
+CourierBudgetBase = 15
+CourierBudgetDayAdd = 10
+Blacklist = ""
+
+[XIAOWOTradePerks_ModManager]
+# Physical key above Tab; combinations such as Ctrl+Shift+M are supported.
+ToggleHotkey = "BackQuote"
+
+[DiscountBudgetPreview]
+# 勾选后，折扣预算预览改用英文。若游戏字体不含中文字形、提示显示为方块，请打开此项。
+UseEnglishText = false
+# 输出折扣预算预览的详细调试日志。
+DebugLogging = false
+
+[PSPDA]
+SettingsMode = "curated"
+SettingsShowKeys = ""
+SettingsHideKeys = ""
+HomeTilePercent = 35
+verbose_console = false
+Language = "follow"
+
+[CustomInfrastructure]
+# 开启=蛙哥升满级（wb_stage 达上限）后的妙妙箱主权归本 mod。关闭=交还蛙哥。关闭无害——妙妙箱两边材料不重叠（蛙哥用坚果金属、本 mod 用金属锭），不存在抢材料。未满级时本项本来就不生效。
+3B_SkipWageBox = true
+# 默认开启=虚空珠归蛙哥，保留原版「拖垃圾 +1 格」逐格解锁到 200 格。一旦你按住升级键（默认 LeftAlt）拖材料到虚空珠上，就等于说「这个我要用 DIY 升」，会**永久**移交本 mod（之后蛙哥的逐格解锁对该颗珠子永久失效，无法手动换回）。只有在你不想让出主权时才关闭本项——关闭后虚空珠无条件归本 mod，蛙哥的逐格解锁立刻完全失效（这是 S8j 的旧行为）。
+3C_SkipVoidBead = true
+# 所有槽共享的最大行数
+5A_ModContainerMaxH = 20
+# 读档后自动把已升级的容器恢复成升级后的尺寸。若读档崩溃（CLR 0x80131506）请关掉本项。
+23_RestoreOnLoad = true
+# 开启=6 个货舱的尺寸主权归本 mod，XIAOWO 无法升级它们。关闭=主权交还 XIAOWO，本 mod 也不再改这些货舱的尺寸（两边会各写各的，可能互相覆盖）。仅在排查冲突时关闭。虚空珠不受本项影响。
+3A_SkipXiaoBay = true
+# 所有槽共享的最大列数
+5A_ModContainerMaxW = 20
+# 是否允许通过拖拽窗口边缘调整容器大小。默认开启。
+22_EnableDragResize = true
+# 每升级一格增加的血量
+4C_CageHpPerCell = 200
+# 是否允许升级
+5C_WageBackpackEnable = true
+# 所有槽共享的最大列数
+5C_WageBackpackMaxW = 34
+# 使用垃圾作为升级材料（优先级最低）
+1A_MaterialJunk = true
+# 使用废金属作为升级材料（优先级高于垃圾）
+1B_MaterialScrapMetal = true
+# 所有槽共享的最大行数
+5C_WageBackpackMaxH = 10
+# 按住此键再拖材料到容器上才触发升级。默认 LeftAlt；支持组合键如 Ctrl+E
+21_UpgradeHotkey = "LeftAlt"
+# 使用金属锭作为升级材料（优先级最高）
+1C_MaterialMetalIngot = true
+# 所有槽共享的最大行数
+5B_WageBoxMaxH = 34
+# 是否允许升级
+5A_ModContainerEnable = true
+# 所有槽共享的最大行数
+4E_MultiSlotModuleMaxH = 12
+# 开 = 各槽共用第一个槽的尺寸；关 = 各槽独立升级
+4E_MultiSlotModuleAlignSlots = true
+# 是否允许升级
+4E_MultiSlotModuleEnable = true
+# 所有槽共享的最大列数
+4E_MultiSlotModuleMaxW = 12
+# 是否允许升级
+5B_WageBoxEnable = true
+# 所有槽共享的最大列数
+5B_WageBoxMaxW = 52
+# 开 = 各槽共用第一个槽的尺寸；关 = 各槽独立升级
+4D_MultiSlotAlignSlots = true
+# 物品ID列表(逗号分隔)
+BoxIds = "sec_box,evidence_box,storage_bay,storage_bay_large,smuggler_bay,smuggler_bay_mod,machine_bay,machine_bay_ext,service_box,med_box,eng_box,storage_bay_chem,storage_bay_gun,smuggler_bay_mini,makeshift_storage_bay,expedition_box"
+# 物品ID列表(逗号分隔)
+BackpackIds = "backpack_small,backpack_medium,backpack_large,satchel,fanny_pack,backpack_medium_military,backpack_large_military"
+# 物品ID列表(逗号分隔)
+CageIds = "animal_cage,Rat_Cage,rat_cage"
+# 所有槽共享的最大列数
+4D_MultiSlotMaxW = 20
+# 所有槽共享的最大行数
+4D_MultiSlotMaxH = 20
+# 物品ID列表(逗号分隔)
+MultiSlotIds = "fridge,recharger,vacuum_robot"
+# 所有槽共享的最大行数
+4C_CageMaxH = 20
+# 是否允许升级
+4D_MultiSlotEnable = true
+# 物品ID列表(逗号分隔)
+MultiSlotModuleIds = "furnace,desequencer,security_alarm,mirage_projector,water_purifier,moisture_farm,wine_rack"
+# 是否允许升级
+4C_CageEnable = true
+# 所有槽共享的最大列数
+4C_CageMaxW = 20
+# 物品ID列表(逗号分隔)
+WageBoxIds = "custom_storage_box"
+# 所有槽共享的最大行数
+4A_BoxMaxH = 34
+# 是否允许升级
+4B_BackpackEnable = true
+# 物品ID列表(逗号分隔)
+WageBackpackIds = "void_bead_storage"
+# 是否允许升级
+4A_BoxEnable = true
+# 所有槽共享的最大列数
+4A_BoxMaxW = 52
+# 物品ID列表(逗号分隔)
+ModContainerIds = "wage_gu_machine,wage_ai_generator"
+# 所有槽共享的最大列数
+4B_BackpackMaxW = 34
+# 所有槽共享的最大行数
+4B_BackpackMaxH = 9
+# 所有 Mod 容器（蛙哥妙妙箱/虚空珠/养蛊机/AI生成器）每次升级增加的列数。
+5E_ModIncW = 1
+# 所有 Mod 容器每次升级增加的行数。
+5E_ModIncH = 1
+# 所有原版容器（箱/背包/笼/多槽/模组槽）每次升级增加的列数。与高度增量相互独立。
+5D_IncW = 1
+# 所有原版容器每次升级增加的行数。与宽度增量相互独立。
+5D_IncH = 1
+# 是否扩容垃圾桶。false=保持原版尺寸。
+6A_Trashcan_Enable = true
+# 垃圾桶网格的目标列数（4-30，超出会被钳制）。只扩大不缩小。
+6A_Trashcan_Width = 12
+# 垃圾桶网格的目标行数（4-30，超出会被钳制）。只扩大不缩小。
+6A_Trashcan_Height = 12
+# 是否扩容档案箱。false=保持原版尺寸。
+6B_Dossier_Enable = true
+# 档案箱网格的目标列数（4-30，超出会被钳制）。只扩大不缩小。
+6B_Dossier_Width = 12
+# 档案箱网格的目标行数（4-30，超出会被钳制）。只扩大不缩小。
+6B_Dossier_Height = 12
+# 是否扩容磁带播放器。false=保持原版尺寸。
+6C_CassettePlayer_Enable = true
+# 磁带播放器两个槽各自的目标列数（4-30，超出会被钳制）。只扩大不缩小。
+6C_CassettePlayer_Width = 8
+# 磁带播放器两个槽各自的目标行数（4-30，超出会被钳制）。只扩大不缩小。
+6C_CassettePlayer_Height = 8
+# true = 输出【全部模块】的诊断日志（基础设施容器扩展 / 主仓库分页 / 容器升级 / 读档仲裁）。一个开关管三家，面板改完立即生效，无需重启。排查问题时才开，正常玩保持 false。
+z1_DiagLog = false
+# true = 启用本 Mod；false = 完全禁用。
+0_EnableMod = true
+# true = 鼠标指到容器上时可用滚轮上下滚动内容；false = 关闭。默认 true。
+9_ScrollEnabled = true
+# 滚轮向下最多能滚几行，可设 0-50。
+9B_ScrollVisibleRows = 4
+# 滚轮向上最多能滚几行，可设 0-50。0 = 不允许向上滚。
+9A_ScrollUpRows = 10
+# true = 主仓库保持游戏原版 24x10 网格，通过分页提供多倍存储空间。默认 true。
+8_SaveBagPagingEnabled = true
+# 主仓库的总页数，范围 1-10。每页 24x10 = 240 格。
+8A_SaveBagPageCount = 2
+# TAB 切页成功后，屏幕提示显示多少秒。默认 1.0，范围 0.1 ~ 5.0。0 = 不显示。
+8B_SaveBagPagingHintDuration = 1.0
+# true = 强制把所有网格填充底画成不透明（黑色格子）。默认 false。
+z2_ShowGrid = false
+# true = 应用下方所有容器的自定义尺寸；false = 所有容器按游戏原版尺寸。
+7_ExpandEnabled = true
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7D_SaveBagWidth = 24
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7D_SaveBagHeight = 20
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7E_ShowcaseInvWidth = 9
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7E_ShowcaseInvHeight = 7
+# （默认值 4x4；游戏原版 2x2）
+7C_HiddenInvWidth = 4
+# （默认值 4x4；游戏原版 2x2）
+7C_HiddenInvHeight = 4
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7A_BackInvWidth = 18
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7A_BackInvHeight = 4
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7B_FrontInvWidth = 18
+# （默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）
+7B_FrontInvHeight = 4
+
+[SuthPerk]
+# 输出天赋注册、贴图加载与结算命中的详细日志。
+DebugLogging = false
+
+["DIY捕鼠夹"]
+Enable = true
+AutoCatchIntervalDays = 1
+AutoCatchChance = 0.10000000149011612
+ExtraLootCount = 2
+ExtraLootChance = 0.10000000149011612
+
+[RealPrinter]
+FeatureCost = 20
+VerboseLog = false
+SupplierStock = true
+EnableF6Give = false
+
+[SecretAdmirerTweaks]
+TriggerChance = 0.5
+TriggerCooldown = 5.0
+EnablePity = true
+GuaranteeT1 = true
+EnableDebugLog = false
+# 自动保存字段
+T3PlusPityCount = 4
+# 自动保存字段
+T4PlusPityCount = 4
+
+["diy aug"]
+# 是否启用此 mod。false 时完全恢复原版行为。
+Enabled = true
+# 每日额外刷新 Aug 的概率（0-100）。100 表示每天必定多刷一个 Aug。
+ExtraVisitChance = 10
+# 每天最多生成的 Aug 数量。原版为 2。
+DailyAugLimit = 2
+# 未击杀的 Aug 在睡觉时是否触发游戏结束。true = 结束游戏（原版）；false = 不结束，仅记录。
+EnableRetaliation = false
+# 是否钳制存在感数值，防止被游戏机制清零或溢出。
+EnablePresenceGuard = true
+# Aug 已引入且未结束时，存在感的最低值。0 表示不保护下限。
+MinimumPresence = 1
+# 困难模式下的存在感最高值。原版为 99。
+HardModeMaxPresence = 99
+# 放走 Aug 时存在感增加量的倍率。1.0 = 原版（+10/+15）。
+PresenceGainMultiplier = 1.0
+# 击杀 Aug 时存在感减少量的倍率。1.0 = 原版（-25/-10）。
+PresenceLossMultiplier = 1.0
+# 是否显示 Aug 实时监控面板。
+AugPanelVisible = false
+# 开关监控面板的按键。
+AugPanelKey = "F4"
+# 面板左上角 X 坐标（拖动后自动保存）。
+AugPanelX = 380.0
+# 面板左上角 Y 坐标（拖动后自动保存）。
+AugPanelY = 20.0
+# 面板宽度（拖动右下角可调整）。
+AugPanelWidth = 280.0
+# 面板高度（拖动右下角可调整）。
+AugPanelHeight = 420.0
+
+[CustomRatPrinter]
+# 打印一次的基准价值（未升级时）
+PrintCost = 1000
+# 升级折扣公式的价值基准（原版瓶装机 800）
+BaseMachineValue = 800
+# 升级能带来的最大打印折扣百分比（0-100）
+MaxDiscountPercent = 50
+# 原版瓶装机为 9（1-99）
+MaxUpgradeLevel = 9
+# 仅供旧档估算升级等级时使用（显示用）
+StandardElectronicValue = 33
+# true = 游戏内按 F7 直接领取一台打印机
+EnableF7Debug = false
+
+[ItemStacking]
+# 单个槽位允许的最大堆叠数量。
+NewStackCap = 10
+# 读档时，把原本恰好叠满旧上限的存量物品补满到新上限。
+FillToCapOnLoad = true
+# 打本 mod 之前游戏的默认堆叠上限，用于识别『之前已叠满』的物品。
+OldStackCap = 10
+# 把一个物品拖到同名物品上即合并堆叠（0.2.0 核心功能）。
+EnableStacking = true
+# 按住 Ctrl 开始拖动 = 拿起整堆；不按 = 只拿 1 个。原生 Shift（10%）/ Alt（1 个）/ 拖起后滚轮微调数量不受影响。
+CtrlDragWholeStack = true
+# 开启后输出堆叠/合并决策的详细诊断日志到控制台，用于排查堆叠异常。默认关闭；开启仅在调试时有用，正常游戏请保持关闭避免刷屏。
+DiagLog = false
+# 0.5.0 起：阻止「有独立状态」的物品被堆叠，避免丢失鉴定/所有权等属性。关闭后黑名单完全失效（恢复到 0.4.1 之前的放任行为，不推荐）。
+StackBlacklist = true
+# 拦截 INSPECTABLE_TAG / APPRAISAL_ITEM 物品的堆叠（等离子、仿生机械手、肋排三明治等）。这些物品鉴定后每个有独立的鉴定结果（真伪/价值/纯度），堆叠合并会丢失、拖出来变默认。
+BlockInspectable = true
+# 拦截 STOLEN_TAG 物品的堆叠。偷来的物品带独立热度值，合并会污染所有权与警察检查判定。
+BlockStolen = true
+# 拦截「已拥有 / 未拥有」状态不同的两件物品堆叠。商人出售的未付款物品若被堆进已拥有堆，除第一个外会变成『已拥有』从而免费拿走 —— 此开关堵住该盗窃漏洞。
+BlockOwnershipMismatch = true
+# 拦截「未拥有」（无 IS_OWNED_TAG）物品参与堆叠。商人商品池/柜台上的未付款商品、场景里还没捡起的物品都算未拥有 —— 它们堆叠会导致『除第一个外免费用』的盗窃漏洞，或商人商品之间被合并。只放行『两件都已拥有』的堆叠。
+BlockUnowned = true
+# 拦截电量（power_source_item_energy tag）不同的两块电池堆叠。电量不同的电池合并后，除第一个外会丢失各自的剩余电量，变成与第一个相同。
+BlockChargeMismatch = true
+# 逗号分隔的容器 id（如 back_inv_save_bag）。语义随 StrictWhitelist 变化：① StrictWhitelist = false（默认）：留空 = 不限范围（全放行）；填了 id 则只有被堆叠到的物品所在容器 id 在白名单内才允许堆叠。② StrictWhitelist = true：只有白名单内才允许堆叠，留空 = 任何容器都不堆叠（严格模式）。
+StackScope = ""
+# 拦截 ANIMAL_ITEM_TAG 物品的堆叠（鼠 / 鸡 / 牛等活体动物）。每个动物个体都有独立的年龄、体重、健康、饥饿、性别、怀孕进度与基因数据，合并会全部丢失。
+BlockAnimal = true
+# 拦截物种为 ANIMAL_RAT 的物品（读 ANIMAL_SPECIES_TAG 的字符串值比对）。注意 ANIMAL_RAT 是物种值不是 tag 键，判据是『物种 == ANIMAL_RAT』而非 IsTag。
+BlockRat = true
+# 方向2：拦截酒瓶（wine_bottle）堆叠。酒瓶有独立填充/容量状态，堆叠会丢失。
+BlockWineBottle = true
+# 方向3：拦截有耐久度的物品（过滤芯、带耐久的工具等）。判据用游戏官方 DurabilityHelper.GetMaxDurability>0，通用覆盖全部耐久物品，不靠枚举 id。
+BlockDurable = true
+# 方向3：拦截液体容器（水瓶/药瓶/血袋/洗发水/酒瓶等）。判据用游戏官方只读 tag LIQUID_CONTAINER_TAG，空瓶与满瓶都拦，覆盖全部液体容器。
+BlockLiquidContainer = true
+# 方向4：逗号分隔的容器 id，这些容器里禁止堆叠（手动配置）。留空 = 不排除任何容器。填容器 identifier（如 back_inv）后，双端判定：被叠物品所在容器 或 拖起方所在容器 命中即拦截堆叠。0.6.3 起不再自动排除交易柜台（柜台用 Alt 快移逐件上架处理）。0.6.5 起本项对【所有】合并路径生效（含 Alt 快移 / Ctrl 快移），不再只拦拖放。
+StackExclude = "back_inv"
+# 0.6.1：逗号分隔的物品 identifier 列表，这些物品禁止被堆叠（用于无通用 tag 的特定物品）。★ 0.6.6：默认改为空 —— 内置的默认拦截项（water_test_strip / water_tablet）已硬编码在代码里，不再写进 cfg。原因：MelonLoader 会把不含引号的逗号分隔值写成非法 TOML（`A = a,b` → 解析报错 → 整份 cfg 进入 Fallback 模式 → 所有 mod 的配置都无法保存！）。本项填写的值请【用引号包起来】，如 BlockItemIds = "foo,bar"。留空 = 不额外拦截（内置项仍生效）。
+BlockItemIds = "water_test_strip,water_tablet"
+# 0.6.1：按住 LeftAlt 操作物品时，把 1 个快移到交易柜台（EmporiumEntry 的库存容器）。仅在交易界面生效（柜台不存在时退化为原生行为）。总闸：关闭后本功能整体失效。与 ContainerSuite 的 LeftAlt 升级拖拽共用 Alt，已确认保留。
+AltClickTransferToCounter = true
+# 0.6.3 起：按住 LeftAlt 对物品『点击』（按下抬起、不移动鼠标）也能快移 —— 原版需要拖动。0.6.4 修正：本条现在是【本 mod 接管 Alt 快移】的总开关，而不是新增一个空操作键位。（旧的 0.6.3 说明写的是『原版 Alt+点击是空操作』，那是误判：原版 Alt+点击本来就会把整堆移进『落点所在窗口』的容器，见下条说明。）关闭后完全交还原生：Alt+点击/拖拽 = 整堆移入落点窗口的容器。
+AltClickOnClickMode = true
+# 0.6.6：开启后，只有当物品所在容器的 id 在 StackScope 白名单内才允许堆叠；StackScope 留空 = 任何容器都不堆叠。用于「除了白名单里的容器 id 以外一律不实现堆叠」。关闭（默认）：StackScope 留空 = 不限范围，堆叠照常。
+StrictWhitelist = false
+# 0.6.5：开启后，交易柜台容器内【任何方式】都不允许堆叠合并 —— 包括鼠标拖放、LeftAlt 快移（本 mod 的逐件上架）、LeftCtrl 快移。柜台里同名物品会各自占一格，不再并成一堆（避免柜台亏钱 / 商品被误合并）。判据用游戏自己的 EmporiumEntry 柜台容器实例（front / back / counter 三格），不靠硬编码 id，游戏改名/换场景也不会静默失效。关闭则柜台恢复可堆叠（0.6.4 及以前的行为）。
+BlockCounterStack = true
+# 0.6.4：按住 LeftAlt 对物品点击/拖拽时，一次转移【几个】。原生行为是整堆（内部把 -1 展开成 unitCount）。本 mod 在原生流程内把源堆预先裁剪成这个数量，因此【只移动这么多个，其余留在原容器】。1 = 逐件上架（默认，配交易柜台最常用）；设成很大的数（如 9999）= 等价原生整堆。仅在『AltClickOnClickMode』与『AltClickTransferToCounter』都开启、且本次确实是Alt 快移时生效。
+AltQuickTransferAmount = 1
+

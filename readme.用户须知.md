@@ -1,0 +1,120 @@
+容器套件 · ContainerSuite
+作者：核桃
+最新版本：1.7.6
+兼容游戏：Probably Stolen 0.46D
+兼容环境：MelonLoader 0.7.4 及以上
+框架：直接基于 MelonLoader，不依赖 PSKit
+
+安装
+把 CustomInfrastructure.dll（只有 1 个文件）放进游戏目录的 Mods/ 文件夹，启动游戏即可。
+
+⚠️ 如果之前用的是 v1.7.2 或更早的 4 个 DLL（CustomInfrastructure.dll / SaveBagExpand.dll / DIYUpgrade.dll / ContainerSuite.Shared.dll），请删除这 4 个旧文件，只放新的 CustomInfrastructure.dll。
+⚠️ Mods\ 里只能有一份本 DLL。不要改名、不要留副本。改名虽通常仍被加载，但 ModManager 面板归属会异常；同时存在原名与改名副本 = 同一程序集加载两次 → 两套补丁抢同一配置必崩。更新请覆盖原文件。
+⚠️ 想临时禁用，请把 DLL 整个移出 Mods/，不要把后缀改成 .bak/.txt/.disabled 留在 Mods/ 里。
+
+做什么
+一个单 DLL 整合套件，几乎可以扩容、分页、升级游戏里的所有容器：
+容器扩容（主仓库/展示柜/海报暗格/柜台/客户柜台）· 主仓库分页（TAB 切页，每页 24×10）· 滚轮滚动 · 容器升级（按住 LeftAlt 拖金属锭）· 拖边改尺寸 · 读档恢复 · 读档页归属自愈 · 基础设施扩容（垃圾桶/档案箱/磁带）· Mod 兼容避让（XIAOWO/蛙哥）· TOML 自检。
+
+热键
+LeftAlt+拖材料  升级容器（默认材料=金属锭）
+TAB             主仓库切页（分页开启且页数>1 时）
+鼠标滚轮        容器窗口上滚动查看
+拖窗口边缘      调整容器大小（未升级过的容器不能拖，防误操作）
+
+重要限制：分页第 2 页不被原版检测
+主仓库分页只扩展"玩家操作空间"，游戏原版只检测第 1 页。第 2 页及以后的内容原版视为不存在，会导致：
+· 机器过夜不工作（不取料、不产出）
+· 治安官查不出赃物/违禁品
+· 博士读不到已购的标签打印机、放大镜、说明书等，可能重复购买
+规避：需要被识别的物品实际放在第 1 页（只按 TAB 切到第 1 页不够）；不想承担风险就关分页 8_SaveBagPagingEnabled=false 保存重启。这不是丢档，是原版检测范围限制，请勿故意利用。
+
+三个避让开关
+若装了「XIAOWO 精工扩舱」或「蛙哥妙妙箱」mod，本 mod 默认做了避让：
+· XIAOWO 的 6 个货舱归本 mod 管
+· 蛙哥妙妙箱归本 mod 管（前提：蛙哥已升满级）
+· 蛙哥虚空珠默认归蛙哥管——保留原版「拖垃圾逐格解锁到 200 格」
+虚空珠想用本 mod 升？按住 LeftAlt 把材料拖到虚空珠上，会永久把虚空珠交给本 mod（蛙哥原版逐格解锁对它失效，无法手动换回）。
+
+cfg [CustomInfrastructure] 段：
+3A_SkipXiaoBay   true  XIAOWO 货舱：本 mod 全权；false=交还 XIAOWO
+3B_SkipWageBox   true  蛙哥妙妙箱：本 mod 全权；false=交还蛙哥
+3C_SkipVoidBead  true  虚空珠：保留蛙哥原机制；false=无条件交本 mod 管
+⚠️ 前两个"关掉=交还对方"，第三个"关掉=本 mod 无条件接管"，语义不同，看清再改。
+⚠️ 只改开关，不要 Unpatch 补丁——开关改完同帧生效，不需重启。
+
+配置项（UserData/MelonPreferences.cfg 的 [CustomInfrastructure] 段，全部功能都在这一段）
+常用开关
+0_EnableMod           开   总开关
+7_ExpandEnabled       开   仓库扩容总开关
+8_SaveBagPagingEnabled 开  主仓库分页
+8A_SaveBagPageCount   2    分页页数（1–10）
+9_ScrollEnabled       开   滚轮滚动
+22_EnableDragResize   开   拖窗口边缘改尺寸
+23_RestoreOnLoad      开   读档后恢复已升级容器尺寸
+z1_DiagLog            关   全套件唯一诊断总开关
+
+升级相关
+21_UpgradeHotkey      LeftAlt  升级修饰键（支持 Ctrl+E 等组合）
+1A_MaterialJunk       关   用垃圾升级
+1B_MaterialScrapMetal 关   用废金属升级
+1C_MaterialMetalIngot 开   用金属锭升级（默认）
+4A_BoxEnable~4E_MultiSlotModuleEnable  各容器类「启用」开关（均默认开）
+5A_ModContainerEnable~5C_WageBackpackEnable  Mod 容器/妙妙箱/虚空珠 启用（均默认开）
+5D_IncW/5D_IncH       1  原版容器每次升级增加的列/行数
+5E_ModIncW/5E_ModIncH 1  Mod 容器每次升级增加的列/行数
+
+基础设施扩容
+6A_Trashcan_*  (宽12 高12) · 6B_Dossier_* (宽12 高12) · 6C_CassettePlayer_* (宽8 高8)
+
+仓库扩容尺寸（默认值，顺序与代码默认值表一致，勿改）
+7D 主仓库 24×10 · 7E 展示柜 9×7 · 7C 海报暗格 4×4 · 7A 柜台 18×4 · 7B 客户柜台 18×4
+⚠️ 本行由构建守卫自动与代码默认值比对；改完保存重启游戏才生效（避让开关除外，同帧生效）。
+
+cfg 自检（v1.7.6）
+启动约 8 秒后检查 cfg 是否有会让 Tomlet 解析抛异常的值；若日志出现 [cfg 自检] ⚠，说明 cfg 有非法 TOML，不修则下次启动 MelonLoader 可能整份载入失败（Fallback），届时所有 mod 配置都无法写盘。常见修法：值整体加引号并转义内层引号；含逗号裸值必须加引号。★ v1.7.8 起本套件不再有「配置保活」——MelonLoader 自带 FileWatcher 已会采纳外部改的 cfg，无需额外汇写轮询。
+
+注意事项
+· 只有一个 DLL，删了就全没了（不是"少一部分"），想关功能请改 cfg 开关，别删 DLL。
+· 不要给 DLL 改名（保持 CustomInfrastructure.dll；改名/改后缀/留副本可能导致面板归属异常、同程序集加载两次、或被忽略等效删除）。想禁用请整个移出 Mods/。
+· 从旧版（4 DLL）升级：关游戏→删 4 个旧文件→放新 DLL。首次启动自动迁移配置，日志出现"配置重排/合并/补齐"正常。
+· 虚空珠移交不可逆：按住 LeftAlt 拖材料到虚空珠=永久移交，蛙哥逐格解锁永久失效，只能开新档或手编存档 tag 恢复。
+· 充能器升级超过 4 个电池格后只绘制前 4 颗电池贴图，容量/充电不受影响（有意为之）。
+· 存档合并丢失警告：分页+扩容组合时总件数超出单网格容量，超出部分不写进存档。屏幕红字+日志 Warning+UserData\SaveBagPaging.mergeloss.txt 明细。预防：主仓库开大、分页总件数不超容量、需识别物品放第 1 页。
+· 备份：第一次使用前建议手动备份存档；升级前备份 UserData\MelonPreferences.cfg。cfg 清理前会自动备份最近 3 份（MelonPreferences.cfg.时间戳.bak）；分页页归属在 UserData\SaveBagPaging.ids。
+
+兼容性
+已支持并避让：XIAOWOTradePerks（内置避让，手柄与升级入口已拦截）· WagePerks/蛙哥 mod（妙妙箱满级后主权移交本 mod，虚空珠默认归蛙哥）。
+请勿同时使用：旧版独立 DIYUpgrade.dll/SaveBagExpand.dll/ContainerSuite.Shared.dll · XIAOWOTradePerks.dll（除非重新验证）· BayExpand.dll · FullMachineUpgrades.dll · AllLargeStorage.dll · InventoryPages.dll（与主仓库分页冲突）。放在 Mods/ 子文件夹里的 mod 不会被加载，是安全的。
+
+排障
+进游戏没反应、日志也看不到 ContainerSuite？
+· 确认 CustomInfrastructure.dll 在 Mods/（不是子文件夹）· 检查 MelonLoader 装没装 · 覆盖升级时旧 4 DLL 清干净没。
+ModManager 里几个条目显示英文名+作者"—"？正常，官方站点未收录完整条目。
+拖金属锭到容器没反应？忘按 LeftAlt / 拖到不支持的容器 / 已升到上限。
+主仓库按 TAB 没反应？分页没开(8_SaveBagPagingEnabled=false) / 页数只设 1(8A_SaveBagPageCount≥2) / 正拖东西。
+拖窗口边缘看不到手柄？手柄隐形，鼠标移边缘光标变箭头即对；容器升级次数=0 时手柄不出现，先升一次级。
+ModManager 改配置退出重进恢复默认？看 [cfg 自检] 是否报 ⚠（非法 TOML 会让所有 mod 配置无法写盘）；外部改的 cfg 由 MelonLoader 自带 FileWatcher 自动采纳，本套件不额外汇写。
+读档后第二页物品显示在第一页？v1.7.6 起自动自愈（读档后 6s 每 0.2s 校正+切页前校正）；若仍出现开 z1_DiagLog=true 搜 [SaveBagExpand] 页归属自愈。
+存档时屏幕红字"N 件没写进存档"？分页总件数超单网格容量，扩大主仓库/减页数/减总件数/重要物品放第 1 页。
+机器过夜不工作/治安官查不到赃物/博士能重复买打印机？物品是否在主仓库第 2 页及以后，移回第 1 页或关分页。
+和蛙哥/XIAOWO 一起用某些容器升级没反应？避让机制在起作用，开 z1_DiagLog=true 看详情。
+充能器超 4 颗电池只显示前 4 颗？有意为之。
+看日志（游戏目录 MelonLoader/Latest.log，行首带 [CustomInfrastructure] 前缀）：
+ContainerSuite v1.7.6（基础设施 v1.2.2 / 扩容仓库 v1.3.2 / 容器升级 v1.8.2 / 共享库 v1.0.0）
+Patch 汇总：N 个方法已挂补丁 ✓ · 已避让 XIAOWOTradePerks (7/7) · Wage 避让：14/14 成功
+[配置重排] 已把 N/M 个旧键名的值搬到新键名 · [配置合并] 诊断日志开关已合并为总开关 DiagLog
+[配置补齐] 已把代码默认新增的物品ID追加进 N 个白名单：MultiSlotModuleIds 追加 1 个ID（bottle_printer）
+[cfg 自检] MelonPreferences.cfg TOML 终态合法性检查通过
+[SaveBagExpand] 页归属自愈：N 件物品已从当前页移回各自的页 · [容器升级] xxx 升级第 N 次：WxH → WxH
+如果一行都没有，说明 DLL 没进 Mods/ 或加载失败。
+
+升级要点
+v1.7.5→v1.7.6：水瓶打印机(bottle_printer)加入「机器模组槽」白名单——按住 LeftAlt 拖金属锭到打印机可升产出格；老玩家首次启动自动追加进 MultiSlotModuleIds（只追加不删）；顺带去 CageIds 冗余 Rat_Cage。读档页归属自愈；TOML 自检。实测蛙哥1.3.2+XIAOWO 同启跑通，产出格 2×4→3×5→4×6→5×7→6×8。
+v1.7.4→v1.7.5：删 8 个每槽独立开关（容器启用=所有格一起升）；充能器贴图钳制（只显示前 4 颗）；可见条目 77→69。
+v1.7.3→v1.7.4：配置键名加域号前缀（77 个面板可见键，8 个 *Ids 不改名），面板按功能域聚拢。
+v1.7.2→v1.7.3：新增 3 个避让开关(3A/3B/3C)；修 XIAOWO 拖拽手柄叠加+网格残留。
+
+反馈渠道
+QQ 群：@夏月的核桃 · Nico wiki：https://probably-stolen.nicokobo.com/zh/mods
+反馈请提供：游戏版本 · MelonLoader 版本 · 完整 Latest.log · 具体描述（做了什么/期望/实际）· 装了 XIAOWO/蛙哥也说明版本。

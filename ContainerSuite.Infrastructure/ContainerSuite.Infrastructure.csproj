@@ -1,0 +1,108 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       ContainerSuite —— 2026-10-06 起合并为单 DLL。
+
+       合并前是 4 个工程 / 4 个 DLL（ContainerSuite.Shared / CustomInfrastructure /
+       SaveBagExpand / DIYUpgrade）。合并的动机不是"少 3 个文件"，而是：
+         ① 消除"缺 1 个 DLL → 套件全崩"的部署故障面；
+         ② 消除 4 处 AssemblyVersion 同步漂移（check-suite-version.ps1 的存在即证据）；
+         ③ 用户升级只需覆盖 1 个文件，不会出现 4 个版本错配。
+
+       本工程现在是**唯一**的编译入口：源码仍留在原 4 个目录里（文件一个都没动，
+       git 历史 / 现有文件的路径引用全部保留），由下面的 <Compile Include> 拉进来编译。
+       另外 3 个 csproj 已改名为 *.csproj.disabled，避免出现第二个产出。
+
+       合并必须连带完成的 3 件事（都已在源码里做完，这里只作记录）：
+         B3  4 份 AssemblyInfo.cs → 1 份（否则 CS0579）
+         B1  mod.cs / DiyUpgradeMod.Core.cs 的"按程序集扫补丁" → 按命名空间过滤
+             （否则同一目标被两个 Harmony ID 各装一遍，Postfix 跑两遍）
+         B2  3 个 MelonPreferences 段 → 1 个 CustomInfrastructure 段
+             （ModManager 归属规则只看 DLL 文件名，见 ManagerState.CategoryBelongsToMod）
+
+       公共属性（游戏路径 / TargetFramework / 输出路径）在 ..\_shared\CommonMod.props。
+       ═══════════════════════════════════════════════════════════════════ -->
+
+  <Import Project="..\_shared\CommonMod.props" />
+
+  <PropertyGroup>
+    <AssemblyName>CustomInfrastructure</AssemblyName>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <RootNamespace>CustomInfrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <!-- ── 源码：本工程自己的 + 另外 3 个目录的（bin/obj 排除） ── -->
+  <ItemGroup>
+    <Compile Include="..\ContainerSuite.Shared\**\*.cs"
+             Exclude="..\ContainerSuite.Shared\bin\**;..\ContainerSuite.Shared\obj\**" />
+    <Compile Include="..\ContainerSuite.SaveBag\**\*.cs"
+             Exclude="..\ContainerSuite.SaveBag\bin\**;..\ContainerSuite.SaveBag\obj\**" />
+    <Compile Include="..\ContainerSuite.DIYUpgrade\**\*.cs"
+             Exclude="..\ContainerSuite.DIYUpgrade\bin\**;..\ContainerSuite.DIYUpgrade\obj\**" />
+  </ItemGroup>
+
+  <!-- ── 引用：4 个原工程的并集。全部 Private=False，绝不把依赖拷进输出目录 ── -->
+  <ItemGroup>
+    <Reference Include="MelonLoader">
+      <HintPath>$(MLNet)\MelonLoader.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(MLNet)\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(MLNet)\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Common">
+      <HintPath>$(MLNet)\Il2CppInterop.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.HarmonySupport">
+      <HintPath>$(MLNet)\Il2CppInterop.HarmonySupport.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(MLIl2Cpp)\Il2Cppmscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(MLIl2Cpp)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- GridFx / Tooltip / 拖拽 都用到 UI -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- 分页 OnGUI：GUIStyle / GUI / FontStyle / TextAnchor -->
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- 键盘输入：TAB 翻页 / 快捷键 -->
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- DIY 的窗口音效 -->
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>$(MLIl2Cpp)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
