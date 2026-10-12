@@ -40,7 +40,7 @@ if (-not $Root)     { $Root = Split-Path -Parent $PSScriptRoot }
 if (-not $Checks)   { $Checks = Join-Path $PSScriptRoot 'checks.json' }
 $outDir = Join-Path $Root '_regress\out'
 if (-not $GamePath) { $GamePath = Get-GamePath -Root $Root }
-if (-not $GamePath) { throw 'GamePath not found (pass -GamePath or set _shared\CommonMod.props).' }
+if (-not $GamePath) { throw 'GamePath not found (pass -GamePath, or set it in ContainerSuite.Infrastructure.csproj).' }
 if (-not $LogPath)  { $LogPath = Get-LogPath -GamePath $GamePath }
 
 function Say([string]$m) { if (-not $Quiet) { Write-Host $m } }

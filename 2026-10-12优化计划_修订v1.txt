@@ -1,0 +1,881 @@
+ContainerSuite 优化方案 · AI 执行版 · 修订 v1（2026-10-12）
+================================================================================
+本修订版基于对 2026-10-12优化计划.txt 全部锚点的逐条代码核对（核对基准：
+D:/games/open code work/ContainerSuite 源码树，单工程单 DLL：CustomInfrastructure，
+net6.0）。每条任务的「原文本」锚点均已实测存在，位置以行号标注。
+
+================================================================================
+一、修订总览（判定表）
+================================================================================
+
+| 任务 | 判定 | 一句话理由 |
+|------|------|-----------|
+| A-1 Expel 失败不登记 | ✅ 采纳（原样） | 锚点属实（SaveBagPaging.cs:694-698），逻辑正确，失败留下次自愈 |
+| A-2 读档清 DIY 缓存 | ✅ 采纳但收窄 | ClearAll 会连带清 _offsetCache（进程内稳定），白跑反射解析还落在恢复深栈；删冗余的显式 ClearRestoreMemo |
+| B-2 TagSystem 自校验 | ✅ 采纳（原样） | 锚点属实；机制级信任耦合（IsDistrusted）判断正确，正常路径行为不变 |
+| B-3 GroupDrag 存活校验 | ❌ 否决原方案 → B-3' | id 查表会升级错容器；「指针漂移」校验是恒真式；AV 前提不成立 |
+| C-1 删空操作 Prefix | ✅ 采纳（更正 3 处描述） | 锚点属实、行为中性；MustWarmLeaves 无需改、README #13 不存在、RefBoolArgs 删 / PlainArgs 留 |
+| C-2 日志去重不 Trim | ✅ 采纳（含连坐 DiagOnce） | 锚点属实；C-4 与该方法同段，合并执行 |
+| D-1 cfg 上限提示 | ✅ 采纳（补措辞） | 锚点属实；注意 w/h 是 clamp 后的值，日志文案据此校正 |
+| D-2 组拖进度提示 | ✅ 采纳（改挂载点） | 不走 SaveBagExpandCore.DrawGUI（SBE 的方法不该画 DIY 状态），改挂 Infrastructure Mod.OnGUI |
+| B-1 僵尸手柄默认开 | ⛔ 维持批次 4 门禁 | 熄火式清扫尚未 A/B 复验，默认值保持 false（Core.cs:90-97 有完整证据链） |
+
+新增两条环境备注（见「执行规约」）：门禁脚本缺失、两处源码树已分叉。
+
+================================================================================
+二、关键事实更正（影响后续所有判断，先读）
+================================================================================
+
+1. 【B-3 前提错误】DirectoryMaster.Item(identifier) 不保证返回玩家操作的那一个实例。
+   PSKit API 存档（build/api/api.md）：「static GameItem Item(string identifier,
+   bool isOwned = true)」；pskit-store-client/references/tag-scanner.cs:46 注明
+   isOwned=false 为「模板物品」。场上存在两个同型容器时（两个 storage_bay 很常见），
+   按标识符查表可能解析到另一个实例 → 协程会升级错容器、吞错材料。
+   原 B-3 说「材料无法用 id 查表」只对一半：identifier 是类型级字符串，
+   每实例 id 是 uniqueId（MetaKey = id#uniqueId，见 Meta.cs:98-108）。
+
+2. 【B-3 校验无效】Il2CppObjectBase.Pointer 就是包装器里存的那个指针，
+   「持有快照对象 + 比对 Pointer」是恒真式，永远不可能触发。
+   RestoreArbiter.cs:228 的同款检查同理，真正有信号的是 item.state == null。
+   照抄它等于加一个看着活着、永远不响的检查 —— 正是要避免的静默失效。
+
+3. 【B-3 AV 前提不成立】Marshal.ReadIntPtr 读已释放但未解映射的 IL2CPP 堆
+   不会抛 AccessViolation；真实危害是地址复用后操作到别的物品上。
+
+4. 【C-1 过时描述】MustWarmLeaves（Restore.cs:606-616）只覆盖 [JitWarmup]
+   声明的叶子；7 个入口 Prefix 是 Patch() 里手动 WarmupRegistry.Register 的，
+   删调用即自动注销，MustWarmLeaves 无需改动。回归也不锁预热数量
+   （jit.warm.text 只查「预热完成」存在性）。
+
+5. 【C-1 过时描述】当前 README.md.txt 里没有「#13」也没有「入口层 7 个 Prefix」
+   （这些说法在 _archive 的旧 README 里）。真正要更新的是
+   readme.用户须知.md:105 的示例日志「Wage 避让：14/14 成功」→ 改 7/7。
+   _regress/checks.json 的 wage.avoid.text 是 N/N 两数相等判定，无需改。
+
+6. 【环境】_shared\check-forbidden.ps1（R1~R6 门禁，含 R6「Cache/Seen 字段
+   必须登记」）在本工作区不存在，D:/games 下也搜不到。计划里的「门禁」步骤
+   目前跑不了，需先恢复该脚本，否则 R6 无编译期看守（新增缓存漏登记不会被拦）。
+
+7. 【环境】D:/games/mod调试/ContainerSuite.* 是旧版源码树（缺 S8u-4 旁路存档、
+   S9 页归属自愈等，与 open code work 树已大幅分叉）。所有改动只针对
+   D:/games/open code work/ContainerSuite，不要改错树。
+
+================================================================================
+三、执行规约（更新）
+================================================================================
+yaml
+项目: ContainerSuite (单 DLL: CustomInfrastructure, 单工程 ContainerSuite.Infrastructure)
+目标框架: net6.0
+构建: dotnet build -c Release（0 error 0 warning 才算过）
+门禁: _shared\check-forbidden.ps1   ← 本工作区缺失，见「关键事实更正」#6；
+      恢复前降级为：人工 grep 禁项（见各任务「禁止」段）
+回归: _regress\regress.ps1 -Launch（需装蛙哥才能测 wage.avoid；未装时为 NA）
+源码树: 只改 D:/games/open code work/ContainerSuite（见 #7）
+
+全局禁止（沿用，另补一条）:
+  - 引入新的 [HarmonyPatch] 类特性（会与现有命名空间过滤冲突）
+  - 修改任何以 "// ★" 或 "// ═══" 标记的注释块内的语义描述（可追加，不可删改）
+  - 在非 DIAG 构建里引用 R1Probe / ResizeDiag / _r1Probe / _resizeDiag
+  - 修改 CacheLimits.Large / Medium / Small 的数值
+  - 修改 OffsetResolver 的 DllImport 签名
+  - 【新增】跨帧持有 IL2CPP 对象包装器（GroupDrag.cs 文件头 R4 教训；
+    B-3 的解法是存「指针+uniqueId」，不是存对象）
+
+全局前置（沿用）:
+  - 确认所有改动文件已在 git 干净提交（便于 revert）
+  - 每次改动后必须能 dotnet build 通过，否则立即 revert
+
+================================================================================
+TASK-A1 · Expel 失败不登记
+================================================================================
+yaml
+id: A-1
+优先级: P0
+文件: ContainerSuite.SaveBag/SaveBagPaging.cs
+方法: EnsureGridOwnershipClean()  锚点行号: 694-698
+前置依赖: 无
+
+改动:
+  type: replace_block
+  原文本（694-698 行，逐字核实一致）: |
+    try { buf[0] = slot.Item; _expelMi.Invoke(_mainGrid, buf); } catch (Exception ex) { CatchLogOnce.Warn("paging.EnsureOwnership.Expel", ex); }
+    _storages[page].Add(slot);
+    _pageIds[_currentPage].Remove(uid);   // 清掉可能存在的误登记
+    _pageIds[page].Add(uid);
+    moved++;
+  新文本: |
+    bool expelled = false;
+    try { buf[0] = slot.Item; _expelMi.Invoke(_mainGrid, buf); expelled = true; }
+    catch (Exception ex) { CatchLogOnce.Warn("paging.EnsureOwnership.Expel", ex); }
+    if (!expelled) continue;   // A-1：没移走就不登记（否则页表与网格不一致，存档合并会重复 Place）
+
+    _storages[page].Add(slot);
+    _pageIds[_currentPage].Remove(uid);   // 清掉可能存在的误登记
+    _pageIds[page].Add(uid);
+    moved++;
+
+注释要求: 在 `if (!expelled)` 行尾加行内注释（如上）
+
+后置条件:
+  - moved 只统计真正被移走的件数
+  - Expel 失败时 _storages / _pageIds 与网格保持一致；该 uid 仍留在外页登记表里，
+    下一次 EnsureGridOwnershipClean 会重试（自愈，符合方法「幂等可重入」的设计）
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 人工: grep "if (!expelled)" 应命中 1 处
+  - 回归: [REG] sbe.reconcile 的 moved= 与 SaveBagPaging.ids 条目数一致
+
+禁止:
+  - 修改 moved 变量的类型或初始化位置
+  - 删除 CatchLogOnce.Warn 调用
+  - 顺手给 CG_ExpelLoop（870-892 行）加同类逻辑 —— 那条路径不碰页表，无此 bug
+
+================================================================================
+TASK-A2 · 读档清 DIY 缓存（修订：收窄清空范围）
+================================================================================
+yaml
+id: A-2
+优先级: P0
+文件:
+  - ContainerSuite.Shared/CacheRegistry.cs        （新增 ClearForLoadGame）
+  - ContainerSuite.DIYUpgrade/DiyUpgradeMod.Core.cs（RegisterSceneCaches 加一个参数）
+  - ContainerSuite.DIYUpgrade/DiyUpgradeMod.Patches.cs（LoadGameRestorePatch.Postfix）
+方法: LoadGameRestorePatch.Postfix()
+锚点行号: Patches.cs:493-495（SaveSlotScope.Invalidate 与 MelonCoroutines.Start 之间）
+前置依赖: 无
+
+为什么要收窄（原计划用 CacheRegistry.ClearAll() 的问题）:
+  ClearAll 会连 _offsetCache 一起清（Core.cs:192 登记）。_offsetCache 的键是
+  type|fallback|candidates（OffsetResolver.cs:56-57），进程内与存档无关、恒定有效；
+  清它零收益，代价是读档后首次 FieldOffset 重新走 FindOffsetField 反射
+  （遍历 GameItem 全部静态 NativeFieldInfoPtr_* 字段）—— 而读档后第一个可能
+  触发的调用点就在恢复深栈上（Meta.LoadMeta 路径），正是 2026-10-10 读档闪退
+  修复（Patches.cs:596-605 注释）想避免的「深栈上首次执行」类操作。
+  另外：显式再调一次 ClearRestoreMemo() 是冗余 —— _restoreMemo 已登记
+  （Core.cs:187），ClearAll/ClearForLoadGame 都覆盖它。
+
+子任务 A-2a (CacheRegistry.cs):
+  改动:
+    type: replace_block
+    原文本: |
+      public static void Register(string fieldName, Action clear)
+      {
+          if (clear == null) return;
+          if (string.IsNullOrEmpty(fieldName)) fieldName = "(unnamed)";
+          if (!_names.Add(fieldName)) return;
+          _clearers.Add(clear);
+      }
+    新文本: |
+      public static void Register(string fieldName, Action clear, bool survivesLoadGame = false)
+      {
+          if (clear == null) return;
+          if (string.IsNullOrEmpty(fieldName)) fieldName = "(unnamed)";
+          if (!_names.Add(fieldName)) return;
+          _clearers.Add(clear);
+          // A-2（2026-10-12）：survivesLoadGame=true 的项只进场景清空表，
+          // 不进读档清空表。目前唯一使用者是 _offsetCache（键是 type|候选名，
+          // 进程内稳定，读档清了只会让恢复深栈白跑一次反射解析）。
+          if (!survivesLoadGame) _loadGameClearers.Add(clear);
+      }
+
+  改动:
+    type: insert_after
+    位置: ClearAll() 方法之后
+    插入文本: |
+      /// <summary>
+      /// A-2（2026-10-12）：读档专用清空 —— 与 ClearAll 的差别仅在于跳过
+      /// survivesLoadGame=true 的登记项（当前只有 _offsetCache）。
+      /// <para>
+      /// 语义：读档 = 换了一套世界内容，所有以「物品指针 / uniqueId」为键的
+      /// 缓存全部失效；但「类型 / 字段名」为键的解析缓存在同一进程内仍然有效。
+      /// 场景切换（OnSceneLoaded）仍走 ClearAll 全清，行为不变。
+      /// </para>
+      /// </summary>
+      public static void ClearForLoadGame()
+      {
+          for (int i = 0; i < _loadGameClearers.Count; i++)
+          {
+              try { _loadGameClearers[i](); }
+              catch (Exception ex) { CatchLogOnce.Warn("CacheRegistry.ClearForLoadGame", ex); }
+          }
+      }
+
+  连带改动:
+    - 新增字段 `private static readonly List<Action> _loadGameClearers = new List<Action>();`
+      （放在 _clearers 旁边，保持既有风格）
+
+子任务 A-2b (DiyUpgradeMod.Core.cs / RegisterSceneCaches):
+  改动:
+    type: replace_line
+    原文本: CacheRegistry.Register("_offsetCache", OffsetResolver.ClearCache);
+    新文本: |
+      // A-2（2026-10-12）：读档时 survive —— 键是 type|候选名，与存档无关。
+      CacheRegistry.Register("_offsetCache", OffsetResolver.ClearCache, survivesLoadGame: true);
+  其余 12 行登记不动（含 _lastLogTimeByKey / _diagSeen —— 换档 = 新会话，
+  日志去重集合一并重置，与 OnSceneWasLoaded 里 CatchLogOnce.Clear() 同哲学）。
+
+子任务 A-2c (DiyUpgradeMod.Patches.cs / LoadGameRestorePatch.Postfix):
+  改动:
+    type: insert_between
+    位置: SaveSlotScope.Invalidate() 之后, MelonCoroutines.Start() 之前
+    插入文本: |
+      // ★ A-2（2026-10-12）：读档 = 换存档内容，所有以「物品指针/uid」为键的缓存必须失效。
+      //   _metaCache 的 key 是 id#uniqueId，而 uniqueId 跨存档会重复（存档 A 的 uid=5
+      //   与存档 B 的 uid=5 是不同物品）—— 读档不触发场景切换时，OnSceneLoaded 的
+      //   CacheRegistry.ClearAll() 不会跑，于是 A 档的元数据会污染 B 档同 uid 容器。
+      //   症状：tooltip 显示错误的"升级 N 次"、恢复链按错误 base 算目标尺寸。
+      //   ★ 与 OnSceneLoaded 的三处有意差异（不要"顺手对齐"）：
+      //     ① 不清 _offsetCache —— 类型键、进程内稳定；清了只会让恢复深栈上的首次
+      //        FieldOffset 白跑一次反射解析（2026-10-10 读档闪退修复要避免的正是这类操作）。
+      //     ② 不 ResetDistrust / 不清 _cachedIdOffset —— distrust 是进程级证据，
+      //        读档不翻案；同一进程内偏移不会变。
+      //     ③ 不碰 WageContainerRegistry._diyVoidBeadGrids —— 见下。
+      //   _restoreMemo 不用显式清：它已登记在 CacheRegistry（Core.cs），本调用覆盖。
+      try { CacheRegistry.ClearForLoadGame(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:loadgame-clear-caches", ex); }
+
+后置条件:
+  - LoadGame 后 _metaCache / _peakCache / _restoreMemo / _prepareCache / _ggiCache /
+    _resizableCache / _redrawPending / _lastHideBounds / _lastReapplyFromMetaTime /
+    _lastLogTimeByKey / _diagSeen 均为空；_offsetCache 保持不清
+  - 场景切换路径行为完全不变（OnSceneLoaded 仍走 CacheRegistry.ClearAll 全清 +
+    ResetDistrust + _cachedIdOffset=-1，一行不动）
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 人工: A/B 双档来回切 3 次，同一容器（uid 相同）的 tooltip "升级 N 次" 与当前档一致
+  - 人工: 读档后日志无新增「偏移自检」告警（_offsetCache 未清的副作用检查）
+  - 回归: regress.ps1 全 PASS
+
+禁止:
+  - 改回 CacheRegistry.ClearAll()（把 _offsetCache 拖进读档路径）
+  - 修改 MetaKey() 的格式（会连带影响 LoadMeta/SaveMeta 一致性）
+  - 依赖 SaveSlotScope.GetCurrent()（有 1.5s 缓存，跨档瞬间可能读到旧槽号）
+  - 删除 try/catch（外层保留为防御）
+  - 在读档路径里清 _diyVoidBeadGrids —— 已评估， deliberately NOT doing：
+    该集合只在 HandOverVoidBead / OnVoidBeadUpgraded / MigrateLegacy* 里登记，
+    而「已移交」的珠子（tag 持久化）在读档后 HandOverVoidBead 会幂等返回、
+    MigrateLegacy* 又要求 !HasDiyMigrated —— 清了之后整个会话都不会重新登记，
+    已移交珠子将失去对蛙哥 ApplyLockedShape 的拦截（真实回归）。
+    不清的代价仅限：地址复用导致对「本就没移交的珠子」误拦一次蛙哥锁形（轻微）。
+
+================================================================================
+TASK-B2 · TagSystemFieldNull 自校验
+================================================================================
+yaml
+id: B-2
+优先级: P1
+文件:
+  - ContainerSuite.DIYUpgrade/DiyUpgradeMod.Utils.cs   锚点行号: 174-179
+  - ContainerSuite.Shared/OffsetResolver.cs            锚点行号: 78-82
+前置依赖: 无
+
+子任务 B-2a (DiyUpgradeMod.Utils.cs):
+  方法: TagSystemFieldNull()
+  改动:
+    type: replace_block
+    原文本（174-179 行，逐字核实一致）: |
+      private static bool TagSystemFieldNull(GameItem item) =>
+          PtrFieldNull(item, OffsetResolver.FieldOffset(
+              typeof(GameItem),
+              new string[] { "state", "tagSystem" },
+              Off.TagSystem,
+              apply: false));
+    新文本: |
+      // ★ B-2（2026-10-12）：apply 从 false 改为跟随 distrust 状态。
+      //   原实现永远用硬编码 432，游戏更新改了 state 偏移后会读到别的字段，
+      //   导致 tag 系统判据失效 → 容器升级静默失效（最忌讳的一类故障）。
+      //   state 与 identifier 共用同一套 NativeFieldInfoPtr_* 反射机制，
+      //   IdOffset 的 IsID 自校验通过 ⇒ 机制可信 ⇒ state 也可信。
+      //   故：机制未失信时采用解析值；被标失信时回退硬编码（与 IdOffset 一致）。
+      private static bool TagSystemFieldNull(GameItem item) =>
+          PtrFieldNull(item, OffsetResolver.FieldOffset(
+              typeof(GameItem),
+              new string[] { "state" },   // B-2：删掉 "tagSystem" 候选（游戏里字段名就是 state）
+              Off.TagSystem,
+              apply: !OffsetResolver.IsDistrusted))
+
+子任务 B-2b (OffsetResolver.cs):
+  方法: FieldOffset()
+  改动:
+    type: replace_block
+    原文本: |
+      if (resolved != fallback && apply)
+    新文本: |
+      // ★ B-2（2026-10-12）：apply=false 时也报警 —— 只报告不采用的分支同样重要，
+      //   否则游戏更新后硬编码过期没人知道。
+      if (resolved != fallback)
+  连带改动: |
+    同一 if 块内的日志文本，把 "，已采用" 改为条件表达式：
+    (apply ? "，已采用" : "，未采用（apply=false）")
+
+补充说明（执行者须知，不是改动）:
+  - 失信路径（FieldOffset 第 51 行早退 return fallback）根本走不到新日志段，
+    所以「未采用」告警目前是休眠分支 —— 留着防未来新增 apply=false 调用方。
+  - TagSystemFieldNull 的调用方（Meta.cs:178/236 存取、Patches.cs:336 tooltip、
+    Upgrade.cs:180 升级准备）都不是每帧每物品路径，每次调用多拼一次 cache key
+    字符串可接受，不引入 _cachedTagSystemOffset。若将来它上了每帧路径，再加缓存。
+
+后置条件:
+  - 机制可信时 state 偏移走解析值；失信时回退硬编码 432（= 原行为）
+  - 解析值与硬编码不一致时无条件告警（无论 apply 真假）
+  - 游戏未更新时 resolved == fallback == 432，无告警、行为零变化
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 回归: [REG.BP] offset.GameItem.432 的 resolved= 与 applied= 一致（机制可信时）
+  - 人工: 若游戏未更新，无「偏移自检」新告警
+
+禁止:
+  - 把 "tagSystem" 候选加回来
+  - 修改 Off.TagSystem 的数值（432）
+  - 在 B-2a 里直接调 OffsetResolver.MarkDistrusted（会与 IdOffset 的自校验打架）
+
+================================================================================
+TASK-B3 · GroupDrag 存活校验（否决原方案，替换为 B-3'）
+================================================================================
+yaml
+id: B-3'
+优先级: P1
+文件: ContainerSuite.DIYUpgrade/DiyUpgradeMod.GroupDrag.cs
+方法: SnapshotGroupDragMaterials() / ArmGroupUpgrade() / RunGroupUpgrade() / ResetGroupDragState()
+锚点行号: Snapshot 91-131；Arm 146-207；Run 256-332；Reset 在 Core.cs:236-244
+前置依赖: 无
+
+原方案被否决的原因（执行前必读，防止"顺手改回去"）:
+  ① 按 id 查表会升级错容器：DirectoryMaster.Item(identifier) 返回的是"按标识符
+     可拥有的实例/模板"，不保证是玩家拖落的那一个；两个同型容器在场上时，
+     协程可能对着另一个容器吞材料。指针才是"拖落了什么"的唯一事实。
+  ② 「持有 GameItem 快照 + 比对 Pointer」是恒真式：Il2CppObjectBase.Pointer 就是
+     包装器存的指针，快照对象与 materialPtrs[i] 必然相等，检查永远不响。
+     （RestoreArbiter.cs:228 同款检查同理，真正有信号的是 state == null。）
+  ③ AV 前提不成立：读已释放但未解映射的 IL2CPP 堆不抛 AccessViolation；
+     真实危害是地址复用后操作到别的物品。
+  ④ 跨帧持有包装器违反本文件头 R4 教训（"存指针而非 GameItem 对象"）。
+
+B-3' 的思路（最小修订，10 行量级）:
+  快照时在活对象上读一次 uniqueId（每实例 id，浅栈、安全），执行时每步
+  「new GameItem(ptr) → 比对 uniqueId」—— 地址被复用成别的物品时 uid 必然
+  不同，直接跳过/中止。不持对象、不改签名语义、不动文件头 doctrine。
+
+子任务 B-3'a（快照字段与收集）:
+  改动:
+    type: replace_block
+    原文本: |
+      /// <summary>
+      /// StartGroupDrag 时快照的"被框选材料的指针"。★ 存指针而非 GameItem 对象：
+      /// 组拖可能持续数秒，跨帧持有 IL2CPP 对象有悬垂指针风险（R4）；
+      /// 执行时用指针重新 new GameItem 并做存活校验。
+      /// </summary>
+      private static readonly List<IntPtr> _groupDragMaterialPtrs = new List<IntPtr>();
+    新文本: |
+      /// <summary>
+      /// StartGroupDrag 时快照的"被框选材料（指针 + uniqueId）"。
+      /// ★ 存指针而非 GameItem 对象：组拖可能持续数秒，跨帧持有 IL2CPP 对象有
+      ///   悬垂指针风险（R4）；执行时用指针重新 new GameItem 并做存活校验。
+      /// ★ B-3'（2026-10-12）为什么结对 uniqueId：裸指针跨帧的有效性无法自证 ——
+      ///   IL2CPP 分配器复用地址时，new GameItem(ptr) 会包装到另一个物品上，
+      ///   此时 IdFieldNull 反而能通过（新对象有合法 identifier）→ 会吞错材料。
+      ///   uniqueId 是每实例 id：快照时在活对象上读一次（浅栈、安全），
+      ///   每步比对即可识别"这个地址已经变成别人的了"。
+      ///   否决了按标识符查表的方案：identifier 是类型级字符串，
+      ///   DirectoryMaster.Item(id) 不保证返回玩家拖落的那一个实例。
+      /// </summary>
+      private static readonly List<(IntPtr Ptr, long Uid)> _groupDragMaterials = new List<(IntPtr, long)>();
+
+  连带改动（SnapshotGroupDragMaterials 内）:
+    原文本: |
+      IntPtr p = IntPtr.Zero;
+      try { p = ((Il2CppObjectBase)gi).Pointer; } catch { continue; }
+      if (p != IntPtr.Zero) _groupDragMaterialPtrs.Add(p);
+    新文本: |
+      IntPtr p = IntPtr.Zero;
+      long uid = 0L;
+      try { p = ((Il2CppObjectBase)gi).Pointer; uid = gi.uniqueId; } catch { continue; }
+      if (p != IntPtr.Zero && uid != 0L) _groupDragMaterials.Add((p, uid));
+
+  连带改动（同一方法内其余引用）:
+    - 方法开头的 `_groupDragMaterialPtrs.Clear();` → `_groupDragMaterials.Clear();`
+    - `if (_groupDragMaterialPtrs.Count > 0)` / `.Count + " 堆材料"` 同步改名
+
+子任务 B-3'b（ArmGroupUpgrade 尾部传参）:
+  改动:
+    type: replace_block
+    原文本: |
+      // 快照成独立数组交给协程（协程里不再引用这两个列表）
+      IntPtr[] ptrs = _groupDragMaterialPtrs.ToArray();
+      _groupDragMaterialPtrs.Clear();
+      if (ptrs.Length == 0) return;
+    新文本: |
+      // 快照成独立数组交给协程（协程里不再引用这个列表）
+      var mats = _groupDragMaterials.ToArray();
+      _groupDragMaterials.Clear();
+      if (mats.Length == 0) return;
+
+  改动:
+    type: replace_block
+    原文本: |
+      IntPtr containerPtr = IntPtr.Zero;
+      try { containerPtr = ((Il2CppObjectBase)container).Pointer; } catch { return; }
+      if (containerPtr == IntPtr.Zero) return;
+
+      try { MelonCoroutines.Start(RunGroupUpgrade(containerPtr, ptrs)); }
+      catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:start-coroutine", ex); }
+    新文本: |
+      // ★ B-3'（2026-10-12）：容器同样按「指针 + uniqueId」交给协程。
+      //   指针 = 玩家实际拖落的那一个（唯一事实）；uniqueId = 跨帧存活判据。
+      IntPtr containerPtr = IntPtr.Zero;
+      long containerUid = 0L;
+      try { containerPtr = ((Il2CppObjectBase)container).Pointer; containerUid = container.uniqueId; }
+      catch { return; }
+      if (containerPtr == IntPtr.Zero || containerUid == 0L) return;
+
+      try { MelonCoroutines.Start(RunGroupUpgrade(containerPtr, containerUid, mats)); }
+      catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:start-coroutine", ex); }
+
+  连带改动: ArmGroupUpgrade 里另外两处 `_groupDragMaterialPtrs.Clear();`
+    （150-155 行的四个早退分支、catch 里的兜底）→ `_groupDragMaterials.Clear();`
+
+子任务 B-3'c（RunGroupUpgrade 签名 + 每步双验）:
+  改动:
+    type: replace_signature
+    原签名: private static IEnumerator RunGroupUpgrade(IntPtr containerPtr, IntPtr[] materialPtrs)
+    新签名: private static IEnumerator RunGroupUpgrade(IntPtr containerPtr, long containerUid, (IntPtr Ptr, long Uid)[] materials)
+
+  改动:
+    type: replace_block
+    原文本: |
+      // 重解析容器，存活校验
+      GameItem container = null;
+      try { container = new GameItem(containerPtr); } catch { break; }
+      if (container == null || IdFieldNull(container)) break;
+    新文本: |
+      // 重解析容器，存活校验（B-3'：uniqueId 比对识别地址复用；
+      // 不按 id 查表 —— DirectoryMaster.Item(identifier) 不保证是这一个实例）
+      GameItem container = null;
+      try { container = new GameItem(containerPtr); } catch { break; }
+      if (container == null) break;
+      try { if (container.uniqueId != containerUid) break; } catch { break; }
+      if (IdFieldNull(container)) break;
+
+  改动:
+    type: replace_block
+    原文本: |
+      // 重解析材料，存活校验（材料可能已被前面的消耗销毁）
+      IntPtr mptr = materialPtrs[i];
+      if (mptr == IntPtr.Zero) continue;
+      GameItem material = null;
+      try { material = new GameItem(mptr); } catch { continue; }
+      if (material == null || IdFieldNull(material)) continue;
+    新文本: |
+      // 重解析材料，存活校验（材料可能已被前面的消耗销毁；
+      // B-3'：指针 + uniqueId 双验，地址被复用成别的物品时 uid 不同 → 跳过）
+      var mat = materials[i];
+      if (mat.Ptr == IntPtr.Zero || mat.Uid == 0L) continue;
+      GameItem material = null;
+      try { material = new GameItem(mat.Ptr); } catch { continue; }
+      if (material == null) continue;
+      try { if (material.uniqueId != mat.Uid) continue; } catch { continue; }
+      if (IdFieldNull(material)) continue;
+
+  连带改动:
+    - 循环头 `for (int i = 0; i < materialPtrs.Length; i++)` → `materials.Length`
+    - 方法 doc 注释里"最多处理 ptrs.Length 堆" → "materials.Length 堆"
+    - ResetGroupDragState()（Core.cs:236-244）里
+      `_groupDragMaterialPtrs.Clear();` → `_groupDragMaterials.Clear();`
+    - Core.cs:229 上方注释（2026-10-11 组拖状态段）里如提及旧字段名则同步改名
+
+后置条件:
+  - 组拖过程中容器/材料被销毁或地址被复用 → 协程安全退出/跳过，不吞错物品
+  - 正常组拖行为不变（升级 N 堆材料）
+  - 全文件不出现跨帧持有的 GameItem 字段；无 IntPtr[] materialPtrs 残留
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 命令: grep -c "_groupDragMaterialPtrs\|_groupDragMaterialItems" → 0
+  - 人工: 组拖中手动关闭容器窗口 → 不崩、日志出现 "批量升级中止" 或正常退出
+  - 人工: 场上放两个同型容器，对其中一个组拖 → 只有被拖的那个升级
+  - 回归: regress 全 PASS（无组拖专属断言，靠上面两条人工）
+
+禁止:
+  - 改用 DirectoryMaster.Item / IdMatch.IdentifierOf 解析容器或材料（会升级错对象）
+  - 新增 GameItem[] / GameItem 字段跨帧持有（恒真 Pointer 校验 + R4 双重违规）
+  - 保留 IntPtr[] materialPtrs 参数形态
+  - 用 IdFieldNull 作为唯一存活判据（地址复用后它能通过）
+
+================================================================================
+TASK-C1 · 删空操作 Prefix
+================================================================================
+yaml
+id: C-1
+优先级: P2
+文件: ContainerSuite.DIYUpgrade/SkipWageUpgradeRestore.cs
+锚点行号: 7 个方法 320-353；7 个 Patch 调用 90-100（typeUpgrade）与 137-151（typeLuckScout）
+前置依赖: 无（建议排在 B-2 之后，仅为避免同一 PR 里改动面交叉）
+
+改动步骤:
+
+  step-1 删除 7 个方法定义（320-353 行）:
+    方法列表（已逐一核实存在，全部为 `return true;` 空操作）:
+      - PrefixMayTarget_WageBox
+      - PrefixCanTarget_WageBox
+      - PrefixMayHaveValidInventorySlot_WageBox
+      - PrefixMayTarget_Bead
+      - PrefixCanTarget_Bead
+      - PrefixTarget_Bead
+      - PrefixMayHaveValidInventorySlot_Bead
+
+  step-2 删除 Install() 里对应的 7 个 Patch(...) 调用（连同各自的 if/else 计数）:
+      - Patch(harmony, typeUpgrade, "PrefixMayTarget_WageBox", RefBoolArgs, ...)
+      - Patch(harmony, typeUpgrade, "PrefixCanTarget_WageBox", RefBoolArgs, ...)
+      - Patch(harmony, typeUpgrade, "PrefixMayHaveValidInventorySlot_WageBox", RefBoolArgs, ...)
+      - Patch(harmony, typeLuckScout, "PrefixMayTarget", RefBoolArgs, ...)
+      - Patch(harmony, typeLuckScout, "PrefixCanTarget", RefBoolArgs, ...)
+      - Patch(harmony, typeLuckScout, "PrefixTarget", PlainArgs, ...)
+      - Patch(harmony, typeLuckScout, "PrefixMayHaveValidInventorySlot", RefBoolArgs, ...)
+
+  step-3 清理未使用的静态字段:
+    - 删 RefBoolArgs（60 行）—— 删掉 7 个调用后确无其他使用者（已核实）
+    - 留 PlainArgs（54 行）—— 善后层 PrefixTarget_WageBox（103 行）仍在用
+
+  step-4 更新类头注释:
+    删除 75-89 行的「【S8i】Target 家族入口（现为「真直通」挂钩）」注释块
+    （含 ref bool 签名说明 —— 那段是给已删的 7 个调用看的）。
+    删除 30-38 行「【判据说明 —— 2026-10-09 复核】」段里
+    "入口层 7 个 Prefix（MayTarget / CanTarget / MayHaveValidInventorySlot 家族）…
+    ...已改为显式 return true（有意放行），保留补丁挂钩以便将来加判定。"
+    整句，替换为：
+    「入口层不挂补丁（有意放行）：2026-10-09 复核确认那 7 个入口 Prefix 是无副作用
+      空操作，2026-10-12 删除补丁挂钩本身（行为等价：我们的 Prefix 一律 return true
+      ⇒ 原方法本来就在跑；删掉后原方法照样跑，只是省掉 7 次 Harmony 调度与预热名额）。
+      将来需要入口层判据时按签名加回，并同步更新 readme.用户须知.md 的避让计数。」
+    注意：36-38 行"真正拦蛙哥升级的是善后层…"整段保留（那描述的是没被删的部分）。
+
+  step-5 更新用户文档:
+    - readme.用户须知.md:105「Wage 避让：14/14 成功」→「Wage 避让：7/7 成功」
+    - README.md.txt 无需改动（当前版本没有 13/14、#13、入口层字样 —— 已核实）
+    - _regress/checks.json 无需改动（wage.avoid.text 是 N/N 两数相等判定 —— 已核实）
+
+后置条件:
+  - Wage 避让计数从 (14,0) 降到 (7,0)；日志 "Wage 避让：7/7 成功"
+  - 蛙哥升级仍被善后层拦（Prefix_WageBox_Target / Prefix_DoUpgrade /
+    ApplyLockedShape / ConsumeNutsInBox / ConsumeNutsDirectly /
+    PostfixWageBoxTooltip / RestoreWageBoxShape 一个不少）
+  - 悬停路径不再触发 7 次空 Harmony 调度；启动预热表少 7 项
+  - MustWarmLeaves 不动（它只覆盖 [JitWarmup] 叶子，与这 7 个手动注册无关 —— 已核实）
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 命令: grep -c "PrefixMayTarget_WageBox\|PrefixCanTarget_WageBox\|PrefixMayTarget_Bead\|RefBoolArgs" → 0
+  - 日志: "Wage 避让：7/7 成功"
+  - 回归: [REG] wage.avoid status=PASS（totalWage > 0 且 failed == 0）
+  - 人工: 装蛙哥 mod + 妙妙箱满级 + DIY 升级 → 蛙哥不抢
+
+禁止:
+  - 顺手删善后层 Prefix（Prefix_WageBox_Target / Prefix_DoUpgrade 等 7 个）
+  - 修改 Install() 里善后层的 Patch 调用
+  - 修改 HasDiyMigrated / VoidBeadHandedOver 判据
+  - 改 MustWarmLeaves / 改 _regress 脚本（都不受影响，改了反而引入噪声）
+
+================================================================================
+TASK-C2 · 日志去重不 Trim（含 C-4 合并执行）
+================================================================================
+yaml
+id: C-2（连坐 C-4）
+优先级: P3
+文件:
+  - ContainerSuite.DIYUpgrade/DiyUpgradeMod.Utils.cs   锚点行号: 123-133
+  - ContainerSuite.Shared/ContainerSuiteLog.cs         锚点行号: 99-107
+前置依赖: 无
+
+子任务 C-2a (DiyUpgradeMod.Utils.cs / LogOnce):
+  改动:
+    type: replace_block
+    原文本（123-133 行，逐字核实一致）: |
+      private static void LogOnce(string msg)
+      {
+          if (string.IsNullOrEmpty(msg)) return;
+          DateTime utcNow = DateTime.UtcNow;
+          if (!_lastLogTimeByKey.TryGetValue(msg, out var lastTime) || !((utcNow - lastTime).TotalSeconds < 3.0))
+          {
+              CacheLimits.Trim(_lastLogTimeByKey, CacheLimits.Small);   // A1（原裸写 >32）
+              _lastLogTimeByKey[msg] = utcNow;
+              ContainerSuiteLog.Diag(msg);
+          }
+      }
+    新文本: |
+      private static void LogOnce(string msg)
+      {
+          if (string.IsNullOrEmpty(msg)) return;
+          DateTime utcNow = DateTime.UtcNow;
+          // ★ C-2（2026-10-12）：不再 Trim；C-4：!(a<b) → a>=b。
+          //   Trim 对去重集合是错的（超限整体清空 → 旧 key 重新打印 → 玩家误以为又出错）。
+          //   key = 消息文本，会话内不同消息天然有限；集合已在 CacheRegistry 登记，
+          //   场景切换 / 读档都会清，跨会话有界。
+          if (_lastLogTimeByKey.TryGetValue(msg, out var lastTime) && (utcNow - lastTime).TotalSeconds < 3.0) return;
+          _lastLogTimeByKey[msg] = utcNow;
+          ContainerSuiteLog.Diag(msg);
+      }
+
+子任务 C-2b (ContainerSuiteLog.cs / DiagOnce):
+  改动:
+    type: replace_block
+    原文本: |
+      if (!_diagSeen.Add(key)) return;
+      ...（中间注释保留不动）...
+      CacheLimits.Trim(_diagSeen, CacheLimits.Large);   // A1（原裸写 >512）
+    新文本: |
+      if (!_diagSeen.Add(key)) return;
+      ...（中间注释保留不动）...
+      // ★ C-2（2026-10-12）：同 LogOnce —— key 是开发者显式指定的诊断点，
+      //   种类有限，不需要 Trim（集合已登记进 CacheRegistry，场景/读档会清）。
+
+后置条件:
+  - 同一 msg 3 秒内仍只打一次
+  - 两个去重集合不再被整体清空（去重信息不丢）
+  - 跨会话仍有界（靠 CacheRegistry 的场景/读档清理，不依赖 Trim）
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 命令: grep -c "CacheLimits.Trim(_lastLogTimeByKey\|CacheLimits.Trim(_diagSeen" → 0
+  - 人工: 制造多个不同错误消息（>128 种）→ 旧消息不会重复出现
+
+禁止:
+  - 修改 3.0 秒阈值
+  - 修改 _lastLogTimeByKey / _diagSeen 的类型
+  - 顺手给别的缓存去掉 Trim（_offsetCache 等的 Trim 是对的，它们不是去重集合）
+
+================================================================================
+TASK-D1 · cfg 上限调小后的提示
+================================================================================
+yaml
+id: D-1
+优先级: P2
+文件: ContainerSuite.DIYUpgrade/DiyUpgradeMod.Restore.cs
+方法: RestoreCollectTargets()   锚点行号: 292
+前置依赖: 无
+
+改动:
+  type: replace_block
+  原文本: |
+    if (CanContainItems(inv, w, h)) list.Add((idx, w, h));
+  新文本: |
+    if (CanContainItems(inv, w, h)) list.Add((idx, w, h));
+    else
+    {
+        // ★ D-1（2026-10-12）：cfg 上限调小后容器内物品越界 → 静默跳过。
+        //   玩家视角是"改了 cfg 没反应"，其实是物品挡住了缩小。留一条 Warning，
+        //   用 LogOnce 的 3 秒去重防刷屏（读档时可能多容器同时命中）。
+        //   注意 w/h 在此处已是 clamp 后的值（上方 TryGetGridShapeLimits 夹过
+        //   [minC..maxC]×[minR..maxR]），日志打印的是"实际尝试的目标尺寸"。
+        LogOnce($"[容器升级] {IdOf(item)} 槽 {idx} 目标尺寸 {w}x{h} 小于容器内物品占用范围，"
+            + "本次未恢复（请先清空容器，或把 cfg 上限调回原值）");
+    }
+
+后置条件:
+  - 容器内物品越界时，日志出现一次提示（每个 容器×槽 组合一条，msg 不同故不互相去重）
+  - 正常恢复路径不变
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 人工:
+      1. 升级容器到 20x20 并塞满物品
+      2. 把 cfg 的对应 MaxW/MaxH 改为 10
+      3. 读档 → 日志出现上述 Warning，容器保持 20x20
+
+禁止:
+  - 修改 CanContainItems 的判据
+  - 把 Warning 改成 Error（这是可恢复场景，不是故障）
+
+================================================================================
+TASK-D2 · 组拖屏幕提示（修订：改挂载点）
+================================================================================
+yaml
+id: D-2
+优先级: P3
+文件:
+  - ContainerSuite.DIYUpgrade/DiyUpgradeMod.GroupDrag.cs   （状态字段 + 绘制方法）
+  - ContainerSuite.Infrastructure/Mod.cs                   （OnGUI 调用点）
+前置依赖: 无（建议与 B-3' 同 PR：都动 GroupDrag，一起实机测组拖路径）
+
+挂载点修正（原计划写在 SaveBagExpandCore.DrawGUI 开头，不采用）:
+  DrawGUI 是 SBE 的方法，画 DIY 的状态是反向依赖；且分页开关关闭时
+  SBE 的 Enabled/_cfgPagingEnabled 门槛会波及这个提示。
+  正确入口是 Infrastructure/Mod.cs:246-250 的 OnGUI —— 它已经是
+  「SBE 的 DrawGUI」的唯一宿主，在旁边加一句即可。
+
+新增字段:
+  位置: RunGroupUpgrade 附近（与 _groupUpgradeRunning 同区块）
+  文本: |
+    // ★ D-2（2026-10-12）：组拖进度提示。
+    //   100 堆材料 × 6 帧 ≈ 10 秒（@60fps），中间无反馈玩家会以为卡了。
+    //   状态字段在 RunGroupUpgrade 每步更新，由 Mod.OnGUI 调用的绘制方法读取。
+    private static int _groupDragProgressCurrent;
+    private static int _groupDragProgressTotal;
+    private static float _groupDragProgressAt = -10f;
+
+新增绘制方法:
+  位置: GroupDrag.cs 末尾（与 DrawMergeLossWarning 同模式：缓存 GUIStyle +
+    GUI.Label + 阴影 + 淡出 + 全包 try/catch，见 SaveBag/mod.cs:345-385）
+  文本: |
+    /// <summary>
+    /// D-2：组拖进度的屏幕提示。由 Infrastructure Mod.OnGUI 调用（不走 SBE 的
+    /// DrawGUI —— 分页开关不该波及 DIY 的反馈）。3 秒淡出，样式抄
+    /// DrawMergeLossWarning（缓存 GUIStyle，禁每帧新建）。
+    /// </summary>
+    internal static void DrawGroupDragProgress()
+    {
+        try
+        {
+            if (_groupDragProgressAt < -1f) return;
+            const float dur = 3f;
+            float elapsed = Time.realtimeSinceStartup - _groupDragProgressAt;
+            if (elapsed < 0f || elapsed > dur) return;
+
+            if (_groupDragProgressStyle == null)
+            {
+                _groupDragProgressStyle = new GUIStyle(GUI.skin.label);
+                _groupDragProgressStyle.fontSize = 20;
+                _groupDragProgressStyle.fontStyle = FontStyle.Bold;
+                _groupDragProgressStyle.alignment = TextAnchor.UpperCenter;
+                _groupDragProgressStyle.wordWrap = true;
+            }
+
+            float alpha = 1f;
+            float fadeStart = dur * 0.6f;
+            if (elapsed > fadeStart)
+            {
+                alpha = 1f - (elapsed - fadeStart) / (dur - fadeStart);
+                if (alpha < 0f) alpha = 0f;
+            }
+
+            string txt = _groupDragProgressTotal > 0 && _groupDragProgressCurrent >= _groupDragProgressTotal
+                ? $"批量升级完成：{_groupDragProgressTotal} 堆"
+                : $"批量升级中 {_groupDragProgressCurrent}/{_groupDragProgressTotal}";
+
+            float w = Mathf.Min(Screen.width - 80f, 420f);
+            var rect = new Rect((Screen.width - w) * 0.5f, 90f, w, 30f);
+            var shadow = new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height);
+
+            _groupDragProgressStyle.normal.textColor = new Color(0f, 0f, 0f, alpha * 0.8f);
+            GUI.Label(shadow, txt, _groupDragProgressStyle);
+            _groupDragProgressStyle.normal.textColor = new Color(1f, 1f, 1f, alpha);
+            GUI.Label(rect, txt, _groupDragProgressStyle);
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("GroupDrag:draw-progress", ex); }
+    }
+
+  连带新增:
+    - 静态字段 `private static GUIStyle _groupDragProgressStyle;`
+    - y=90 是为了避开 DrawMergeLossWarning 的 y=20 区（两者可能同屏）
+
+RunGroupUpgrade 连带改动:
+  - 循环开始前（yield return null 之后）：
+    _groupDragProgressTotal = materials.Length; _groupDragProgressCurrent = 0;
+    _groupDragProgressAt = Time.realtimeSinceStartup;
+  - 每堆 consumed 成功后：_groupDragProgressCurrent++（放在 done++ 旁边）
+  - finally 里：若 done > 0，_groupDragProgressAt = Time.realtimeSinceStartup
+    （刷新时间戳，让"完成"态重新走 3 秒淡出）；_groupUpgradeRunning = false 之后
+
+Mod.OnGUI 连带改动（Infrastructure/Mod.cs:246-250）:
+  原文本: |
+    public override void OnGUI()
+    {
+        try { SaveBagExpand.SaveBagExpandCore.DrawGUI(); }
+        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnGUI.SBE", ex); }
+    }
+  新文本: |
+    public override void OnGUI()
+    {
+        try { SaveBagExpand.SaveBagExpandCore.DrawGUI(); }
+        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnGUI.SBE", ex); }
+        // D-2（2026-10-12）：组拖进度提示。放 SBE 之后：两者屏幕区域不重叠
+        // （SBE 换页提示在另一位置），互不影响。
+        try { DIYUpgrade.DiyUpgradeMod.DrawGroupDragProgress(); }
+        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnGUI.DIYGroupDrag", ex); }
+    }
+
+后置条件:
+  - 组拖过程中屏幕显示 "批量升级中 current/total"
+  - 完成/中止后 3 秒提示淡出消失
+  - SBE 分页开关关闭时，该提示照常显示
+
+验证:
+  - 命令: dotnet build -c Release → 0 error 0 warning
+  - 人工: 框选 20 堆材料组拖 → 进度递增 → 结束显示"完成：20 堆"→ 3 秒后消失
+  - 人工: SBE 分页关掉的档位下重复一次 → 提示仍在
+
+禁止:
+  - 在热路径（每帧）分配新的 GUIStyle
+  - 使用 MelonLogger 代替屏幕提示（后者才是"玩家可见"）
+  - 把绘制调用塞进 SaveBagExpandCore.DrawGUI（见「挂载点修正」）
+
+================================================================================
+TASK-B1 · 僵尸手柄默认开（维持批次 4，仅登记不改码）
+================================================================================
+yaml
+id: B-1
+优先级: P1（门禁级）
+文件: ContainerSuite.DIYUpgrade/DiyUpgradeMod.Core.cs（_sweepZombieHandles 默认值）
+现状: 默认 false。证据链（Core.cs:90-97）：09:17 实测「门禁 + 2s 消抖都生效、
+  世界就绪后 2.5 秒执行仍崩 0x80131506」⇒ 崩点坐实为清扫动作本身；17:40 改为
+  「熄火式」（SetActive(false)，不再反射调 XIAOWO DestroyHandles），但尚未经
+  新一次实机 A/B 证明不崩。
+
+本修订版不改任何代码。前置动作（属实验，不属本计划）:
+  1. 实机 A/B：开清扫跑完整读档/切场景循环，确认不崩
+  2. 拿到不崩证据后，把 Core.cs:97 的默认值 false → true，并更新该处注释
+     （把"尚未复验"改为"已复验：日期 + 场景"）
+  3. 若复测仍崩：保持 false，另开分析（不要动 17:40 的熄火式实现）
+
+禁止:
+  - 未做 A/B 就改默认值
+  - 把清扫改回反射调 XIAOWO DestroyHandles（17:40 已否掉这条）
+
+================================================================================
+四、执行顺序与依赖图（更新）
+================================================================================
+yaml
+批次 1（纯构建，无实机依赖，可连续执行）:
+  - A-1  (Expel continue)                       [无依赖]
+  - A-2' (读档清缓存，收窄版 + CacheRegistry 改动) [无依赖]
+  - C-2 + C-4 (日志去重不 Trim，同一方法合并)    [无依赖]
+  - B-2  (TagSystem 自校验)                     [无依赖]
+
+批次 2（依赖批次 1 构建通过）:
+  - C-1  (删空操作 Prefix)                      [无依赖；建议在 B-2 之后避免改动面交叉]
+  - D-1  (cfg 上限提示)                         [无依赖]
+
+批次 3（需实机验证，B-3' 与 D-2 同 PR）:
+  - B-3' (GroupDrag uniqueId 双验)              [需人工测: 组拖中关窗不崩 + 双容器不升错]
+  - D-2  (组拖进度提示)                          [与 B-3' 同 PR，共同测组拖路径]
+
+批次 4（需 A/B 实机，本版不含代码）:
+  - B-1  (僵尸手柄默认开)                        [需 A/B 测: 熄火式清扫不崩 → 才改默认值]
+
+依赖图:
+  A-1  ─┐
+  A-2' ─┼─→ [batch1 build pass] ─→ C-1 ─→ [batch2 build pass]
+  C-2  ─┤                              D-1 ─┘
+  B-2  ─┘
+                                      ↓
+                          [batch3: B-3' + D-2 同 PR 实机]
+                                      ↓
+                          [batch4: B-1 A/B 实机]
+
+================================================================================
+五、本修订版相对原计划的变更清单（diff 摘要）
+================================================================================
+1. A-2：ClearAll() → 新增 CacheRegistry.ClearForLoadGame()（只跳过 _offsetCache）；
+   删掉显式 ClearRestoreMemo()（已由登记覆盖）；注释里写清与 OnSceneLoaded 的
+   三处有意差异；新增「为什么不碰 _diyVoidBeadGrids」的评估记录。
+2. B-3：整包重写为 B-3'。否决 id 查表（会升错容器）与持对象+Pointer 校验
+   （恒真式），改为「指针 + uniqueId」快照 + 每步比对。
+3. C-1：更正 MustWarmLeaves 无需改、README #13 不存在（真实更新点是
+   readme.用户须知.md:105）、RefBoolArgs 删 / PlainArgs 留，全部经代码核实。
+4. C-2：C-4 合并进同一方法；连坐 DiagOnce；补「跨会话有界靠 CacheRegistry」说明。
+5. D-1：补 w/h 为 clamp 后值的措辞。
+6. D-2：挂载点从 SaveBagExpandCore.DrawGUI 改为 Infrastructure Mod.OnGUI；
+   补样式细节与 SBE 区域避让。
+7. 执行规约：新增两条环境备注（门禁脚本缺失、两处源码树分叉）。
+8. B-1：明确本版不含代码改动，只登记前置实验。

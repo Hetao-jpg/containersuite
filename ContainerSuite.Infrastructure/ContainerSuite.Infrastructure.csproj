@@ -20,10 +20,37 @@
          B2  3 个 MelonPreferences 段 → 1 个 CustomInfrastructure 段
              （ModManager 归属规则只看 DLL 文件名，见 ManagerState.CategoryBelongsToMod）
 
-       公共属性（游戏路径 / TargetFramework / 输出路径）在 ..\_shared\CommonMod.props。
-       ═══════════════════════════════════════════════════════════════════ -->
+        公共属性已内联在本文件（不再依赖 ..\_shared\CommonMod.props，本目录可独立编译）。
+        换游戏目录：改下面 GamePath 一处，或构建时 -p:GamePath="..." 覆盖。
+        ═══════════════════════════════════════════════════════════════════ -->
 
-  <Import Project="..\_shared\CommonMod.props" />
+  <!-- ① 游戏路径与派生目录 -->
+  <PropertyGroup Condition="'$(GamePath)' == ''">
+    <GamePath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo</GamePath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <MLNet>$(GamePath)\MelonLoader\net6</MLNet>
+    <MLIl2Cpp>$(GamePath)\MelonLoader\Il2CppAssemblies</MLIl2Cpp>
+  </PropertyGroup>
+
+  <!-- ② 通用编译属性 -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- 输出到 bin/<配置>/<Dll>.dll（不带 net6.0 子目录），部署脚本好找 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- ③ 诊断脚手架的条件编译总闸：
+       Release 默认不含；开启：dotnet build -c Release -p:Diag=true -->
+  <PropertyGroup Condition="'$(Diag)' == 'true'">
+    <DefineConstants>$(DefineConstants);DIAG</DefineConstants>
+  </PropertyGroup>
 
   <PropertyGroup>
     <AssemblyName>CustomInfrastructure</AssemblyName>

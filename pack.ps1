@@ -20,7 +20,8 @@
 # This validation runs BEFORE the build (fast-fail) so a bad doc never wastes
 # a compile.
 #
-# Conventions (see _shared\check-*.ps1 for the same rules):
+# Conventions (the old _shared\check-*.ps1 guards were removed 2026-10-12;
+# these rules still apply):
 #   - Pure ASCII source (PS 5.1 reads scripts as ANSI; non-ASCII in code
 #     would break parsing).
 #   - Backslash is NOT an escape char in PowerShell (backtick is); backslashes

@@ -14,10 +14,12 @@
 function Get-GamePath {
     param([string]$Root, [string]$Override)
     if ($Override) { return $Override }
-    $props = Join-Path $Root '_shared\CommonMod.props'
-    if (Test-Path $props) {
+    # CommonMod.props is gone (each mod now inlines its own build
+    # properties). Read the default GamePath from the suite csproj.
+    $csproj = Join-Path $Root 'ContainerSuite.Infrastructure\ContainerSuite.Infrastructure.csproj'
+    if (Test-Path $csproj) {
         try {
-            [xml]$x = Get-Content -Path $props
+            [xml]$x = Get-Content -Path $csproj
             foreach ($pg in @($x.Project.PropertyGroup)) {
                 if ($pg.GamePath -is [string] -and $pg.GamePath) { return $pg.GamePath }
             }

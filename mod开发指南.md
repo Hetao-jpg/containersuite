@@ -186,7 +186,23 @@ D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\Il2CppAssembli
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\_shared\CommonMod.props" />   <!-- 必须：游戏路径/TFM/输出路径等公共属性 -->
+
+  <!-- 内联公共属性（不再有共享 props，每个目录独立编译） -->
+  <PropertyGroup Condition="'$(GamePath)' == ''">
+    <GamePath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo</GamePath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <MLNet>$(GamePath)\MelonLoader\net6</MLNet>
+    <MLIl2Cpp>$(GamePath)\MelonLoader\Il2CppAssemblies</MLIl2Cpp>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
 
   <PropertyGroup>
     <AssemblyName>MyModName</AssemblyName>          <!-- ★ 冻结不改：= DLL 名 = MelonPreferences 段名 -->
@@ -211,9 +227,11 @@ D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\Il2CppAssembli
 1. **每个 `<Reference>` 必须 `<Private>False</Private>`** —— 否则游戏 DLL 被拷进 `bin/`，
    实测会多出 **75+ 个 DLL**；分发时更会把游戏 DLL 发出去。
 2. **`AssemblyName` 冻结** —— 改它 = 改游戏内 mod 名 + MelonPreferences 配置段 + 跨 mod 按名兼容检测，全断。
-3. **公共属性只从 `_shared\CommonMod.props` 来**，项目里不要重复写 `GamePath` / `TargetFramework` 等。
+3. **公共属性（GamePath / TargetFramework 等）直接内联在各 csproj 里**，
+   不引入任何共享 props —— 共享 `_shared/CommonMod.props` 已废除（2026-10-12），
+   每个 mod 目录必须能独立编译。
 4. **不要引入 `Directory.Build.props`** —— 工作区还有 20+ 未受管项目，会一并改变它们的行为。
-   （props 里也**不要**给 `AllowUnsafeBlocks` 等加 `Condition` —— SDK 已给默认值导致兜底静默失效，历史 CS0227 就是这么来的。）
+   （`AllowUnsafeBlocks` 等**不要**加 `Condition` —— SDK 已给默认值导致兜底静默失效，历史 CS0227 就是这么来的。）
 5. 引用别的受管项目用 `<ProjectReference>`，并同样 `Private=false`。
 
 **要挂进批量部署**：在 `deploy-all.ps1` 的 `$PROJECTS` 表里加一行
@@ -356,7 +374,7 @@ dotnet build '自定义仓库\SaveBagExpand.csproj' -c Release -nologo
 | `D:\games\mod调试\MODS-优化清单.md` | 后续批次进展 |
 | `D:\games\mod调试\MODS-合并分析.md` | 「各 mod 独立不合并」的决策依据 |
 | `D:\games\mod调试\mod工作流程清单.docx` | 症状收集 → 诊断 → 最小改动 → 验收 + AI 常见陷阱 |
-| `D:\games\mod调试\_shared\CommonMod.props` | 公共构建属性（含设计理由注释） |
+| `D:\games\mod调试\_shared\CommonMod.props` | ~~公共构建属性~~ 已废除：属性内联进各 csproj（2026-10-12） |
 | `D:\games\mod调试\deploy-all.ps1` | 统一构建部署（表驱动，含重复加载预检） |
 | 各项目 `README.md` | 用途 / 构建 / 部署 / 热键 / 维护日志 |
 | `D:\games\mod调试\_archive\` | 已归档的探针结论、旧备份 |
