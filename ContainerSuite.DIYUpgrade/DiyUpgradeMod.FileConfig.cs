@@ -67,7 +67,37 @@ public static partial class DiyUpgradeMod
     private const string ConfigTemplateMarker = "#template=";
 
     /// <summary>当前注释模板版本（改注释时 +1，老玩家下次启动就会拿到新说明）。</summary>
-    private const int ConfigTemplateVersion = 2;
+    private const int ConfigTemplateVersion = 3;
+
+    /// <summary>
+    /// 「对照表」块的起止标记（<c>[limits]</c> 里那一块由套件自动维护）。
+    /// 刷新时按标记做**外科式替换**，块以外的内容（含玩家自己写的注释）一律不动。
+    /// </summary>
+    private const string RefBlockBegin = "# >>> 对照表";
+    private const string RefBlockEnd = "# <<< 对照表结束";
+
+    /// <summary>
+    /// 容器 id → 中文名（用于 <c>[limits]</c> 的对照表）。
+    /// <para>
+    /// 取自本仓库的 <c>物品id参考.md</c>（从游戏本地化提取的「英文名/中文名」表），
+    /// 只覆盖套件默认名单里的容器；**玩家自己加进 [whitelist] 的 id 不写名字**
+    /// （查不到就只写 id —— 宁可不写，也不猜一个错名字）。
+    /// </para>
+    /// </summary>
+    private const string ContainerNameTable =
+        "sec_box=治安部物资箱;evidence_box=治安部物证柜;storage_bay=储藏区;storage_bay_large=储藏区（扩建）;"
+        + "smuggler_bay=走私者暗格;smuggler_bay_mod=走私者暗格（改进）;machine_bay=机器区;"
+        + "machine_bay_ext=机器区（扩建）;service_box=后勤服务部物资箱;med_box=医疗舱物资箱;"
+        + "eng_box=工程铸造厂物资箱;storage_bay_chem=化学家储物舱;storage_bay_gun=枪匠储物舱;"
+        + "smuggler_bay_mini=迷你走私舱;makeshift_storage_bay=简易储物舱;expedition_box=远征补给箱;"
+        + "backpack_small=背包（小）;backpack_medium=背包（基础）;backpack_large=背包（大）;"
+        + "satchel=挎包（小）;fanny_pack=腰包;backpack_medium_military=背包（军用）;"
+        + "backpack_large_military=大型军用背包;animal_cage=动物笼;rat_cage=鼠笼;"
+        + "fridge=冰箱;recharger=充能器;vacuum_robot=清洁机器人;"
+        + "furnace=熔炉;desequencer=密码解序器;security_alarm=警报系统;mirage_projector=幻影投影仪;"
+        + "water_purifier=净水器;moisture_farm=水分收集器;wine_rack=催陈器;bottle_printer=水瓶打印机;"
+        + "custom_storage_box=蛙哥妙妙箱;void_bead_storage=虚空珠;wage_gu_machine=蛙哥养蛊机;"
+        + "wage_ai_generator=蛙哥不稳定AI生成器";
 
     /// <summary>每 id 尺寸上限的硬边界（与 TryGetGridShapeLimits 的 HardMaxDim 一致）。</summary>
     private const int ConfigLimitMinDim = 1;
@@ -210,9 +240,12 @@ public static partial class DiyUpgradeMod
             TryStampConfigFile(path);
 
             // ★ 注释是玩家唯一的使用说明，但它只在"生成新文件"时写一次 ⇒ 老玩家会一直
-            //   停在他第一次生成那版。这里检查模板标记，旧注释就用新注释重写一遍
-            //   （数据按刚解析出来的值原样重写），见该方法注释。
-            RefreshTemplateIfOutdated(path, lines);
+            //   停在他第一次生成那版。这里做两件事：
+            //     ① 模板旧（没有 #template=N 标记）→ 用新注释整份重写（数据按刚解析出来的值）；
+            //     ② 模板不旧 → 只把 [limits] 里那张「对照表」跟现状对齐（白名单/cfg 上限一变
+            //        它就过时了）；一致时不写盘。
+            if (!RefreshTemplateIfOutdated(path, lines))
+                EnsureReferenceBlockUpToDate(path, lines);
 
             // ★ 权威声明（无条件输出）：文件里声明过的类别以文件为准，cfg 里的旧值不生效。
             //   这一行是"我改了 cfg 怎么没用"的唯一解释来源，不能走 Diag 闸门。
@@ -436,20 +469,7 @@ public static partial class DiyUpgradeMod
     {
         var sb = new StringBuilder();
         AppendHeader(sb);
-        AppendSections(sb,
-            k =>
-            {
-                switch (k)
-                {
-                    case "box": return _box.Ids.Value ?? "";
-                    case "backpack": return _backpack.Ids.Value ?? "";
-                    case "cage": return _cage.Ids.Value ?? "";
-                    case "multislot": return _multiSlot.Ids.Value ?? "";
-                    case "multislotmodule": return _multiSlotModule.Ids.Value ?? "";
-                    default: return null;
-                }
-            },
-            null);
+        AppendSections(sb, CfgWhitelistRawOf, null);
         WriteConfigFile(path, sb.ToString());
     }
 
@@ -471,6 +491,10 @@ public static partial class DiyUpgradeMod
         sb.AppendLine();
         sb.AppendLine("[limits]");
         AppendLimitComments(sb);
+        sb.AppendLine("#");
+        AppendContainerReference(sb);
+        sb.AppendLine("#");
+        sb.AppendLine("# ── 你自己的设置写在下面（照抄上面某一行、去掉 # 再改数字；一行一个）──");
         if (limitLines != null)
             for (int i = 0; i < limitLines.Count; i++) sb.AppendLine(limitLines[i]);
     }
@@ -478,14 +502,133 @@ public static partial class DiyUpgradeMod
     /// <summary>[limits] 段里的示例注释（行首都带 #，所以本身不生效）。</summary>
     private static void AppendLimitComments(StringBuilder sb)
     {
-        sb.AppendLine("# 下面是示例，行首有 # 表示**没生效**。想让某条生效：删掉它行首的 #，再改成你要的尺寸。");
-        sb.AppendLine("# storage_bay = 30x20");
-        sb.AppendLine("# evidence_box = 24x24");
-        sb.AppendLine("# 蛙哥的容器也能在这里写（它们有固定 id）：");
-        sb.AppendLine("# custom_storage_box = 20x20     妙妙箱");
-        sb.AppendLine("# void_bead_storage = 20x20      虚空珠袋");
-        sb.AppendLine("# wage_gu_machine = 20x20        蛙哥机器");
-        sb.AppendLine("# wage_ai_generator = 20x20      蛙哥发电机");
+        sb.AppendLine("# 怎么单独设上限（3 句）：");
+        sb.AppendLine("#   1) 在下面「对照表」里找到那个容器那一行 → 整行照抄到文件最底下 → 去掉行首的 # → 改数字");
+        sb.AppendLine("#   2) 没写的容器，全都用上面 [whitelist] 里它那个类别的默认上限");
+        sb.AppendLine("#   3) 格式是「宽x高」，数字填 1~100（中间的小写字母 x 不能省）");
+        sb.AppendLine("#      ⚠ 改得太小、装不下容器里现有的东西时，这次改动不会生效，游戏日志里会有一条提示");
+    }
+
+    /// <summary>取某个白名单类别在 cfg 里的原文（文件里声明过就优先用文件）。</summary>
+    private static string CfgWhitelistRawOf(string key)
+    {
+        switch (key)
+        {
+            case "box": return _box.Ids.Value ?? "";
+            case "backpack": return _backpack.Ids.Value ?? "";
+            case "cage": return _cage.Ids.Value ?? "";
+            case "multislot": return _multiSlot.Ids.Value ?? "";
+            case "multislotmodule": return _multiSlotModule.Ids.Value ?? "";
+            default: return null;
+        }
+    }
+
+    private static GridDef GridDefOfWhitelistKey(string key)
+    {
+        switch (key)
+        {
+            case "box": return _box;
+            case "backpack": return _backpack;
+            case "cage": return _cage;
+            case "multislot": return _multiSlot;
+            case "multislotmodule": return _multiSlotModule;
+            default: return null;
+        }
+    }
+
+    /// <summary>类别键 → 中文说明（对照表的段标题用）。</summary>
+    private static string CategoryLabelOf(string key)
+    {
+        switch (key)
+        {
+            case "box": return "箱子 / 货舱";
+            case "backpack": return "背包 / 挎包 / 腰包";
+            case "cage": return "笼子";
+            case "multislot": return "能塞东西的机器（内容格）";
+            case "multislotmodule": return "机器上的模组槽";
+            default: return key;
+        }
+    }
+
+    /// <summary>容器 id 的中文名（查不到返回空串 —— 玩家自己加的 id 不猜名字）。</summary>
+    private static string ContainerNameOf(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        string[] pairs = ContainerNameTable.Split(';');
+        for (int i = 0; i < pairs.Length; i++)
+        {
+            int eq = pairs[i].IndexOf('=');
+            if (eq <= 0) continue;
+            if (string.Equals(pairs[i].Substring(0, eq), id, StringComparison.OrdinalIgnoreCase))
+                return pairs[i].Substring(eq + 1);
+        }
+        return "";
+    }
+
+    /// <summary>对照表里的一行：<c>#   id = 宽x高    中文名</c>。</summary>
+    private static void AppendRefLine(StringBuilder sb, string id, int catW, int catH)
+    {
+        int w = catW, h = catH;
+        if (!string.IsNullOrEmpty(id) && _perIdLimit.TryGetValue(NormalizeConfigId(id), out var over))
+        {
+            w = over.W; h = over.H;     // 玩家已在 [limits] 里写过 → 显示覆盖后的值
+        }
+        string left = id + " = " + w + "x" + h;
+        sb.Append("#   ").Append(left.PadRight(34)).Append(ContainerNameOf(id)).AppendLine();
+    }
+
+    /// <summary>
+    /// <c>[limits]</c> 里的「当前生效容器对照表」：按类别列出每个容器的 id、中文名与它
+    /// **现在**能升到的最大尺寸，玩家可以照抄某一行改成自己的设置。
+    /// <para>
+    /// ★ 这一块**由代码生成**（不是手写注释），因为它必须跟着 whitelist 与 cfg 的
+    ///   MaxW/MaxH 变；生成内容在每次加载时与文件里的旧块逐行比对，不一致就外科式替换。
+    /// </para>
+    /// </summary>
+    private static void AppendContainerReference(StringBuilder sb)
+    {
+        sb.AppendLine(RefBlockBegin + "（本块由套件自动维护：改了它下次进游戏会被覆盖，你的设置请写在块下面）");
+        for (int i = 0; i < WhitelistKeys.Length; i++)
+        {
+            string key = WhitelistKeys[i];
+            string[] ids = SplitIds(EffectiveWhitelistRaw(key, CfgWhitelistRawOf(key)));
+            GridDef def = GridDefOfWhitelistKey(key);
+            int w = 20, h = 20;
+            if (def != null)
+            {
+                if (def.MaxW != null && def.MaxW.Value > 0) w = def.MaxW.Value;
+                if (def.MaxH != null && def.MaxH.Value > 0) h = def.MaxH.Value;
+            }
+            bool disabled = (def != null && def.Enable != null && !def.Enable.Value);
+            sb.Append("# ── ").Append(CategoryLabelOf(key)).Append("（").Append(key).Append(" 类，共 ")
+                .Append(ids.Length).Append(" 件；现在最多 ").Append(w).Append('x').Append(h)
+                .Append(disabled ? "；★ 这一类在 cfg 里是关着的" : "").Append("）──").AppendLine();
+            if (ids.Length == 0)
+                sb.AppendLine("#   （这一类现在是空的 = 这类容器都不能升级）");
+            for (int j = 0; j < ids.Length; j++) AppendRefLine(sb, ids[j], w, h);
+        }
+
+        // 固定 id 的容器：不走 whitelist（靠 id 认），但同样能在这里单独设上限。
+        sb.AppendLine("# ── 蛙哥 / Mod 容器（不在上面的名单里；装了对应 mod 才有效）──");
+        AppendRefFixedLine(sb, WageContainerRegistry.IdWageBox, WageContainerRegistry._wageBox);
+        AppendRefFixedLine(sb, WageContainerRegistry.IdVoidBead, WageContainerRegistry._wageBackpack);
+        AppendRefFixedLine(sb, WageContainerRegistry.IdGuMachine, WageContainerRegistry._modContainer);
+        AppendRefFixedLine(sb, WageContainerRegistry.IdAiGenerator, WageContainerRegistry._modContainer);
+        sb.AppendLine(RefBlockEnd);
+    }
+
+    private static void AppendRefFixedLine(StringBuilder sb, string id, GridDef def)
+    {
+        if (def == null)   // 没装蛙哥 → 那三个 cfg 条目都没建：只列 id，不编数字
+        {
+            string left0 = id + " = ——";
+            sb.Append("#   ").Append(left0.PadRight(34)).Append(ContainerNameOf(id))
+                .AppendLine("（要装对应 mod 才有效）");
+            return;
+        }
+        int w = (def.MaxW != null && def.MaxW.Value > 0) ? def.MaxW.Value : 20;
+        int h = (def.MaxH != null && def.MaxH.Value > 0) ? def.MaxH.Value : 20;
+        AppendRefLine(sb, id, w, h);
     }
 
     /// <summary>
@@ -580,18 +723,18 @@ public static partial class DiyUpgradeMod
     /// ③ 只在 <c>.bak</c> 不存在时才备份，保住最早那份原件。
     /// </para>
     /// </summary>
-    private static void RefreshTemplateIfOutdated(string path, string[] lines)
+    private static bool RefreshTemplateIfOutdated(string path, string[] lines)
     {
         try
         {
             for (int i = 0; i < lines.Length; i++)
-                if (lines[i] != null && lines[i].Contains(ConfigTemplateMarker)) return;   // 已是当前模板
+                if (lines[i] != null && lines[i].Contains(ConfigTemplateMarker)) return false;   // 已是当前模板
 
             bool hasWhitelistSection = false;
             for (int i = 0; i < lines.Length; i++)
                 if (lines[i] != null && lines[i].Trim().ToLowerInvariant().StartsWith("[whitelist"))
                 { hasWhitelistSection = true; break; }
-            if (!hasWhitelistSection) return;                     // 手工文件：不碰
+            if (!hasWhitelistSection) return false;               // 手工文件：不碰
 
             var limitLines = new List<string>();
             foreach (var kv in _perIdLimit)
@@ -612,8 +755,89 @@ public static partial class DiyUpgradeMod
             TryStampConfigFile(path);                             // 自己写的，别让热重载当成玩家改动
             _log?.Msg("[容器升级] 配置文件的说明文字已更新（你自己的名单和上限一条没动；"
                 + "旧文件已备份为 " + Path.GetFileName(bak) + "）");
+            return true;
         }
-        catch (Exception ex) { CatchLogOnce.Warn("FileConfig:refreshTemplate", ex); }
+        catch (Exception ex) { CatchLogOnce.Warn("FileConfig:refreshTemplate", ex); return false; }
+    }
+
+    /// <summary>
+    /// 让 <c>[limits]</c> 里的「对照表」跟上现状（白名单增删、cfg 的 MaxW/MaxH 改了、
+    /// 或玩家在 [limits] 里覆盖了某个 id —— 都会让它变）。
+    /// <para>
+    /// ★ **外科式替换**：只换两个标记行之间的内容，块以外的每一行（含玩家自己写的注释、
+    ///   他加的行）原样保留；内容一致时**不写盘**（绝大多数启动走这条早退）。
+    ///   标记被删了也能自愈：插到 <c>[limits]</c> 行之后。
+    /// </para>
+    /// </summary>
+    private static void EnsureReferenceBlockUpToDate(string path, string[] lines)
+    {
+        try
+        {
+            int begin = -1, end = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string t = lines[i] ?? "";
+                if (begin < 0)
+                {
+                    if (t.StartsWith(RefBlockBegin, StringComparison.Ordinal)) begin = i;
+                }
+                else if (t.StartsWith(RefBlockEnd, StringComparison.Ordinal)) { end = i; break; }
+            }
+
+            List<string> want = BuildReferenceBlockLines();
+
+            if (begin >= 0 && end > begin && end - begin + 1 == want.Count)
+            {
+                bool same = true;
+                for (int i = 0; i < want.Count; i++)
+                {
+                    string have = (lines[begin + i] ?? "").TrimEnd('\r');
+                    if (!string.Equals(have, want[i], StringComparison.Ordinal)) { same = false; break; }
+                }
+                if (same) return;                                     // 已是最新
+            }
+
+            var outLines = new List<string>();
+            int keepFrom;
+            if (begin >= 0 && end > begin)
+            {
+                for (int i = 0; i < begin; i++) outLines.Add(lines[i] ?? "");
+                keepFrom = end + 1;
+            }
+            else
+            {
+                int lim = -1;
+                for (int i = 0; i < lines.Length; i++)
+                    if (lines[i] != null && lines[i].Trim().StartsWith("[limits", StringComparison.OrdinalIgnoreCase))
+                    { lim = i; break; }
+                if (lim < 0) return;                                  // 没有 [limits] 段：不插手
+                for (int i = 0; i <= lim; i++) outLines.Add(lines[i] ?? "");
+                outLines.Add("");
+                keepFrom = lim + 1;
+            }
+            outLines.AddRange(want);
+            if (keepFrom < lines.Length) outLines.Add("");
+            for (int i = keepFrom; i < lines.Length; i++) outLines.Add(lines[i] ?? "");
+
+            WriteConfigFile(path, string.Join(Environment.NewLine, outLines) + Environment.NewLine);
+            TryStampConfigFile(path);
+            _log?.Msg("[容器升级] 配置文件的「对照表」已更新（其余内容一行没动）");
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("FileConfig:refBlock", ex); }
+    }
+
+    /// <summary>生成对照表的行列表（与文件里那块逐行比对 / 写盘共用）。</summary>
+    private static List<string> BuildReferenceBlockLines()
+    {
+        var sb = new StringBuilder();
+        AppendContainerReference(sb);
+        var list = new List<string>();
+        foreach (string l in sb.ToString().Replace("\r\n", "\n").Split('\n'))
+        {
+            string t = l.TrimEnd('\r');
+            if (t.Length > 0) list.Add(t);
+        }
+        return list;
     }
 
     private static void AppendSeedWhitelist(StringBuilder sb, string key, string ids)
