@@ -392,10 +392,108 @@ public static class SaveBagPaging
 
     // ────────── TAB 循环切页 ──────────
 
-    private static bool IsDraggingNow()
+    /// <summary>
+    /// 左键是否按着。★ 这**不是**"在拖物品" —— 框选 / 拖窗口 / 拖容器边缘改尺寸
+    /// 都会让左键按着。本判据只作为"拖拽判定不可用"时的保守回退（语义与改动前一致）。
+    /// </summary>
+    private static bool IsMouseButtonHeld()
     {
         // 输入模块不可用属无害情形，静默忽略。
         try { return Input.GetMouseButton(0); } catch { return false; }
+    }
+
+    /// <summary>TAB 切页时的拖拽判定结果。</summary>
+    private enum TabDragVerdict
+    {
+        /// <summary>没在拖单件物品（后续交给左键判据决定）。</summary>
+        NotDragging,
+        /// <summary>在拖单件物品，且可以安全切页（<c>held</c> = 手上那件）。</summary>
+        SingleItemDrag,
+        /// <summary>必须拦截（原因见 blockReason）。</summary>
+        Block,
+        /// <summary>游戏信号拿不到（异常）⇒ 调用方退回左键判据。</summary>
+        Unavailable,
+    }
+
+    /// <summary>
+    /// 2026-10-12：TAB 切页的拖拽判定。
+    /// <para>
+    /// <b>为什么改</b>：原判据是"左键按着"（<see cref="IsMouseButtonHeld"/>），于是
+    /// <b>拖着物品时按 TAB 完全没反应</b> —— 玩家要把物品从第 1 页搬到第 2 页只能
+    /// "放下 → TAB → 再拿起 → 再放下"。游戏自带
+    /// <c>ItemMouseDragHandler.current.IsDraggingItem</c> 与 <c>GetCurrentItem()</c>，
+    /// 可以精确判定"是否在拖物品"并拿到手上那件（**不需要**反查偏移）。
+    /// </para>
+    /// <para>
+    /// ★ 保守边界（宁可少放开一个场景，也不动不确定的东西）：
+    /// · <b>框选拖拽进行中一律拦截</b>：那一套会把选中物品变成"幽灵"并记下
+    ///   <c>selectedHomes</c>，中途换页会把它们连同选中集一起搬走（可能复制/丢失）。
+    ///   判据是 <c>ItemMultiSelectHandler.HasSelection</c> —— 它在 <c>EndGroupDrag</c>
+    ///   里被 <c>ClearSelection</c> 清掉，所以只在拖拽途中为真。
+    /// · <b>拿不到手上那件时拦截</b>（无法保证切页时跳过它）。
+    /// · <b>游戏信号异常时返回 Unavailable</b>，由调用方退回左键判据。
+    /// </para>
+    /// </summary>
+    private static TabDragVerdict ProbeTabDrag(out GameItem held, out string blockReason)
+    {
+        held = null;
+        blockReason = null;
+        try
+        {
+            ItemMouseDragHandler drag = ItemMouseDragHandler.current;
+            if (drag == null || !drag.IsDraggingItem) return TabDragVerdict.NotDragging;
+
+            ItemMultiSelectHandler multi = ItemMultiSelectHandler.current;
+            if (multi != null && multi.HasSelection)
+            {
+                blockReason = "框选拖拽进行中（选中集会被换页搬走）";
+                return TabDragVerdict.Block;
+            }
+
+            held = drag.GetCurrentItem();
+            if (held == null)
+            {
+                blockReason = "正在拖物品但拿不到它（无法保证切页时跳过）";
+                return TabDragVerdict.Block;
+            }
+            return TabDragVerdict.SingleItemDrag;
+        }
+        catch (Exception ex)
+        {
+            CatchLogOnce.Warn("paging.tabDragProbe", ex);
+            blockReason = "拖拽判定不可用";
+            return TabDragVerdict.Unavailable;
+        }
+    }
+
+    /// <summary>手上那件的可读描述（诊断用；拿不到就返回 "?"）。</summary>
+    private static string DescribeHeld(GameItem held)
+    {
+        try
+        {
+            if (held == null) return "(null)";
+            string id = held.identifier;
+            return string.IsNullOrEmpty(id) ? "(空id)" : id;
+        }
+        catch { return "(读取失败)"; }
+    }
+
+    /// <summary>主网格里是否物理存在这个指针的物品（用于判定"幽灵式"还是"已离网格"）。</summary>
+    private static bool GridContainsPtr(GameGridInventory grid, IntPtr ptr)
+    {
+        if (grid == null || ptr == IntPtr.Zero) return false;
+        try
+        {
+            var items = grid.childItems;
+            if (items == null) return false;
+            for (int i = 0; i < items.Count; i++)
+            {
+                try { if (items[i] != null && items[i].Pointer == ptr) return true; }
+                catch { }
+            }
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("paging.GridContainsPtr", ex); }
+        return false;
     }
 
     internal static bool TryCycleNext()
@@ -421,11 +519,26 @@ public static class SaveBagPaging
             TabLog("[TAB 拦截] _mergedForSave=true");
             return false;
         }
-        if (IsDraggingNow())
+
+        // 2026-10-12：拖拽判定（见 ProbeTabDrag 注释）。
+        GameItem held = null;
+        TabDragVerdict verdict = ProbeTabDrag(out held, out string why);
+        if (verdict == TabDragVerdict.Block)
         {
-            TabLog("[TAB 拦截] IsDraggingNow=true（鼠标左键按着）");
+            TabLog("[TAB 拦截] " + why);
             return false;
         }
+        if (verdict != TabDragVerdict.SingleItemDrag && IsMouseButtonHeld())
+        {
+            // 没在拖单件物品，但左键按着（框选 / 拖窗口 / 拖容器边缘改尺寸）——
+            // 维持原拦截：这些场景换页会把网格内容整批搬走，不划算也不安全。
+            TabLog(verdict == TabDragVerdict.Unavailable
+                ? "[TAB 拦截] 拖拽判定不可用，退回左键判据"
+                : "[TAB 拦截] 左键按着但不在拖物品（框选/拖窗口/改尺寸）");
+            return false;
+        }
+        if (verdict == TabDragVerdict.SingleItemDrag)
+            TabLog("[TAB 放行] 拖拽中切页，手上=" + DescribeHeld(held));
 
         int target = (_currentPage + 1) % _pageCount;
         if (target == _currentPage)
@@ -442,15 +555,30 @@ public static class SaveBagPaging
         TabLog(
             $"[TAB 进入] 当前页={_currentPage + 1}({curCount}个) → 目标页={target + 1}({tgtCount}个)");
 
-        SwitchPage(target);
+        SwitchPage(target, held);
         return true;
     }
 
-    private static void SwitchPage(int target)
+    private static void SwitchPage(int target, GameItem held = null)
     {
         _busy = true;
         try
         {
+            IntPtr heldPtr = IntPtr.Zero;
+            if (held != null)
+            {
+                try { heldPtr = held.Pointer; }   // GameItem 继承自 Il2CppObjectBase，无需再转型
+                catch (Exception ex) { CatchLogOnce.Warn("paging.SwitchPage.heldPtr", ex); }
+            }
+            if (heldPtr != IntPtr.Zero)
+            {
+                // ★ 这一行同时是"游戏用的是哪种拖拽机制"的现场证据：
+                //   已不在网格 ⇒ 拿起的瞬间就移出去了（换页天然不碰它）；
+                //   仍在网格 ⇒ 幽灵式，靠下面 skipPtr 跳过，不把它搬走。
+                TabLog(GridContainsPtr(_mainGrid, heldPtr)
+                    ? "[TAB 切换] 手上那件**仍在网格里**（幽灵式）→ 已从快照/清空里跳过"
+                    : "[TAB 切换] 手上那件已不在网格里 → 无需跳过，松手后落在新页");
+            }
             // S9 安全网：切页前先确保网格只含"当前页"的物品。
             //   若不先校正，读档窗口内（观察窗口还没赶上/被 _busy 挡下）按 TAB 会把
             //   "全页合并"的网格快照进当前页 storage —— 那一页从此永久多出别页的物品。
@@ -458,8 +586,8 @@ public static class SaveBagPaging
             //   现在把它前置成无条件动作，任何时刻按 TAB 都是干净的。
             if (EnsureGridOwnershipClean() > 0) SaveIdSets();
 
-            SnapshotCurrentPage();
-            ClearGrid(_mainGrid);
+            SnapshotCurrentPage(heldPtr);
+            ClearGrid(_mainGrid, heldPtr);
             PlaceAll(_mainGrid, _storages[target]);
 
             _currentPage = target;
@@ -569,14 +697,19 @@ public static class SaveBagPaging
         SnapshotCurrentPage();
     }
 
-    private static void SnapshotCurrentPage()
+    /// <summary>
+    /// 把主网格的现状存进"当前页"的虚拟 storage。
+    /// <paramref name="skipPtr"/> ≠ 0 时跳过该指针的物品 —— 2026-10-12：TAB 拖拽中切页时，
+    /// 手上那件不能被存进"旧页"（否则读档/合并会把它算到旧页，与新页里实际位置矛盾）。
+    /// </summary>
+    private static void SnapshotCurrentPage(IntPtr skipPtr = default)
     {
         if (_currentPage < 0 || _currentPage >= _storages.Count) return;
 
         if (_mergedForSave) return;
 
         _storages[_currentPage].Clear();
-        _storages[_currentPage].AddRange(Snapshot(_mainGrid));
+        _storages[_currentPage].AddRange(Snapshot(_mainGrid, skipPtr));
 
         var currentPtrs = new HashSet<IntPtr>();
         foreach (var slot in _storages[_currentPage])
@@ -770,7 +903,7 @@ public static class SaveBagPaging
         try { return item.uniqueId; } catch (Exception ex) { CatchLogOnce.Warn("paging.Uid", ex); return 0; }
     }
 
-    private static List<ItemSlot> Snapshot(GameGridInventory grid)
+    private static List<ItemSlot> Snapshot(GameGridInventory grid, IntPtr skipPtr = default)
     {
         var list = new List<ItemSlot>();
         if (grid == null) return list;
@@ -789,6 +922,8 @@ public static class SaveBagPaging
                 IntPtr ptr = IntPtr.Zero;
                 try { ptr = it.Pointer; } catch (Exception ex) { CatchLogOnce.Warn("paging.Snapshot.ptr", ex); }
                 if (ptr != IntPtr.Zero && !seen.Add(ptr)) continue;
+                // 2026-10-12：拖拽中切页时，手上那件不进快照（见 SwitchPage）。
+                if (skipPtr != IntPtr.Zero && ptr == skipPtr) continue;
 
                 try { _ = it.uniqueId; } catch (Exception ex) { CatchLogOnce.Warn("paging.Snapshot.uid", ex); continue; }
 
@@ -806,20 +941,20 @@ public static class SaveBagPaging
     // 反编译 IL 为完全标准的 Roslyn 输出（无异常结构）。按区域拆成 3 个子方法：
     //   1) 降低单方法 EH 复杂度，可能直接绕开 JIT 致命点；
     //   2) 下一次若仍崩，堆栈方法名直接指认区域（CG_Scan / CG_ExpelLoop / 组装体）。
-    private static void ClearGrid(GameGridInventory grid)
+    private static void ClearGrid(GameGridInventory grid, IntPtr skipPtr = default)
     {
         if (grid == null) return;
         // S8u-3：一次性标记 —— 若预热后仍崩，最后一行标记 = 致死调用。
         if (!_cgDiag1) { _cgDiag1 = true; SaveBagExpandCore.Diag("[SBE-JIT] ClearGrid 入口"); }
         if (!_cgDiag2) { _cgDiag2 = true; SaveBagExpandCore.Diag("[SBE-JIT] ClearGrid → childItems/identifier 遍历"); }
 
-        var toExpel = CG_Scan(grid);
+        var toExpel = CG_Scan(grid, skipPtr);
 
         if (!_cgDiag3) { _cgDiag3 = true; SaveBagExpandCore.Diag("[SBE-JIT] ClearGrid → Expel 循环"); }
         CG_ExpelLoop(grid, toExpel);
     }
 
-    private static List<GameItem> CG_Scan(GameGridInventory grid)
+    private static List<GameItem> CG_Scan(GameGridInventory grid, IntPtr skipPtr = default)
     {
         var toExpel = new List<GameItem>();
         if (grid == null) return toExpel;
@@ -839,6 +974,8 @@ public static class SaveBagPaging
                     try { ptr = it.Pointer; } catch (Exception ex) { CatchLogOnce.Warn("paging.CG_Scan.ptr", ex); }
                     if (ptr == IntPtr.Zero) continue;
                     if (!seen.Add(ptr)) continue;
+                    // 2026-10-12：拖拽中切页时，手上那件不参与清空（见 SwitchPage）。
+                    if (skipPtr != IntPtr.Zero && ptr == skipPtr) continue;
 
                     bool alive = false;
                     try
@@ -857,7 +994,7 @@ public static class SaveBagPaging
 
         try
         {
-            foreach (var slot in Snapshot(grid))
+            foreach (var slot in Snapshot(grid, skipPtr))
             {
                 if (slot.Item == null) continue;
                 IntPtr ptr = IntPtr.Zero;
@@ -1395,7 +1532,12 @@ public static class SaveBagPaging
             { _ = DiagEnabled; _ = IsBound; _ = CurrentPage; _ = PageCount; _ = LastSwitchAt; });
             Step("TabLog(\"\")", () => TabLog(""));
             Step("ReadSaveSlotId", () => { ReadSaveSlotId(); });
-            Step("IsDraggingNow", () => { IsDraggingNow(); });
+            Step("IsMouseButtonHeld", () => { IsMouseButtonHeld(); });
+            // 2026-10-12：TAB 拖拽判定的新入口 —— 现在在 TAB 热路径上，
+            //   提前在这里编译（主菜单没有拖拽 ⇒ ItemMouseDragHandler.current 可能为 null，
+            //   ProbeTabDrag 走 NotDragging 早退，无副作用）。
+            Step("ProbeTabDrag(拖拽判定)", () => { ProbeTabDrag(out _, out _); });
+            Step("GridContainsPtr/DescribeHeld", () => { _ = GridContainsPtr(null, IntPtr.Zero); _ = DescribeHeld(null); });
             Step("Uid(null)/FindPage(0)", () => { Uid(null); FindPage(0); });
             Step("Snapshot(null)", () => { Snapshot(null); });
             // ↓ S9：页归属自愈链（读档主路径）——必须在这里首编，
