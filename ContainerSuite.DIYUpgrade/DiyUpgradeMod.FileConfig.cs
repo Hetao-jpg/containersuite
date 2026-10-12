@@ -58,6 +58,17 @@ public static partial class DiyUpgradeMod
     private const string ConfigDirName = "ContainerSuite";
     private const string ConfigFileName = "containers.txt";
     private const string ConfigVersionLine = "#v1";
+
+    /// <summary>
+    /// 文件注释的模板标记。玩家文件里若**没有**这一行，说明他手上是旧版注释，
+    /// 加载时会用新注释把整个文件重写一遍（数据按解析出来的值原样重写）。
+    /// 见 <see cref="RefreshTemplateIfOutdated"/>。
+    /// </summary>
+    private const string ConfigTemplateMarker = "#template=";
+
+    /// <summary>当前注释模板版本（改注释时 +1，老玩家下次启动就会拿到新说明）。</summary>
+    private const int ConfigTemplateVersion = 2;
+
     /// <summary>每 id 尺寸上限的硬边界（与 TryGetGridShapeLimits 的 HardMaxDim 一致）。</summary>
     private const int ConfigLimitMinDim = 1;
     private const int ConfigLimitMaxDim = 100;
@@ -197,6 +208,11 @@ public static partial class DiyUpgradeMod
 
             _configFileLoaded = true;
             TryStampConfigFile(path);
+
+            // ★ 注释是玩家唯一的使用说明，但它只在"生成新文件"时写一次 ⇒ 老玩家会一直
+            //   停在他第一次生成那版。这里检查模板标记，旧注释就用新注释重写一遍
+            //   （数据按刚解析出来的值原样重写），见该方法注释。
+            RefreshTemplateIfOutdated(path, lines);
 
             // ★ 权威声明（无条件输出）：文件里声明过的类别以文件为准，cfg 里的旧值不生效。
             //   这一行是"我改了 cfg 怎么没用"的唯一解释来源，不能走 Diag 闸门。
@@ -419,34 +435,185 @@ public static partial class DiyUpgradeMod
     private static void WriteConfigSeed(string path)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(ConfigVersionLine);
-        sb.AppendLine("# ContainerSuite 容器升级配置（改完存盘，游戏内 2 秒内自动生效，不用重启）");
-        sb.AppendLine("#");
-        sb.AppendLine("# [whitelist] 每行 `类别 = 物品id, 物品id, ...`");
-        sb.AppendLine("#   类别可用：" + string.Join(" / ", WhitelistKeys));
-        sb.AppendLine("#   ★ 这里声明过的类别以本文件为准，MelonPreferences.cfg 里的 *Ids 不再生效；");
-        sb.AppendLine("#     没声明的类别仍用 cfg。想「恢复默认」就整行删掉（不是留空）。");
-        sb.AppendLine("#   ★ 蛙哥的妙妙箱 / 虚空珠袋、以及 Mod 容器不在这里 —— 它们靠固定 id 匹配，");
-        sb.AppendLine("#     归「避让」开关管；要单独给它们改尺寸上限，用下面的 [limits] 写 id。");
-        sb.AppendLine("#");
-        sb.AppendLine("# [limits] 每行 `物品id = 宽x高`（1~100）");
-        sb.AppendLine("#   只对写在这里的 id 生效，**完全覆盖**该类别在 cfg 里的 MaxW/MaxH（可增可减）；");
-        sb.AppendLine("#   没写的 id 仍用类别上限。缩小到装不下容器里现有物品时不会生效，日志会提示。");
+        AppendHeader(sb);
+        AppendSections(sb,
+            k =>
+            {
+                switch (k)
+                {
+                    case "box": return _box.Ids.Value ?? "";
+                    case "backpack": return _backpack.Ids.Value ?? "";
+                    case "cage": return _cage.Ids.Value ?? "";
+                    case "multislot": return _multiSlot.Ids.Value ?? "";
+                    case "multislotmodule": return _multiSlotModule.Ids.Value ?? "";
+                    default: return null;
+                }
+            },
+            null);
+        WriteConfigFile(path, sb.ToString());
+    }
+
+    /// <summary>
+    /// 写出 [whitelist] 与 [limits] 两段（含段头与示例注释）。
+    /// <paramref name="whitelistValueOf"/> 返回 null = 这一行不写（玩家把整行删掉 = 恢复出厂名单）。
+    /// </summary>
+    private static void AppendSections(StringBuilder sb,
+        Func<string, string> whitelistValueOf, List<string> limitLines)
+    {
         sb.AppendLine();
         sb.AppendLine("[whitelist]");
-        AppendSeedWhitelist(sb, "box", _box.Ids.Value);
-        AppendSeedWhitelist(sb, "backpack", _backpack.Ids.Value);
-        AppendSeedWhitelist(sb, "cage", _cage.Ids.Value);
-        AppendSeedWhitelist(sb, "multislot", _multiSlot.Ids.Value);
-        AppendSeedWhitelist(sb, "multislotmodule", _multiSlotModule.Ids.Value);
+        for (int i = 0; i < WhitelistKeys.Length; i++)
+        {
+            string v = whitelistValueOf(WhitelistKeys[i]);
+            if (v == null) continue;
+            AppendSeedWhitelist(sb, WhitelistKeys[i], v);
+        }
         sb.AppendLine();
         sb.AppendLine("[limits]");
-        sb.AppendLine("# 例：让某一种箱子单独放宽 / 收紧（其余箱子仍用类别上限）");
+        AppendLimitComments(sb);
+        if (limitLines != null)
+            for (int i = 0; i < limitLines.Count; i++) sb.AppendLine(limitLines[i]);
+    }
+
+    /// <summary>[limits] 段里的示例注释（行首都带 #，所以本身不生效）。</summary>
+    private static void AppendLimitComments(StringBuilder sb)
+    {
+        sb.AppendLine("# 下面是示例，行首有 # 表示**没生效**。想让某条生效：删掉它行首的 #，再改成你要的尺寸。");
         sb.AppendLine("# storage_bay = 30x20");
         sb.AppendLine("# evidence_box = 24x24");
-        sb.AppendLine("# 蛙哥容器也可写（固定 id）：custom_storage_box / void_bead_storage / wage_gu_machine / wage_ai_generator");
+        sb.AppendLine("# 蛙哥的容器也能在这里写（它们有固定 id）：");
+        sb.AppendLine("# custom_storage_box = 20x20     妙妙箱");
+        sb.AppendLine("# void_bead_storage = 20x20      虚空珠袋");
+        sb.AppendLine("# wage_gu_machine = 20x20        蛙哥机器");
+        sb.AppendLine("# wage_ai_generator = 20x20      蛙哥发电机");
+    }
 
-        WriteConfigFile(path, sb.ToString());
+    /// <summary>
+    /// 生成文件**头注释**（即 <c>[whitelist]</c> 之前的全部内容）。
+    /// <para>
+    /// ★ 这段文字是给玩家看的，唯一标准是"照着抄就能改对"：全部用中文、
+    ///   全部用「想…→ 就…」的写法、有具体例子、把会踩的坑用 ⚠ 单独标出。
+    ///   改这里的时候不要写实现细节（比如"cfg 里的 *Ids"这种词玩家不认，
+    ///   要说"另一个配置文件里的旧名单"）。
+    /// </para>
+    /// </summary>
+    private static void AppendHeader(StringBuilder sb)
+    {
+        sb.AppendLine(ConfigVersionLine);
+        sb.AppendLine(ConfigTemplateMarker + ConfigTemplateVersion);
+        sb.AppendLine("# ================================================================");
+        sb.AppendLine("#  容器套件 · 容器升级名单与尺寸上限  ← 你要改的就是这个文件");
+        sb.AppendLine("#  改完按 Ctrl+S 存盘，回到游戏 2 秒内自动生效，不用重启游戏");
+        sb.AppendLine("# ================================================================");
+        sb.AppendLine("#");
+        sb.AppendLine("# 这个文件管两件事：");
+        sb.AppendLine("#   ① 哪些物品算「能升级的容器」  → 看下面第一段 [whitelist]");
+        sb.AppendLine("#   ② 每种容器最多能升多大        → 看下面第二段 [limits]");
+        sb.AppendLine("# （升级方式：按住 LeftAlt，把金属锭拖到容器上；每升一次容器大一圈）");
+        sb.AppendLine("#");
+        sb.AppendLine("# 只有 3 条规则，记住就够：");
+        sb.AppendLine("#   1) 行首带 # 的都是说明文字，不生效。这些说明你想删就删，不影响功能。");
+        sb.AppendLine("#   2) 不要删掉 [whitelist] 和 [limits] 这两行 —— 它们用来分段。");
+        sb.AppendLine("#   3) 一行只写一个 = 号；物品id 之间用英文逗号隔开。");
+        sb.AppendLine("#");
+        sb.AppendLine("# ----------------------------------------------------------------");
+        sb.AppendLine("#  第一段  [whitelist]  哪些物品能升级");
+        sb.AppendLine("# ----------------------------------------------------------------");
+        sb.AppendLine("#   写法：   类别 = 物品id, 物品id, ...");
+        sb.AppendLine("#");
+        sb.AppendLine("#   · 想加一个容器 → 把它的物品id加到对应类别那一行的**末尾**，前面补英文逗号");
+        sb.AppendLine("#       例如原本是  box = sec_box,evidence_box");
+        sb.AppendLine("#       想再加一个就改成  box = sec_box,evidence_box,新容器的id");
+        sb.AppendLine("#   · 想去掉一个容器 → 把它的id从那一行里删掉");
+        sb.AppendLine("#   · 想恢复这一类出厂名单 → 把**整行都删掉**");
+        sb.AppendLine("#       ⚠ 注意是「整行删掉」，不是「把等号右边留空」——留空表示这类容器全部不能升级");
+        sb.AppendLine("#");
+        sb.AppendLine("#   5 个类别各管什么（左边的名字不能改，右边的id随便加）：");
+        sb.AppendLine("#     box              箱子 / 货舱（主仓库、保险箱、走私舱……）← 最常用");
+        sb.AppendLine("#     backpack         背包 / 挎包 / 腰包");
+        sb.AppendLine("#     cage             笼子（动物笼、鼠笼）");
+        sb.AppendLine("#     multislot        能往里塞东西的机器（冰箱、充电器、扫地机器人）");
+        sb.AppendLine("#     multislotmodule  机器上的模组槽（熔炉、拆解机、净水器、打印机……）");
+        sb.AppendLine("#");
+        sb.AppendLine("#   ⚠ 妙妙箱 / 虚空珠袋 / Mod容器 不在上面这份名单里，写进来也没用");
+        sb.AppendLine("#     （它们靠固定id认，归另一个配置文件里的「避让开关」管）；只想给它们");
+        sb.AppendLine("#     改尺寸上限的话，写在下面的 [limits] 段即可。");
+        sb.AppendLine("#");
+        sb.AppendLine("#   ⚠ 这里写过的类别，就「以这个文件为准」了：另一个配置文件里对应的旧名单");
+        sb.AppendLine("#     不再生效，不用两边同时改。");
+        sb.AppendLine("#");
+        sb.AppendLine("# ----------------------------------------------------------------");
+        sb.AppendLine("#  第二段  [limits]  每种容器最多能升到多大");
+        sb.AppendLine("# ----------------------------------------------------------------");
+        sb.AppendLine("#   写法：   物品id = 宽x高      （数字填 1~100，中间的 x 是小写英文字母 x）");
+        sb.AppendLine("#");
+        sb.AppendLine("#   · 只需要写你想单独设上限的那几种，没写的照样用「这一类容器的默认上限」");
+        sb.AppendLine("#   · 示例（行首的 # 去掉才会生效）：");
+        sb.AppendLine("#       storage_bay = 30x20     主仓库最多 30 列 20 行");
+        sb.AppendLine("#       evidence_box = 24x24    保险箱最多 24×24");
+        sb.AppendLine("#");
+        sb.AppendLine("#   ⚠ 在这里写了某件容器，就**完全按你写的来**（可以改大，也可以改小），");
+        sb.AppendLine("#     不再受这一类容器的默认上限约束。");
+        sb.AppendLine("#   ⚠ 改得太小、装不下容器里现有的东西时，这次改动不会生效，游戏日志里会有一条提示。");
+        sb.AppendLine("#");
+        sb.AppendLine("# 想全部恢复成出厂设置：");
+        sb.AppendLine("#   关掉游戏 → 删掉本文件 → 下次进游戏会自动重新生成一份。");
+        sb.AppendLine("# ================================================================");
+    }
+
+    /// <summary>
+    /// 注释模板过期时，用新注释重新落地整个文件 —— **数据按解析出来的值原样重写**。
+    /// <para>
+    /// 为什么需要它：注释是玩家唯一的使用说明，但它只在"生成新文件"时写一次 ⇒
+    /// 老玩家的文件会永远停在他第一次生成那版（也就是我们改进注释前那版）。
+    /// 加载时检查模板标记：没有标记 = 旧注释 ⇒ 换新注释 + 留一份 <c>.bak</c>。
+    /// </para>
+    /// <para>
+    /// 语义安全性：重写用的白名单值就是 <c>_fileWhitelist</c> 里刚解析出来的**原文**，
+    /// 上限值来自 <c>_perIdLimit</c>（同为刚解析的结果）⇒ 重写前后解析结果完全一致，
+    /// 只是注释变新了。顺带保真两件事：① 玩家删掉整行的类别仍然不写（= 继续用出厂名单）；
+    /// ② 值留空的类别仍然写成空值（= 继续表示"这一类不能升级"）。
+    /// </para>
+    /// <para>
+    /// 安全边界：① 找不到 <c>[whitelist]</c> 行就**什么都不做**（那是玩家自己写的文件，
+    /// 不要碰）；② 写盘走 <c>WriteConfigFile</c> 的 tmp→Move 原子替换；
+    /// ③ 只在 <c>.bak</c> 不存在时才备份，保住最早那份原件。
+    /// </para>
+    /// </summary>
+    private static void RefreshTemplateIfOutdated(string path, string[] lines)
+    {
+        try
+        {
+            for (int i = 0; i < lines.Length; i++)
+                if (lines[i] != null && lines[i].Contains(ConfigTemplateMarker)) return;   // 已是当前模板
+
+            bool hasWhitelistSection = false;
+            for (int i = 0; i < lines.Length; i++)
+                if (lines[i] != null && lines[i].Trim().ToLowerInvariant().StartsWith("[whitelist"))
+                { hasWhitelistSection = true; break; }
+            if (!hasWhitelistSection) return;                     // 手工文件：不碰
+
+            var limitLines = new List<string>();
+            foreach (var kv in _perIdLimit)
+                limitLines.Add(kv.Key + " = " + kv.Value.W + "x" + kv.Value.H);
+            limitLines.Sort(StringComparer.Ordinal);
+
+            var sb = new StringBuilder();
+            AppendHeader(sb);
+            AppendSections(sb,
+                k => _fileWhitelist.TryGetValue(k, out var v) ? (v ?? "") : null,
+                limitLines);
+
+            string bak = path + ".bak";
+            try { if (!File.Exists(bak)) File.Copy(path, bak, false); }
+            catch (Exception ex) { CatchLogOnce.Warn("FileConfig:bak", ex); }
+
+            WriteConfigFile(path, sb.ToString());
+            TryStampConfigFile(path);                             // 自己写的，别让热重载当成玩家改动
+            _log?.Msg("[容器升级] 配置文件的说明文字已更新（你自己的名单和上限一条没动；"
+                + "旧文件已备份为 " + Path.GetFileName(bak) + "）");
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("FileConfig:refreshTemplate", ex); }
     }
 
     private static void AppendSeedWhitelist(StringBuilder sb, string key, string ids)
