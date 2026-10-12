@@ -48,6 +48,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using MelonLoader;
+using UnityEngine;   // D-2：组拖进度屏幕提示（GUIStyle / GUI / Screen / Time）
 
 namespace DIYUpgrade;
 
@@ -58,17 +59,35 @@ public static partial class DiyUpgradeMod
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// StartGroupDrag 时快照的"被框选材料的指针"。★ 存指针而非 GameItem 对象：
-    /// 组拖可能持续数秒，跨帧持有 IL2CPP 对象有悬垂指针风险（R4）；
-    /// 执行时用指针重新 new GameItem 并做存活校验。
+    /// StartGroupDrag 时快照的「被框选材料（指针 + uniqueId）」。
+    /// ★ 存指针而非 GameItem 对象：组拖可能持续数秒，跨帧持有 IL2CPP 对象有
+    ///   悬垂指针风险（R4）；执行时用指针重新 new GameItem 并做存活校验。
+    /// ★ B-3'（2026-10-12）为什么把 uniqueId 与指针结对：裸指针跨帧的有效性
+    ///   **无法自证** —— IL2CPP 分配器复用地址时，new GameItem(ptr) 会包装到
+    ///   另一个物品上，此时 IdFieldNull 反而能通过（新对象有合法 identifier）
+    ///   ⇒ 会吞错材料。uniqueId 是每实例 id：快照时在活对象上读一次（浅栈、安全），
+    ///   每步比对即可识别「这个地址已经变成别人的了」。
+    ///   ★ 否决「按标识符查表」的方案：identifier 是类型级字符串，
+    ///     DirectoryMaster.Item(identifier) 不保证返回玩家拖落的那一个实例
+    ///     （场上两个同型容器时可能解析到另一个）—— 指针才是唯一事实。
+    ///   ★ H3（2026-10-12）：uid 可能读不到（记为 0）。此时**不丢弃**该项，
+    ///     而是降级为「仅指针校验」并留痕 —— 绝不静默少升。
     /// </summary>
-    private static readonly List<IntPtr> _groupDragMaterialPtrs = new List<IntPtr>();
+    private static readonly List<(IntPtr Ptr, long Uid)> _groupDragMaterials = new List<(IntPtr, long)>();
 
     /// <summary>最近一次组拖是否已武装（StartGroupDrag 到 EndGroupDrag 之间为 true）。</summary>
     private static bool _groupDragArmed;
 
     /// <summary>组拖执行协程是否正在跑（防重入）。</summary>
     private static bool _groupUpgradeRunning;
+
+    // ★ D-2（2026-10-12）：组拖进度提示的状态（100 堆材料 × 6 帧 ≈ 10 秒 @60fps，
+    //   中间无任何反馈玩家会以为卡死了）。由 RunGroupUpgrade 每步更新，
+    //   由 Infrastructure Mod.OnGUI → DrawGroupDragProgress() 读取并绘制。
+    private static int _groupDragProgressCurrent;
+    private static int _groupDragProgressTotal;
+    private static float _groupDragProgressAt = -10f;
+    private static GUIStyle _groupDragProgressStyle;
 
     /// <summary>
     /// StartGroupDrag Prefix：快照框选材料。
@@ -92,7 +111,7 @@ public static partial class DiyUpgradeMod
     {
         try
         {
-            _groupDragMaterialPtrs.Clear();
+            _groupDragMaterials.Clear();
             _groupDragArmed = false;
 
             if (!IsUpgradeKeyHeld()) return;                       // 没按升级键 = 普通组拖，不管
@@ -101,6 +120,10 @@ public static partial class DiyUpgradeMod
 
             var selected = __instance?.selectedItems;
             if (selected == null) return;
+
+            // H3：读不到 uniqueId 的堆数 —— 这类项**不丢弃**（降级为仅指针校验），
+            //   但必须留痕，否则就是"悄悄少了一层保护"。
+            int uidMissing = 0;
 
             for (int i = 0; i < selected.Count; i++)
             {
@@ -116,15 +139,25 @@ public static partial class DiyUpgradeMod
 
                 IntPtr p = IntPtr.Zero;
                 try { p = ((Il2CppObjectBase)gi).Pointer; } catch { continue; }
-                if (p != IntPtr.Zero) _groupDragMaterialPtrs.Add(p);
+                if (p == IntPtr.Zero) continue;
+                long uid = 0L;
+                // H3：uid 读不到（异常 / 字段未恢复）不算致命 —— 记 0，执行端自动降级为
+                //   "仅指针校验"。**不丢弃这一堆**：宁可少一层保护，也不能静默少升级。
+                try { uid = gi.uniqueId; } catch { uid = 0L; }
+                if (uid == 0L) uidMissing++;
+                _groupDragMaterials.Add((p, uid));
             }
 
-            if (_groupDragMaterialPtrs.Count > 0)
+            if (uidMissing > 0)
+                LogOnce("[容器升级] 组拖：有 " + uidMissing + " 堆材料读不到 uniqueId，"
+                    + "本次对它们仅按指针做存活校验（地址复用无法识别）", warning: true);
+
+            if (_groupDragMaterials.Count > 0)
             {
                 _groupDragArmed = true;
                 // 首次启用留一条**无条件**日志（项目教训：默认静默的日志会被
                 // 误读成"没执行"）。用 LogOnce 的 3 秒去重避免刷屏。
-                LogOnce("[容器升级] 批量框选已武装：" + _groupDragMaterialPtrs.Count + " 堆材料（松手在容器上即连续升级）");
+                LogOnce("[容器升级] 批量框选已武装：" + _groupDragMaterials.Count + " 堆材料（松手在容器上即连续升级）");
             }
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:snapshot", ex); }
@@ -149,24 +182,24 @@ public static partial class DiyUpgradeMod
         {
             if (!_groupDragArmed) return;
             _groupDragArmed = false;   // 无论成败，本次组拖的武装状态到此为止
-            if (WorldReadyGate.ShouldDefer) { _groupDragMaterialPtrs.Clear(); return; }
-            if (RestoreArbiter.IsApplying) { _groupDragMaterialPtrs.Clear(); return; }   // 仲裁期不抢
-            if (!IsGroupDragEnabled) { _groupDragMaterialPtrs.Clear(); return; }
-            if (_groupUpgradeRunning) { _groupDragMaterialPtrs.Clear(); return; }        // 防重入
+            if (WorldReadyGate.ShouldDefer) { _groupDragMaterials.Clear(); return; }
+            if (RestoreArbiter.IsApplying) { _groupDragMaterials.Clear(); return; }   // 仲裁期不抢
+            if (!IsGroupDragEnabled) { _groupDragMaterials.Clear(); return; }
+            if (_groupUpgradeRunning) { _groupDragMaterials.Clear(); return; }        // 防重入
 
             // ── 落点解析（唯一悬停容器，三级判据，无回退猜测） ──────────────
             GameItem container = ResolveGroupDragTarget(__instance);
             if (container == null)
             {
                 // 悬停落空 = 玩家没拖到容器上 = 不是升级意图，静默放弃。
-                _groupDragMaterialPtrs.Clear();
+                _groupDragMaterials.Clear();
                 return;
             }
 
-            // 快照成独立数组交给协程（协程里不再引用这两个列表）
-            IntPtr[] ptrs = _groupDragMaterialPtrs.ToArray();
-            _groupDragMaterialPtrs.Clear();
-            if (ptrs.Length == 0) return;
+            // 快照成独立数组交给协程（协程里不再引用这个列表）
+            var mats = _groupDragMaterials.ToArray();
+            _groupDragMaterials.Clear();
+            if (mats.Length == 0) return;
 
             // ── 虚空珠移交门（与单拖 EndDragPatch 完全同语义） ─────────────
             // ★★ 为什么组拖必须自己走这一步，不能靠 MatchCategory 的判据：
@@ -192,17 +225,26 @@ public static partial class DiyUpgradeMod
                 catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:handover", ex); }
             }
 
+            // ★ B-3'（2026-10-12）：容器同样按「指针 + uniqueId」交给协程。
+            //   指针 = 玩家实际拖落的那一个（唯一事实）；uniqueId = 跨帧存活判据。
             IntPtr containerPtr = IntPtr.Zero;
             try { containerPtr = ((Il2CppObjectBase)container).Pointer; } catch { return; }
             if (containerPtr == IntPtr.Zero) return;
+            // H3：容器 uid 读不到（0）**不中止组拖** —— 降级为仅指针校验 + 留痕。
+            //   原方案在此直接 return，会让"uid 一时读不到"变成"整次组拖静默失效"。
+            long containerUid = 0L;
+            try { containerUid = container.uniqueId; } catch { containerUid = 0L; }
+            if (containerUid == 0L)
+                LogOnce("[容器升级] 组拖：容器读不到 uniqueId，本次仅按指针做存活校验"
+                    + "（地址复用无法识别）", warning: true);
 
-            try { MelonCoroutines.Start(RunGroupUpgrade(containerPtr, ptrs)); }
+            try { MelonCoroutines.Start(RunGroupUpgrade(containerPtr, containerUid, mats)); }
             catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:start-coroutine", ex); }
         }
         catch (System.Exception ex)
         {
             CatchLogOnce.Warn("GroupDrag:arm", ex);
-            _groupDragMaterialPtrs.Clear();
+            _groupDragMaterials.Clear();
         }
     }
 
@@ -249,11 +291,18 @@ public static partial class DiyUpgradeMod
     ///   过程中做了别的操作）。存活校验失败就整体停止。
     /// </para>
     /// <para>
-    /// ★ 预算：最多处理 ptrs.Length 堆；另设一个帧数硬上限防止极端情况下
+    /// ★ 预算：最多处理 materials.Length 堆；另设一个帧数硬上限防止极端情况下
     ///   协程长时间占用（正常不会触及）。
     /// </para>
+    /// <para>
+    /// ★ B-3'（2026-10-12）：容器与材料都做「指针 + uniqueId」双验 ——
+    ///   IL2CPP 复用地址后 new GameItem(ptr) 会包装到别的物品上，此时
+    ///   IdFieldNull 能通过（新对象有合法 identifier），只有 uid 比对能识别。
+    ///   uid == 0（快照时没读到）的项降级为仅指针校验，**不丢弃**（H3）。
+    /// </para>
     /// </summary>
-    private static IEnumerator RunGroupUpgrade(IntPtr containerPtr, IntPtr[] materialPtrs)
+    private static IEnumerator RunGroupUpgrade(IntPtr containerPtr, long containerUid,
+        (IntPtr Ptr, long Uid)[] materials)
     {
         _groupUpgradeRunning = true;
         int done = 0;
@@ -262,23 +311,47 @@ public static partial class DiyUpgradeMod
             // 第一帧先等游戏自己的 EndGroupDrag 跑完（材料落位、幽灵清理）。
             yield return null;
 
-            for (int i = 0; i < materialPtrs.Length; i++)
+            // D-2：进度提示起算（等上面那一帧之后再置，避免把等待帧算进"升级中"）。
+            _groupDragProgressTotal = materials.Length;
+            _groupDragProgressCurrent = 0;
+            _groupDragProgressAt = Time.realtimeSinceStartup;
+
+            for (int i = 0; i < materials.Length; i++)
             {
                 if (WorldReadyGate.ShouldDefer) break;
                 if (RestoreArbiter.IsApplying) break;
                 if (!IsGroupDragEnabled) break;
 
-                // 重解析容器，存活校验
+                // 重解析容器，存活校验（B-3'：uniqueId 比对识别地址复用；
+                //   不按 id 查表 —— DirectoryMaster.Item(identifier) 不保证是这一个实例）
                 GameItem container = null;
                 try { container = new GameItem(containerPtr); } catch { break; }
-                if (container == null || IdFieldNull(container)) break;
+                if (container == null) break;
+                if (containerUid != 0L)
+                {
+                    long nowUid = 0L;
+                    bool read = true;
+                    try { nowUid = container.uniqueId; } catch { read = false; }
+                    // 读不到 uid ⇒ 无法自证身份 ⇒ 与"换了对象"同样处理：整体停止。
+                    if (!read || nowUid != containerUid) break;
+                }
+                if (IdFieldNull(container)) break;
 
-                // 重解析材料，存活校验（材料可能已被前面的消耗销毁）
-                IntPtr mptr = materialPtrs[i];
-                if (mptr == IntPtr.Zero) continue;
+                // 重解析材料，存活校验（材料可能已被前面的消耗销毁；
+                //   B-3'：指针 + uniqueId 双验，地址被复用成别的物品时 uid 不同 → 跳过）
+                var mat = materials[i];
+                if (mat.Ptr == IntPtr.Zero) continue;
                 GameItem material = null;
-                try { material = new GameItem(mptr); } catch { continue; }
-                if (material == null || IdFieldNull(material)) continue;
+                try { material = new GameItem(mat.Ptr); } catch { continue; }
+                if (material == null) continue;
+                if (mat.Uid != 0L)
+                {
+                    long nowUid = 0L;
+                    bool read = true;
+                    try { nowUid = material.uniqueId; } catch { read = false; }
+                    if (!read || nowUid != mat.Uid) continue;   // 地址已复用 / 无法自证 → 跳过
+                }
+                if (IdFieldNull(material)) continue;
 
                 // 材料还在容器里吗？可能已被玩家移走 —— 不追究，直接跳过。
                 // ★ 这些 continue 分支**不 yield**：它们无副作用，同帧空转可接受；
@@ -295,6 +368,7 @@ public static partial class DiyUpgradeMod
                         ConsumeMaterial(material);
                         consumed = true;
                         done++;
+                        _groupDragProgressCurrent = done;   // D-2：进度 = 已实际升的堆数
                     }
                     else
                     {
@@ -328,7 +402,62 @@ public static partial class DiyUpgradeMod
             try { _prepareCache.Clear(); _ggiCache.Clear(); } catch { }
             if (done > 0)
                 LogOnce("[容器升级] 批量升级完成：共 " + done + " 堆材料");
+            // D-2：刷新时间戳让"完成/中止"态重新走一遍 3 秒淡出（中止时也刷新 ——
+            //   玩家至少能看到"进度停在 3/20"这种有信息量的收尾）。
+            _groupDragProgressCurrent = done;
+            _groupDragProgressAt = Time.realtimeSinceStartup;
         }
+    }
+
+    /// <summary>
+    /// D-2（2026-10-12）：组拖进度的屏幕提示。由 Infrastructure 的 <c>Mod.OnGUI</c> 调用
+    /// —— **不走** SBE 的 <c>SaveBagExpandCore.DrawGUI</c>：那是分页模块的方法，画 DIY 的
+    /// 状态属反向依赖，而且 SBE 的 Enabled / _cfgPagingEnabled 门槛会把这条提示一起吞掉。
+    /// <para>
+    /// 样式与淡出逻辑抄 <c>SaveBagExpand</c> 的 DrawMergeLossWarning（缓存 GUIStyle、
+    /// 阴影 + 淡出、全包 try/catch），y=90 是为了避开它的 y=20 区域（两者可能同屏）。
+    /// </para>
+    /// </summary>
+    internal static void DrawGroupDragProgress()
+    {
+        try
+        {
+            if (_groupDragProgressAt < -1f) return;              // 从未跑过组拖
+            const float dur = 3f;
+            float elapsed = Time.realtimeSinceStartup - _groupDragProgressAt;
+            if (elapsed < 0f || elapsed > dur) return;
+
+            if (_groupDragProgressStyle == null)
+            {
+                _groupDragProgressStyle = new GUIStyle(GUI.skin.label);
+                _groupDragProgressStyle.fontSize = 20;
+                _groupDragProgressStyle.fontStyle = FontStyle.Bold;
+                _groupDragProgressStyle.alignment = TextAnchor.UpperCenter;
+                _groupDragProgressStyle.wordWrap = true;
+            }
+
+            float alpha = 1f;
+            float fadeStart = dur * 0.6f;
+            if (elapsed > fadeStart)
+            {
+                alpha = 1f - (elapsed - fadeStart) / (dur - fadeStart);
+                if (alpha < 0f) alpha = 0f;
+            }
+
+            string txt = (_groupDragProgressTotal > 0 && _groupDragProgressCurrent >= _groupDragProgressTotal)
+                ? $"批量升级完成：{_groupDragProgressTotal} 堆"
+                : $"批量升级中 {_groupDragProgressCurrent}/{_groupDragProgressTotal}";
+
+            float w = Mathf.Min(Screen.width - 80f, 420f);
+            var rect = new Rect((Screen.width - w) * 0.5f, 90f, w, 30f);
+            var shadow = new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height);
+
+            _groupDragProgressStyle.normal.textColor = new Color(0f, 0f, 0f, alpha * 0.8f);
+            GUI.Label(shadow, txt, _groupDragProgressStyle);
+            _groupDragProgressStyle.normal.textColor = new Color(1f, 1f, 1f, alpha);
+            GUI.Label(rect, txt, _groupDragProgressStyle);
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("GroupDrag:draw-progress", ex); }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

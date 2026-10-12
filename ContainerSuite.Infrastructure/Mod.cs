@@ -247,6 +247,12 @@ public sealed class Mod : MelonMod
     {
         try { SaveBagExpand.SaveBagExpandCore.DrawGUI(); }
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnGUI.SBE", ex); }
+        // D-2（2026-10-12）：组拖进度提示。放在 SBE 之后：两者屏幕区域不重叠
+        // （SBE 的提示在 y=20，组拖进度在 y=90），互不影响。
+        // ★ 刻意不走 SBE 的 DrawGUI —— 分页开关关闭时那条路径会被门槛挡掉，
+        //   而"批量升级进行中"与分页开关毫无关系。
+        try { DIYUpgrade.DiyUpgradeMod.DrawGroupDragProgress(); }
+        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnGUI.DIYGroupDrag", ex); }
     }
 
     public override void OnApplicationQuit()

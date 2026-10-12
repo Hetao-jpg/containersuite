@@ -232,6 +232,8 @@ public static partial class DiyUpgradeMod
         //   不清的后果：读档后残留的武装标志 + 陈旧指针，让下一次组拖
         //   以错误的材料集启动。注：StartGroupDrag 的 Prefix 也会重置，
         //   这里是双保险（且覆盖"未走 Start 就直接 End"的极端情况）。
+        // ★ B-3'（2026-10-12）：快照已改为「指针 + uniqueId」结对，但清理时机不变 ——
+        //   跨场景后指针与 uid 都可能对应到别的东西，一起丢。
         ResetGroupDragState();
     }
 
@@ -241,7 +243,7 @@ public static partial class DiyUpgradeMod
     /// </summary>
     private static void ResetGroupDragState()
     {
-        try { _groupDragMaterialPtrs.Clear(); } catch { }
+        try { _groupDragMaterials.Clear(); } catch { }
         _groupDragArmed = false;
         // ★ 刻意**不**动 _groupUpgradeRunning：协程可能真的还在跑
         //   （读档期间它会在下一步的 ShouldDefer 检查处自行退出并复位）。
