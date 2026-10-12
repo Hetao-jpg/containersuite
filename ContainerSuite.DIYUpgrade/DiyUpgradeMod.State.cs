@@ -247,6 +247,11 @@ public static partial class DiyUpgradeMod
     [ThreadStatic] private static int _layoutChildHeight;
     // ★ T1（2026-10-12）：值由 DateTime 改为单调毫秒（判定见 Utils.LogOnce 的注释）。
     private static readonly Dictionary<string, long> _lastLogTimeByKey = new Dictionary<string, long>();
+    // ★ T2（2026-10-12，借鉴蛙哥 ConsumedThisFrame 的**思路**）：同一容器「本帧是否已真升过」。
+    //   键是容器裸指针 ⇒ 必须随场景 / 读档清空（已登记 CacheRegistry，见 RegisterSceneCaches）。
+    //   ★ 命名以 Cache 结尾是有意的：若将来恢复 _shared 的 R6 门禁（Cache/Seen 结尾的
+    //     private static Dictionary 必须登记），本字段天然在其判定范围内 —— 登记了就不会漏。
+    private static readonly Dictionary<IntPtr, int> _upgradeStampCache = new Dictionary<IntPtr, int>();
     // P1（2026-10-02）：_lastHideBounds 已搬到 ContainerSuite.Shared.GridFx。
     // peak 内存缓存：tag 读回 0 时兜底，避免探测每秒重复触发。
     private static readonly Dictionary<IntPtr, (int PeakW, int PeakH)> _peakCache

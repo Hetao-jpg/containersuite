@@ -197,6 +197,9 @@ public static partial class DiyUpgradeMod
         //   日志去重集合一并重置，与 OnSceneWasLoaded 里 CatchLogOnce.Clear() 同哲学。
         CacheRegistry.Register("_offsetCache", OffsetResolver.ClearCache, survivesLoadGame: true);
         CacheRegistry.Register("_diagSeen", ContainerSuiteLog.ClearDiagOnce);
+        // T2（2026-10-12）：键是容器裸指针 ⇒ 场景切换与读档都必须清（复用地址后
+        //   旧指针会命中上一个世界的条目，导致"本帧已升过"误判 → 升级被无理由拒绝）。
+        CacheRegistry.Register("_upgradeStampCache", () => _upgradeStampCache.Clear());
     }
 
     public static void OnSceneLoaded(int index, string sceneName)
@@ -288,6 +291,10 @@ public static partial class DiyUpgradeMod
         ContainerSuite.Shared.CrashProbe.Enter("DIY.TryFlushPrefs");
         TryFlushPrefs();
         ContainerSuite.Shared.CrashProbe.Exit("DIY.TryFlushPrefs");
+
+        // T3（2026-10-12）：组拖"事件丢失"对账（已武装 + 鼠标抬起 N 帧却没等到 EndGroupDrag）。
+        //   未武装时方法内第一行就返回，常态零开销；内部全 try/catch，异常不外溢。
+        ReconcileGroupDragArm();
         // S8m：原此处每帧调 SkipWageUpgradeRestore.TickDiagnostics()（F11）+
         //       SkipXiaowoBayRestore.TickDiagnostics()（F12），已随诊断台账一并移除
         //       （S8l 实机验证通过，台账属排障期脚手架）。恢复方法见两个文件内的注释块。

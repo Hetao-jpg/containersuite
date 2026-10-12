@@ -297,9 +297,14 @@ public static partial class DiyUpgradeMod
             {
                 if (PrepareUpgradeInternal(container, cat, out var apply, out var reason))
                 {
-                    apply();
-                    ConsumeMaterial(material);
-                    _targetConsumeAtMs = PollThrottle.NowMs;   // T1：单调钟（原 DateTime.UtcNow）
+                    // T2：同一容器每帧最多真升一次（闸门放在 prepare 成功之后 ——
+                    //     被它拦下的必然是"本该真升的一次"，留痕才是真信号）。
+                    if (TryConsumeUpgradeStamp(container))
+                    {
+                        apply();
+                        ConsumeMaterial(material);
+                        _targetConsumeAtMs = PollThrottle.NowMs;   // T1：单调钟（原 DateTime.UtcNow）
+                    }
                     try { _prepareCache.Clear(); _ggiCache.Clear(); return; } catch { return; }
                 }
                 LogOnce("[容器升级] 无法升级: " + reason);

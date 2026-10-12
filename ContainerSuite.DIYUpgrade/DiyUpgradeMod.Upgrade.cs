@@ -425,6 +425,51 @@ public static partial class DiyUpgradeMod
         if (remaining <= 0) material.Destroy();
         else material.SetUnitCount(remaining);
     }
+
+    /// <summary>
+    /// T2（2026-10-12，借鉴蛙哥 <c>ConsumedThisFrame</c> 的**思路**）：同一容器每帧最多"真升"一次。
+    /// <para>
+    /// 为什么需要：本 mod 有多个可触发升级的入口（游戏 <c>GameItem.Target</c> /
+    /// <c>CanTarget</c> / <c>MaterialDirectory.CanIngotTarget</c> / <c>MouseDragHandler.EndDrag</c>
+    /// 的补丁，加组拖协程）。目前只有 EndDrag 与组拖协程会**真的扣料**，理论上不该同帧撞车 ——
+    /// 所以这不是"修已知 bug"，而是**廉价保险 + 观测点**：一旦本方法真的拦下第二次，
+    /// 说明存在我们没预料到的双重入口（留痕见下），比事后再查"材料为什么少了一堆"便宜得多。
+    /// </para>
+    /// <para>
+    /// ★ 只挂在**单拖**（EndDragPatch）这一处。组拖侧刻意不挂，理由写在
+    /// DiyUpgradeMod.GroupDrag.cs 的循环体内（协程以 yield 开头、天然不与单拖同帧；
+    /// 真正的跨帧风险由 B-3' 的 uniqueId 双验兜住）。所以本闸门当前是
+    /// **纯保险 + 观测点**：今天结构上不该被触发，一旦留痕就是"多了一条我们不知道的入口"。
+    /// </para>
+    /// <para>
+    /// ★ 与蛙哥实现的差别（有意）：① 蛙哥的 <c>_lastUpgradeFrame</c> 永不清理（裸指针键无限增长），
+    /// 本实现随场景/读档清空；② 蛙哥把闸门放在扣料**之前**，本实现放在 <c>PrepareUpgradeInternal</c>
+    /// 成功**之后** —— 这样被拦下的必然是"本该真升的一次"，留痕是真信号而不是误报。
+    /// </para>
+    /// </summary>
+    /// <returns>true = 放行（已记账）；false = 本帧已被别的入口升过，调用方必须放弃本次 apply/扣料。</returns>
+    private static bool TryConsumeUpgradeStamp(GameItem container)
+    {
+        try
+        {
+            IntPtr ptr = IntPtr.Zero;
+            try { ptr = ((Il2CppObjectBase)container).Pointer; } catch { return true; }
+            if (ptr == IntPtr.Zero) return true;   // 拿不到指针 → 不拦（保持旧行为）
+
+            int frame = Time.frameCount;
+            if (_upgradeStampCache.TryGetValue(ptr, out int f) && f == frame)
+            {
+                // 无条件留痕（3 秒去重防刷屏）。这是异常信号，不该静默。
+                LogOnce("[容器升级] 同一帧内第二个入口想升级同一容器，已拒绝（防重复扣料）。"
+                    + "出现本行说明存在未预料的双重入口，请上报。", warning: true);
+                return false;
+            }
+            TrimCache(_upgradeStampCache);
+            _upgradeStampCache[ptr] = frame;
+            return true;
+        }
+        catch (System.Exception ex) { CatchLogOnce.Warn("DiyUpgradeMod.UpgradeStamp", ex); return true; }
+    }
     private static void PlayUpgradeSound()
     {
         try

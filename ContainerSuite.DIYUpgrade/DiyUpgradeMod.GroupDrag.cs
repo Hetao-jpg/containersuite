@@ -81,6 +81,17 @@ public static partial class DiyUpgradeMod
     /// <summary>组拖执行协程是否正在跑（防重入）。</summary>
     private static bool _groupUpgradeRunning;
 
+    // ★ T3（2026-10-12，借鉴蛙哥 IsDragRelease 的**反向用法**）：组拖"事件丢失"对账。
+    //   蛙哥用它当**触发条件**（"游戏还在拖但鼠标已松 = 该升级了"）；我们反过来用它做
+    //   **兜底观测**：已经武装、鼠标也松了，但 EndGroupDrag 迟迟不来 ⇒ 事件被吃掉/时序变了，
+    //   玩家视角是"松手没反应"（静默失效）。
+    //   ★ 只观测、**不自动复位** —— 擅自把 _groupDragArmed 清掉会与游戏自身状态打架
+    //     （也不知道该不该替它把材料放回去）。先拿证据，再决定要不要干预。
+    private static int _groupDragMouseUpFrames;
+    private static bool _groupDragLostLogged;
+    /// <summary>鼠标抬起后连续多少帧仍处于"已武装"才判定事件丢失（毫秒级抖动不算）。</summary>
+    private const int GroupDragLostAfterUpFrames = 5;
+
     // ★ D-2（2026-10-12）：组拖进度提示的状态（100 堆材料 × 6 帧 ≈ 10 秒 @60fps，
     //   中间无任何反馈玩家会以为卡死了）。由 RunGroupUpgrade 每步更新，
     //   由 Infrastructure Mod.OnGUI → DrawGroupDragProgress() 读取并绘制。
@@ -155,6 +166,9 @@ public static partial class DiyUpgradeMod
             if (_groupDragMaterials.Count > 0)
             {
                 _groupDragArmed = true;
+                // T3：本次武装从头计数（对账用的"鼠标抬起连续帧数"要干净起步）。
+                _groupDragMouseUpFrames = 0;
+                _groupDragLostLogged = false;
                 // 首次启用留一条**无条件**日志（项目教训：默认静默的日志会被
                 // 误读成"没执行"）。用 LogOnce 的 3 秒去重避免刷屏。
                 LogOnce("[容器升级] 批量框选已武装：" + _groupDragMaterials.Count + " 堆材料（松手在容器上即连续升级）");
@@ -364,6 +378,12 @@ public static partial class DiyUpgradeMod
                 {
                     if (PrepareUpgradeInternal(container, cat, out var apply, out var reason))
                     {
+                        // ★ 这里**刻意不**加 T2 的「每帧每容器一次」闸门：
+                        //   ① 本协程以 `yield return null` 开头 ⇒ 第一次真升至少比武装晚一帧，
+                        //      结构上不可能与单拖（EndDrag）同帧撞车；
+                        //   ② 真正需要防的是**跨帧**那种"材料已被别的入口销毁、地址被复用"的
+                        //      情形（B-3' 的 uniqueId 双验），帧闸门帮不上忙；
+                        //   ③ 批次内两堆之间本来就等 6 帧，加闸门只会带来复杂且无收益的分支。
                         apply();
                         ConsumeMaterial(material);
                         consumed = true;
@@ -458,6 +478,48 @@ public static partial class DiyUpgradeMod
             GUI.Label(rect, txt, _groupDragProgressStyle);
         }
         catch (Exception ex) { CatchLogOnce.Warn("GroupDrag:draw-progress", ex); }
+    }
+
+    /// <summary>
+    /// T3（2026-10-12）：组拖「事件丢失」对账。由 <c>DiyUpgradeMod.Tick()</c> 每帧调用。
+    /// <para>
+    /// 判据：已经武装（StartGroupDrag 记下的材料集还在）**且鼠标已抬起连续 N 帧**，
+    /// 说明 EndGroupDrag 没有如期到来 —— 本次升级不会发生，而且是**静默**的。
+    /// 只观测、不干预（见字段区注释：擅自复位会与游戏自身状态打架）。
+    /// </para>
+    /// <para>
+    /// ★ 为什么用"连续 N 帧"而不是"当帧鼠标抬起"：MelonLoader 的 OnUpdate 可能排在游戏
+    ///   处理鼠标释放 / 派发 EndGroupDrag **之前** —— 那一帧鼠标已是抬起状态而事件还没派发，
+    ///   单帧判定会对每一次正常结束的组拖误报。连续 N 帧把这个时序窗口排除掉。
+    /// </para>
+    /// <para>
+    /// ★ 已知误报面：若游戏支持**非鼠标**的框选方式（键盘/手柄），鼠标整场都是抬起的，
+    ///   会误报。当前游戏的框选是鼠标框选，故可接受；即使误报也只多一行日志，不改变行为。
+    /// </para>
+    /// </summary>
+    internal static void ReconcileGroupDragArm()
+    {
+        try
+        {
+            if (!_groupDragArmed)                 // 常态：一次 bool 判断，零开销
+            {
+                _groupDragMouseUpFrames = 0;
+                _groupDragLostLogged = false;
+                return;
+            }
+            bool held;
+            try { held = Input.GetMouseButton(0); } catch { return; }
+            if (held) { _groupDragMouseUpFrames = 0; return; }
+
+            _groupDragMouseUpFrames++;
+            if (_groupDragMouseUpFrames < GroupDragLostAfterUpFrames || _groupDragLostLogged) return;
+            _groupDragLostLogged = true;
+            // 无条件留痕：这不是诊断细节，是"玩家松手没反应"的成因证据。
+            ContainerSuiteLog.Warn("[容器升级] 框选升级：已武装且鼠标抬起 "
+                + _groupDragMouseUpFrames + " 帧，却始终没收到 EndGroupDrag —— 事件可能被其它 mod"
+                + "吃掉或时序变了，本次批量升级不会发生。本行只观测、不自动复位。");
+        }
+        catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:reconcile", ex); }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
