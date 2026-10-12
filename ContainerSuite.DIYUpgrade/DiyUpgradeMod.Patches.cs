@@ -216,9 +216,10 @@ public static partial class DiyUpgradeMod
         private static void Postfix(ItemMouseDragHandler __instance)
         {
             if (WorldReadyGate.ShouldDefer) return;
-            if (!IsUpgradeKeyHeld() || (DateTime.UtcNow - _lastEndDragProcessed).TotalSeconds < 0.4) return;
-            _lastEndDragProcessed = DateTime.UtcNow;
-            if ((DateTime.UtcNow - _lastTargetConsume).TotalSeconds < 0.5) return;
+            // ★ T1（2026-10-12）：两处节流改单调钟。原 DateTime 差值在系统时钟回拨时
+            //   "Elapsed < 0.4" 恒真 ⇒ **单拖升级被永久拒绝**（玩家视角：拖着材料松手没反应）。
+            if (!IsUpgradeKeyHeld() || !_endDragGate.Due(400)) return;
+            if (PollThrottle.ElapsedMs(_targetConsumeAtMs) < 500) return;
             IntPtr pointer = ((Il2CppObjectBase)__instance).Pointer;
             IntPtr sourcePtr = Marshal.ReadIntPtr(pointer, OffDragSource());
             IntPtr targetPtr = Marshal.ReadIntPtr(pointer, OffDragTarget());
@@ -298,7 +299,7 @@ public static partial class DiyUpgradeMod
                 {
                     apply();
                     ConsumeMaterial(material);
-                    _lastTargetConsume = DateTime.UtcNow;
+                    _targetConsumeAtMs = PollThrottle.NowMs;   // T1：单调钟（原 DateTime.UtcNow）
                     try { _prepareCache.Clear(); _ggiCache.Clear(); return; } catch { return; }
                 }
                 LogOnce("[容器升级] 无法升级: " + reason);
@@ -481,14 +482,14 @@ public static partial class DiyUpgradeMod
     [HarmonyPatch(typeof(PlayerStore), "LoadGame")]
     internal static class LoadGameRestorePatch
     {
-        private static DateTime _lastLoadGamePostfix = DateTime.MinValue;
+        // T1（2026-10-12）：节流改单调钟 —— 原 DateTime 差值在时钟回拨时会让
+        //   **读档恢复被永久忽略**（每次 Postfix 都判成"距上次不到 1.5 秒"）。
+        private static PollThrottle _loadGate;
 
         [HarmonyPriority(0)]
         private static void Postfix()
         {
-            DateTime utcNow = DateTime.UtcNow;
-            if ((utcNow - _lastLoadGamePostfix).TotalSeconds < 1.5) return;
-            _lastLoadGamePostfix = utcNow;
+            if (!_loadGate.Due(1500)) return;
             // 再次读档 = 世界重置。先关掉门禁，让恢复流程从干净状态起步。
             WorldReadyGate.Invalidate("DIY.LoadGame");
             try { SaveSlotScope.Invalidate(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:save-slot-scope-invalidate", ex); }

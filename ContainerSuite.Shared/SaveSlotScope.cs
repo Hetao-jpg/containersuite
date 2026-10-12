@@ -19,16 +19,18 @@ namespace ContainerSuite.Shared;
 public static class SaveSlotScope
 {
     private static int _cachedSlotId = -1;
-    private static DateTime _cachedAt = DateTime.MinValue;
-    private const double CacheSeconds = 1.5;
+    // A1（2026-10-12）：节流改单调钟（PollThrottle）。原为 DateTime 差值 ——
+    //   系统时钟回拨时 (now - cachedAt) 变负 ⇒ "< 1.5 秒" 恒真 ⇒ 槽号缓存永久不刷新。
+    private static PollThrottle _cacheGate;
+    private const int CacheMillis = 1500;   // 原 CacheSeconds = 1.5
 
     /// <summary>获取当前存档槽号。拿不到时返回 -1。缓存 1.5 秒。</summary>
     public static int GetCurrent()
     {
-        DateTime utcNow = DateTime.UtcNow;
-        if ((utcNow - _cachedAt).TotalSeconds < CacheSeconds && _cachedSlotId >= 0)
+        // ★ 判据顺序保持原语义：拿不到槽号（<0）时**不消耗闸门**，仍然每次调用都重试 ——
+        //   这样 PlayerStore 一旦可用就能立刻取到，不必白等 1.5 秒。
+        if (_cachedSlotId >= 0 && !_cacheGate.Due(CacheMillis))
             return _cachedSlotId;
-        _cachedAt = utcNow;
         try
         {
             if (!PlayerStore.IsInstanceExist() || PlayerStore.Instance == null)
@@ -48,6 +50,6 @@ public static class SaveSlotScope
     public static void Invalidate()
     {
         _cachedSlotId = -1;
-        _cachedAt = DateTime.MinValue;
+        _cacheGate.Reset();
     }
 }

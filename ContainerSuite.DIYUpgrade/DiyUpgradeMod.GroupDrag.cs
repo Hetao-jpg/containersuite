@@ -381,7 +381,7 @@ public static partial class DiyUpgradeMod
 
                 // 每步清缓存（照单拖语义：apply 委托内也会清，这里双保险）
                 try { _prepareCache.Clear(); _ggiCache.Clear(); } catch { }
-                _lastTargetConsume = DateTime.UtcNow;   // 与单拖 EndDragPatch 同语义
+                _targetConsumeAtMs = PollThrottle.NowMs;   // 与单拖 EndDragPatch 同语义（T1：单调钟）
 
                 // ★★ 分帧：一堆材料一帧，且**等待上一堆的窗口重建跑完**。
                 //   apply() 内部会起 ForceRebuildAfterUpgrade 协程（3~5 帧，

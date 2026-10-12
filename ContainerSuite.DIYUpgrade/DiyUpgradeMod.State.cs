@@ -209,10 +209,16 @@ public static partial class DiyUpgradeMod
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("WageRegistry:HandoverIntent", ex); return false; }
     }
-    private static DateTime _lastTargetConsume = DateTime.MinValue;
-    private static DateTime _lastEndDragProcessed = DateTime.MinValue;
+    // ★ T1（2026-10-12，外部 mod 借鉴批次）：下面 3 个节流闸门改用 PollThrottle（单调钟）。
+    //   原来是 DateTime.UtcNow 差值：系统时钟一旦回拨，(now - last) 变负 ⇒ "< N 秒" 恒真
+    //   ⇒ 闸门卡死（松手不升级 / 配置不落盘），且全程无声。见 Shared/PollThrottle.cs 头注。
+    //   ★ 注意与 2026-10-07 那批「A1」区分：那是缓存上限（CacheLimits），本批编号用 T*。
+    private static PollThrottle _endDragGate;          // 原 _lastEndDragProcessed（0.4s）
+    // _targetConsume 的时间戳要**只在真正扣料时**推进（单拖 / 组拖共用），
+    // 所以这里不用 Due()，只存一个单调毫秒时刻。
+    private static long _targetConsumeAtMs;
     private static bool _prefsDirty = false;
-    private static DateTime _lastPrefsFlush = DateTime.MinValue;
+    private static PollThrottle _prefsFlushGate;      // 原 _lastPrefsFlush（2.0s）
     private static int _offsetSuspectCount = 0;
     private static bool _offsetWarningLogged = false;
     private static int _offsetCheckFails = 0;
@@ -223,20 +229,24 @@ public static partial class DiyUpgradeMod
     // 让"Id 挂了"和"Drag 挂了"在日志里能区分。
     private static int _dragOffsetSuspectCount = 0;
     private static bool _dragOffsetWarningLogged = false;
+    // ★ T1（2026-10-12）：下列缓存的时间戳一律改存**单调毫秒**（PollThrottle.NowMs）。
+    //   原存 DateTime：时钟回拨时 `Elapsed < TTL` 恒真 ⇒ 缓存命中一个**过期的**判据
+    //   （最坏情况：_prepareCache 里存着"不能升"，玩家就会长时间升不动且没有任何报错）。
     private static readonly Dictionary<string, (int BaseW, int BaseH, int Spent)> _metaCache = new Dictionary<string, (int, int, int)>();
-    private static readonly Dictionary<IntPtr, DateTime> _lastReapplyFromMetaTime = new Dictionary<IntPtr, DateTime>();
-    private static readonly Dictionary<IntPtr, (DateTime Time, List<GameGridInventory> List)> _ggiCache = new Dictionary<IntPtr, (DateTime, List<GameGridInventory>)>();
-    private static readonly Dictionary<IntPtr, (DateTime Time, bool Value)> _resizableCache = new Dictionary<IntPtr, (DateTime, bool)>();
-    private const double ResizableCacheSeconds = 0.3;
+    private static readonly Dictionary<IntPtr, long> _lastReapplyFromMetaTime = new Dictionary<IntPtr, long>();
+    private static readonly Dictionary<IntPtr, (long Time, List<GameGridInventory> List)> _ggiCache = new Dictionary<IntPtr, (long, List<GameGridInventory>)>();
+    private static readonly Dictionary<IntPtr, (long Time, bool Value)> _resizableCache = new Dictionary<IntPtr, (long, bool)>();
+    private const int ResizableCacheMillis = 300;    // 原 ResizableCacheSeconds = 0.3
     private static readonly Dictionary<IntPtr, PrepareCacheEntry> _prepareCache = new Dictionary<IntPtr, PrepareCacheEntry>();
-    private const double PrepareCacheSeconds = 0.2;
+    private const int PrepareCacheMillis = 200;      // 原 PrepareCacheSeconds = 0.2
     [ThreadStatic] private static IntPtr _layoutWindow;
     [ThreadStatic] private static IntPtr _layoutInventory;
     [ThreadStatic] private static int _layoutWindowWidth;
     [ThreadStatic] private static int _layoutWindowHeight;
     [ThreadStatic] private static int _layoutChildWidth;
     [ThreadStatic] private static int _layoutChildHeight;
-    private static readonly Dictionary<string, DateTime> _lastLogTimeByKey = new Dictionary<string, DateTime>();
+    // ★ T1（2026-10-12）：值由 DateTime 改为单调毫秒（判定见 Utils.LogOnce 的注释）。
+    private static readonly Dictionary<string, long> _lastLogTimeByKey = new Dictionary<string, long>();
     // P1（2026-10-02）：_lastHideBounds 已搬到 ContainerSuite.Shared.GridFx。
     // peak 内存缓存：tag 读回 0 时兜底，避免探测每秒重复触发。
     private static readonly Dictionary<IntPtr, (int PeakW, int PeakH)> _peakCache

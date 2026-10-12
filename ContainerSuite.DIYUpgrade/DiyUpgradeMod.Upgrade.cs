@@ -108,7 +108,9 @@ public static partial class DiyUpgradeMod
         if (container == null) return false;
         IntPtr ptr = IntPtr.Zero;
         try { ptr = ((Il2CppObjectBase)container).Pointer; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        if (ptr != IntPtr.Zero && _prepareCache.TryGetValue(ptr, out var cached) && (DateTime.UtcNow - cached.Time).TotalSeconds < PrepareCacheSeconds)
+        // T1（2026-10-12）：TTL 判定改单调钟 —— 时钟回拨时 `Elapsed < TTL` 会恒真，
+        //   于是缓存里那个**过期**的 can/reason 会一直命中（最坏：升级长时间被判"不能升"）。
+        if (ptr != IntPtr.Zero && _prepareCache.TryGetValue(ptr, out var cached) && PollThrottle.ElapsedMs(cached.Time) < PrepareCacheMillis)
         {
             reason = cached.Reason;
             return cached.Can;
@@ -117,7 +119,7 @@ public static partial class DiyUpgradeMod
         if (ptr != IntPtr.Zero)
         {
             TrimCache(_prepareCache);   // S8u
-            _prepareCache[ptr] = new PrepareCacheEntry { Time = DateTime.UtcNow, Can = canPrepare, Reason = reason };
+            _prepareCache[ptr] = new PrepareCacheEntry { Time = PollThrottle.NowMs, Can = canPrepare, Reason = reason };
         }
         return canPrepare;
     }

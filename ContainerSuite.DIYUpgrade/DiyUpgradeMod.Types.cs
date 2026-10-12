@@ -62,7 +62,8 @@ public static partial class DiyUpgradeMod
 
     private sealed class PrepareCacheEntry
     {
-        public DateTime Time;
+        /// <summary>T1（2026-10-12）：单调毫秒时间戳（原 DateTime）——见 Shared/PollThrottle.cs。</summary>
+        public long Time;
         public bool Can;
         public string Reason;
     }

@@ -114,7 +114,8 @@ public static partial class DiyUpgradeMod
         if (WorldReadyGate.ShouldDefer) return false;
         IntPtr intPtr = IntPtr.Zero;
         try { intPtr = ((Il2CppObjectBase)item).Pointer; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        if (intPtr != IntPtr.Zero && _resizableCache.TryGetValue(intPtr, out (DateTime, bool) cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < ResizableCacheSeconds)
+        // T1（2026-10-12）：TTL 改单调钟（时钟回拨时原写法会让过期判定被长期误当有效）。
+        if (intPtr != IntPtr.Zero && _resizableCache.TryGetValue(intPtr, out (long, bool) cached) && PollThrottle.ElapsedMs(cached.Item1) < ResizableCacheMillis)
             return cached.Item2;
         // 判定链：任一类别启用清单命中即为可调整容器（拆行以便阅读与逐项排查）。
         bool resizable =
@@ -127,7 +128,7 @@ public static partial class DiyUpgradeMod
         if (intPtr != IntPtr.Zero)
         {
             CacheLimits.Trim(_resizableCache, CacheLimits.Medium);   // A1（原裸写 >256）
-            _resizableCache[intPtr] = (DateTime.UtcNow, resizable);
+            _resizableCache[intPtr] = (PollThrottle.NowMs, resizable);   // T1：单调毫秒
         }
         return resizable;
     }
@@ -690,7 +691,7 @@ public static partial class DiyUpgradeMod
         if (item == null) return new List<GameGridInventory>();
         IntPtr intPtr = IntPtr.Zero;
         try { intPtr = ((Il2CppObjectBase)item).Pointer; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        if (intPtr != IntPtr.Zero && _ggiCache.TryGetValue(intPtr, out (DateTime, List<GameGridInventory>) cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 2.0)
+        if (intPtr != IntPtr.Zero && _ggiCache.TryGetValue(intPtr, out (long, List<GameGridInventory>) cached) && PollThrottle.ElapsedMs(cached.Item1) < 2000)
             return cached.Item2;
         List<GameGridInventory> list;
         try
@@ -699,7 +700,7 @@ public static partial class DiyUpgradeMod
             CollectGgisFromWindow(item.contentWindow, list);
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("GridWindow:collect-ggi", ex); list = new List<GameGridInventory>(); }
-        if (intPtr != IntPtr.Zero) { TrimCache(_ggiCache); _ggiCache[intPtr] = (DateTime.UtcNow, list); }
+        if (intPtr != IntPtr.Zero) { TrimCache(_ggiCache); _ggiCache[intPtr] = (PollThrottle.NowMs, list); }   // T1：单调毫秒
         return list;
     }
     private static void CollectGgisFromWindow(PixelWindow win, List<GameGridInventory> outList)

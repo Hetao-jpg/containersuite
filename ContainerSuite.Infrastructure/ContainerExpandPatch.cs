@@ -112,7 +112,9 @@ internal static class ContainerExpandPatch
     //   ★ 删而不是留注释：常驻却没人调的方法，以后会被误认为"还在生效"
     //     （与"只占几行但会误导"的死代码同源，必须清掉）。
 
-    private static DateTime _lastLoadGamePostfix = DateTime.MinValue;
+    // T1（2026-10-12）：节流改单调钟 —— 原 DateTime 差值在系统时钟回拨时会让读档流程
+    //   被永久忽略（"距上次不到 1.5 秒"恒真）。见 Shared/PollThrottle.cs。
+    private static PollThrottle _loadGate;
 
     // 【2026-10-10 方案 A】★ 本方法**刻意不登记**进 WarmupRegistry：
     //   它的执行流会 Invalidate 世界门禁 + 起协程 + 调 SBE.AfterLoad（有真实副作用），
@@ -121,9 +123,7 @@ internal static class ContainerExpandPatch
     //   且读档路径本就由 WorldReadyGate 深栈保护兜底。与历史处理一致。
     public static void LoadGamePostfix()
     {
-        DateTime now = DateTime.UtcNow;
-        if ((now - _lastLoadGamePostfix).TotalSeconds < 1.5) return;
-        _lastLoadGamePostfix = now;
+        if (!_loadGate.Due(1500)) return;
 
         // S3-5b：读档 = 世界重置，先关闸门
         ContainerSuite.Shared.WorldReadyGate.Invalidate("CI.LoadGame");

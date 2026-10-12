@@ -263,11 +263,13 @@ public static partial class DiyUpgradeMod
         {
             // Arbiter 事务自己已做节流，force 时绕过 3 秒 TTL —— 否则同一容器
             // 被 Show / LoadGame / ValidateShapeState 反复请求时，只有第一次能生效。
+            // T1（2026-10-12）：TTL 与时间戳改单调钟（时钟回拨时原写法会让这条 3 秒闸门卡死，
+            //   表现为读档/窗口重开的形状恢复被静默跳过）。
             if (!force
-                && _lastReapplyFromMetaTime.TryGetValue(ptr, out var lastTime)
-                && (DateTime.UtcNow - lastTime).TotalSeconds < 3.0) return;
+                && _lastReapplyFromMetaTime.TryGetValue(ptr, out var lastMs)
+                && PollThrottle.ElapsedMs(lastMs) < 3000) return;
             TrimCache(_lastReapplyFromMetaTime);                  // S8u
-            _lastReapplyFromMetaTime[ptr] = DateTime.UtcNow;
+            _lastReapplyFromMetaTime[ptr] = PollThrottle.NowMs;
         }
         CrashProbe.Enter("Meta.Resizer.Attach");
         try { ContainerWindowResizer.Attach(item); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }

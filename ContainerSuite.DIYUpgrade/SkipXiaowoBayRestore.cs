@@ -336,10 +336,12 @@ internal static class SkipXiaowoBayRestore
     //    3. 从字典移除该 key
     //  判据同 Prefix_Attach —— 开关关掉时不动，主权还给 XIAOWO。
 
-    private const double SweepIntervalSec = 2.0;
+    private const int SweepIntervalMillis = 2000;   // T1：原 SweepIntervalSec = 2.0（改 monotonic ms）
     // 【2026-10-10】首次开门后要稳定多久才允许清扫（消抖；见 TickZombieHandles 注释）。
     private const float SweepSettleSeconds = 2.0f;
-    private static DateTime _lastSweep = DateTime.MinValue;
+    // T1（2026-10-12）：改单调钟节流 —— 原 DateTime 差值在系统时钟回拨时会一直判成
+    //   "距上次不到 2 秒" ⇒ 僵尸手柄清扫**再也不跑**（静默停摆）。
+    private static PollThrottle _sweepGate;
     private static FieldInfo _statesField;
     private static Type _resizeStateType;
     private static PropertyInfo _resizeStateItemProp;
@@ -393,8 +395,7 @@ internal static class SkipXiaowoBayRestore
         if (WorldReadyGate.SecondsSinceFirstReady < SweepSettleSeconds) return;
         try
         {
-            if ((DateTime.UtcNow - _lastSweep).TotalSeconds < SweepIntervalSec) return;
-            _lastSweep = DateTime.UtcNow;
+            if (!_sweepGate.Due(SweepIntervalMillis)) return;
             SweepZombieHandles();
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("XiaowoHandleSweep", ex); }

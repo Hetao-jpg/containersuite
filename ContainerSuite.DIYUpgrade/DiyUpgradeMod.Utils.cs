@@ -151,12 +151,15 @@ public static partial class DiyUpgradeMod
     private static void LogOnce(string msg, bool warning = false)
     {
         if (string.IsNullOrEmpty(msg)) return;
-        DateTime utcNow = DateTime.UtcNow;
-        // ★ C-4（2026-10-12）：!(a < b) → a >= b —— 同一语义，少一层取反，可读性优先。
-        if (_lastLogTimeByKey.TryGetValue(msg, out var lastTime) && (utcNow - lastTime).TotalSeconds < 3.0) return;
+        // ★ T1（2026-10-12）：3 秒窗口改单调钟判定。原用 DateTime.UtcNow 差值 ——
+        //   系统时钟一回拨，(now - last) 变负 ⇒ "Elapsed < 3.0" 恒真 ⇒ **所有 LogOnce
+        //   输出被永久静音**（连异常告警都看不到），且没有任何报错。见 Shared/PollThrottle.cs。
+        //   C-4 的 `!(a < b) → a >= b` 化简已被这个写法吸收。
+        long nowMs = PollThrottle.NowMs;
+        if (_lastLogTimeByKey.TryGetValue(msg, out var lastMs) && PollThrottle.ElapsedMs(lastMs) < 3000) return;
         // ★ C-2（2026-10-12）：淘汰改为"丢最旧一批"，不再整体 Clear（见 EvictOldestLogKeys）。
         EvictOldestLogKeys(CacheLimits.Small);
-        _lastLogTimeByKey[msg] = utcNow;
+        _lastLogTimeByKey[msg] = nowMs;
         // ★ D-1（2026-10-12）：warning=true 走**无条件**输出。
         //   理由：走 Diag 的输出受 cfg z1_DiagLog（默认 false）门控 —— 默认静默的
         //   "玩家可见提示"等于没做（项目教训：默认静默的日志会被误读成"没执行"）。

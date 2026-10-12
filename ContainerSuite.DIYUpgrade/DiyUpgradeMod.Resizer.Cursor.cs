@@ -213,7 +213,9 @@ public static partial class DiyUpgradeMod
         private static readonly Dictionary<IntPtr, ResizeState> States = new Dictionary<IntPtr, ResizeState>();
         private static readonly List<IntPtr> _cleanupBuffer = new List<IntPtr>();
         private static bool _lastEnableDragResizeState = false;
-        private static DateTime _lastHandleCheck = DateTime.MinValue;
+        // T1（2026-10-12）：改单调钟节流 —— 原 DateTime 差值在时钟回拨时会一直判成
+        //   "距上次不到 0.5 秒" ⇒ 手柄自检（LiveHandleCount 掉线就重建）**再也不跑**。
+        private static PollThrottle _handleCheckGate;
         private static int _activeDragCount = 0;
 
         // 【2026-10-10 临时诊断】最近一次拖拽用的边（判定方向性用）。
@@ -354,10 +356,8 @@ public static partial class DiyUpgradeMod
             }
             if (_enableDragResize.Value && States.Count > 0)
             {
-                DateTime utcNow = DateTime.UtcNow;
-                if ((utcNow - _lastHandleCheck).TotalSeconds >= 0.5)
+                if (_handleCheckGate.Due(500))
                 {
-                    _lastHandleCheck = utcNow;
                     foreach (ResizeState rs in States.Values)
                     {
                         try

@@ -299,9 +299,9 @@ public static partial class DiyUpgradeMod
     private static void TryFlushPrefs()
     {
         if (!_prefsDirty) return;
-        DateTime utcNow = DateTime.UtcNow;
-        if ((utcNow - _lastPrefsFlush).TotalSeconds < 2.0) return;
-        _lastPrefsFlush = utcNow;
+        // ★ T1（2026-10-12）：节流改单调钟。原 DateTime 差值在系统时钟回拨时会一直
+        //   判成"距上次不到 2 秒" ⇒ **配置永不落盘**（静默）。
+        if (!_prefsFlushGate.Due(2000)) return;
         // 审查 #4：必须 Save 成功之后再清 dirty。原写法先清标志再 Save，
         // 一旦 Save 抛异常，本次写盘就永久丢失且不会再重试。
         try
