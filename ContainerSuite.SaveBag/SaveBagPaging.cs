@@ -1075,7 +1075,7 @@ public static class SaveBagPaging
     private static string FindIdsLine(List<string> lines, int slot)
     {
         // T4：当前局的标识（拿不到 = 空串 ⇒ 不做局隔离，保持旧行为）。
-        string runKey = SaveSlotScope.GetRunKey();
+        string runKey = SaveSlotScope.GetRunScopeKey();
         for (int i = 0; i < lines.Count; i++)
         {
             string t = lines[i] == null ? "" : lines[i].Trim();
@@ -1120,7 +1120,7 @@ public static class SaveBagPaging
         //   「#runID=」的思路做按局隔离；拿不到 runID 时**不写这一列**（老格式，仍然可用）。
         try
         {
-            string runKey = SaveSlotScope.GetRunKey();
+            string runKey = SaveSlotScope.GetRunScopeKey();
             if (!string.IsNullOrEmpty(runKey)) sb.Append('#').Append(runKey);
         }
         catch (Exception ex) { CatchLogOnce.Warn("paging.BuildIdsLine.runKey", ex); }

@@ -81,7 +81,7 @@ public static class SaveSlotScope
     /// </para>
     /// <para>缓存 1.5 秒；拿不到时不消耗闸门、每次重试（与 <see cref="GetCurrent"/> 同策略）。</para>
     /// </summary>
-    public static string GetRunKey()
+    public static string GetRunScopeKey()
     {
         if (!string.IsNullOrEmpty(_cachedRunKey) && !_runKeyGate.Due(RunKeyCacheMillis))
             return _cachedRunKey;
@@ -92,11 +92,11 @@ public static class SaveSlotScope
                 raw = PlayerStore.Instance.runID;
         }
         catch { raw = null; }
-        _cachedRunKey = SanitizeRunKey(raw);
+        _cachedRunKey = SanitizeRunScopeKey(raw);
         return _cachedRunKey;
     }
 
-    private static string SanitizeRunKey(string raw)
+    private static string SanitizeRunScopeKey(string raw)
     {
         if (string.IsNullOrEmpty(raw)) return "";
         var sb = new System.Text.StringBuilder(24);
