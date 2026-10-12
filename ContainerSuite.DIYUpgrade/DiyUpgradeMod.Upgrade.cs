@@ -470,6 +470,35 @@ public static partial class DiyUpgradeMod
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("DiyUpgradeMod.UpgradeStamp", ex); return true; }
     }
+
+#if DIAG
+    /// <summary>
+    /// T5（2026-10-12）：实验 —— 升级收尾补调一次 <c>GameItem.SyncModifiedState()</c>。
+    /// <para>
+    /// 背景：蛙哥（WagePerks）在**批量升级收尾**与**骰子吸收后**都会调它
+    /// （BatchDragUpgrade.cs:215 / DestinyDice.cs:898），而本套件全树**零调用**。
+    /// 它的语义只从签名可知（<c>void SyncModifiedState()</c>，GameItem 实例方法），
+    /// 未反汇编原生实现 —— 所以做成**默认关的可观测实验**，而不是直接进正式路径：
+    /// 打开后每次成功升级补调一次，异常无条件留痕。
+    /// 回答完"该不该加"之后转正或删除。
+    /// </para>
+    /// <para>只在 DIAG 构建存在（Release 既无此开关、也无此调用）。</para>
+    /// </summary>
+    internal static void ProbeSyncModifiedState(GameItem container)
+    {
+        try
+        {
+            if (_syncStateProbe == null || !_syncStateProbe.Value) return;
+            container.SyncModifiedState();
+            ContainerSuiteLog.Diag("[诊断][T5] 升级收尾已调用 SyncModifiedState（无异常）");
+        }
+        catch (System.Exception ex)
+        {
+            // 调用失败必须**无条件**可见 —— 这正是本实验要看的结论。
+            ContainerSuiteLog.Warn("[诊断][T5] SyncModifiedState 抛异常：" + ex.Message);
+        }
+    }
+#endif
     private static void PlayUpgradeSound()
     {
         try

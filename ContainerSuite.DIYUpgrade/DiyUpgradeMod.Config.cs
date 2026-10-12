@@ -60,6 +60,8 @@ public static partial class DiyUpgradeMod
             // P1-3：R1 探针项只在 DIAG 构建存在，标签随之条件编译。
 #if DIAG
             SetLabel<bool>(_r1Probe, "[诊断] R1探针·读档恢复", "记录读档恢复时每个已升级容器的尺寸是否被改动。用于判定游戏是否持久化升级后的尺寸（R1 实测）。默认关，开启后每次读档会写 UserData/ContainerSuite.r1probe.txt。");
+            // T5：SyncModifiedState 实验项（仅 DIAG 构建存在）。
+            SetLabel<bool>(_syncStateProbe, "[诊断] 实验·收尾同步", "升级收尾补调一次 GameItem.SyncModifiedState()，用于验证本套件是否漏了这一步游戏侧同步。默认关；只在排查\"升级后状态没跟上\"类问题时开。");
 #endif
             // ── S8k 避让热开关 ────────────────────────────────────────────
             // 描述要写清「关掉」的后果，否则玩家只会看到"避让/不避让"两个字。

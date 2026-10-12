@@ -304,6 +304,9 @@ public static partial class DiyUpgradeMod
                         apply();
                         ConsumeMaterial(material);
                         _targetConsumeAtMs = PollThrottle.NowMs;   // T1：单调钟（原 DateTime.UtcNow）
+#if DIAG
+                        ProbeSyncModifiedState(container);         // T5：DIAG 实验（默认关）
+#endif
                     }
                     try { _prepareCache.Clear(); _ggiCache.Clear(); return; } catch { return; }
                 }

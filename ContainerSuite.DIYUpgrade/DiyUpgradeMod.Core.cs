@@ -70,6 +70,12 @@ public static partial class DiyUpgradeMod
         //   P1-3：连同实现一起移入 #if DIAG，Release 不再创建该键。
 #if DIAG
         _resizeDiag = category.CreateEntry<bool>("25_ResizeDiag", true, (string)null, "[诊断·临时] 拖拽缩放网格残留取证：记录每次拖拽收尾时网格节点的 y 分布与填充底健康判定。默认开，定位完成后会移除。", false, false, (ValueValidator)null, (string)null);
+        // T5（2026-10-12）：SyncModifiedState 实验开关。默认**关**。
+        //   为什么做成开关而不是直接加：GameItem.SyncModifiedState() 的语义未经核实
+        //   （只从蛙哥源码看到它在"批量升级收尾 / 骰子吸收后"调用；本套件此前零调用）。
+        //   打开后：每次成功升级的收尾会补调一次，并在异常时无条件留痕 ——
+        //   用于回答"我们是不是漏了这一步同步"。定性后再决定转正或删除。
+        _syncStateProbe = category.CreateEntry<bool>("27_SyncModifiedStateProbe", false, (string)null, "[诊断·实验] 升级收尾补调 GameItem.SyncModifiedState()：验证本套件是否漏了这一步游戏侧同步。默认关。", false, false, (ValueValidator)null, (string)null);
 #endif
         // ── S8k：避让热开关（2026-10-02）────────────────────────────────────
         // 语义：「关」= 把尺寸主权交还给对方 mod；默认「开」= 全权优先。
