@@ -691,7 +691,11 @@ public static class SaveBagPaging
             int page = ForeignPageOf(uid);
             if (page < 0 || page >= _storages.Count) continue;
 
-            try { buf[0] = slot.Item; _expelMi.Invoke(_mainGrid, buf); } catch (Exception ex) { CatchLogOnce.Warn("paging.EnsureOwnership.Expel", ex); }
+            bool expelled = false;
+            try { buf[0] = slot.Item; _expelMi.Invoke(_mainGrid, buf); expelled = true; }
+            catch (Exception ex) { CatchLogOnce.Warn("paging.EnsureOwnership.Expel", ex); }
+            if (!expelled) continue;   // A-1：没移走就不登记（否则页表与网格不一致，存档合并会重复 Place）
+
             _storages[page].Add(slot);
             _pageIds[_currentPage].Remove(uid);   // 清掉可能存在的误登记
             _pageIds[page].Add(uid);
