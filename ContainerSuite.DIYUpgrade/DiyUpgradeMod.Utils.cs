@@ -203,13 +203,26 @@ public static partial class DiyUpgradeMod
 
     // tagSystem 没法像 Id 那样自校验，所以只在 Id 的解析通过校验（机制可信）后才可能被采用。
     // S0 数据校对结果：GameItem 里实际字段名为 state（0x1B0），不是 tagSystem。
-    // 保持 apply: false —— 只报告，不采用。
+    //
+    // ★ B-2（2026-10-12）：apply 由「恒 false」改为**跟随 distrust 状态**。
+    //   原实现永远用硬编码 432：游戏一旦更新改了 state 的偏移，我们会照旧读旧地址
+    //   （读到别的字段），tag 系统判据随即失效 —— 而且这是**静默**的
+    //   （OffsetResolver 里 apply=false 的分支原本连告警都不打），正是最忌讳的一类故障。
+    //   依据：state 与 identifier 共用同一套 NativeFieldInfoPtr_* 反射机制，
+    //   IdOffset 的 IsID 自校验通过 ⇒ 机制可信 ⇒ state 的解析结果也可信。
+    //   故：机制未失信时采用解析值；被标失信时回退硬编码 432（与 IdOffset 同一条路）。
+    // ★ 候选名收窄为 {"state"} 一项：游戏里字段名就是 state（0x1B0），"tagSystem" 是
+    //   S0 之前的误名；留着它会在**精确匹配失败时参与包含匹配**（FindOffsetField 的
+    //   loose 分支），有命中到无关字段的风险。
+    // ⚠ 当前游戏版本上 resolved == fallback == 432，所以本次改动**不改变任何行为**；
+    //   新分支只有等游戏更新导致偏移漂移时才第一次执行 —— 换言之：新逻辑在当前环境
+    //   不可验证，"回归全绿"只能证明"没有变化"，**不能**读成"新逻辑验证过了"。
     private static bool TagSystemFieldNull(GameItem item) =>
         PtrFieldNull(item, OffsetResolver.FieldOffset(
             typeof(GameItem),
-            new string[] { "state", "tagSystem" },
+            new string[] { "state" },
             Off.TagSystem,
-            apply: false));
+            apply: !OffsetResolver.IsDistrusted));
 
     // ─── 以下三个方法保留原签名，内部转发到 Shared ───
 
@@ -253,11 +266,16 @@ public static partial class DiyUpgradeMod
         }
         catch { }
 
-        // TagSystem：GameItem 里字段名为 state。它没有像 Id 那样的自校验手段，
-        // 所以只报告、不采用 —— 避免解析错导致整片容器静默失效。
+        // TagSystem：GameItem 里字段名为 state（0x1B0）。
+        // ★ B-2（2026-10-12）：候选集与 apply 策略**必须与 TagSystemFieldNull 完全一致** ——
+        //   否则同一字段会被解析成两个缓存键（OffsetResolver 的键含 candidates）并产出
+        //   **两条同名 [REG.BP] offset.GameItem.432**，一条 applied=432、一条 applied=解析值，
+        //   让回归断言不知道该信哪一条（审查意见 H4）。这里传同样的候选集与同样的 apply
+        //   判据，于是预热与运行时命中**同一个缓存项**、只留一条 [REG.BP]。
         try
         {
-            OffsetResolver.FieldOffset(typeof(GameItem), new string[] { "state", "tagSystem" }, Off.TagSystem, apply: false);
+            OffsetResolver.FieldOffset(typeof(GameItem), new string[] { "state" }, Off.TagSystem,
+                apply: !OffsetResolver.IsDistrusted);
         }
         catch { }
     }
@@ -266,7 +284,8 @@ public static partial class DiyUpgradeMod
     internal static void LogOffsetDiag()
     {
         LogOffsetDiagOne(typeof(GameItem), new string[] { "identifier", "id" }, Off.Id);
-        LogOffsetDiagOne(typeof(GameItem), new string[] { "state", "tagSystem" }, Off.TagSystem);
+        // B-2：候选集与上面两处实际使用的保持一致（只是描述文字，不写缓存、不写 RegMark）。
+        LogOffsetDiagOne(typeof(GameItem), new string[] { "state" }, Off.TagSystem);
     }
 
     private static void LogOffsetDiagOne(Type type, string[] candidates, int fallback)

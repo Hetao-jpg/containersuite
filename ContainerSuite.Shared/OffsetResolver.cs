@@ -75,10 +75,17 @@ public static class OffsetResolver
         // 说明硬编码过期了、解析救了一次。命中且一致 / 未命中都是常态，不吵。
         // ★ 保持无条件（2026-10-09）：这不是诊断，是「硬编码可能已过期」的告警 ——
         //   游戏更新后偏移一旦漂移，这一行是唯一线索，关掉就等于把故障藏起来。
-        if (resolved != fallback && apply)
+        // ★ B-2（2026-10-12）：去掉条件里的 `&& apply` —— apply=false 的分支同样要报警。
+        //   原写法让"只报告、不采用"的调用方（TagSystemFieldNull）在偏移漂移时**完全静默**，
+        //   而那种情形恰恰最需要知道"硬编码已经过期"。文案随 apply 分支变化，
+        //   让读日志的人一眼看出这个值到底有没有被采用。
+        //   ★ 失信路径（本方法开头 return fallback）走不到这里，所以本告警只覆盖
+        //     「机制可信、但调用方选择不采用」这一种情形 —— 不冒充全量覆盖。
+        if (resolved != fallback)
         {
             ContainerSuiteLog.Msg("[偏移自检] " + type.Name + "#" + fallback
-                + "：" + how + "，真实值 " + resolved + "，已采用");
+                + "：" + how + "，真实值 " + resolved
+                + (apply ? "，已采用" : "，未采用（apply=false）"));
         }
 
         return apply ? resolved : fallback;
