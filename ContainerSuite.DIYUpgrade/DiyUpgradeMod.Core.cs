@@ -189,7 +189,13 @@ public static partial class DiyUpgradeMod
         CacheRegistry.Register("_peakCache", () => _peakCache.Clear());
         // 以下两项原先由 OnSceneLoaded 的其它调用间接清理（_offsetCache 随
         // ResetDistrust；_diagSeen 从不清理）—— 收拢到登记处后语义更明确。
-        CacheRegistry.Register("_offsetCache", OffsetResolver.ClearCache);
+        // ★ A-2（2026-10-12）：_offsetCache 声明为 survive（读档不清）——
+        //   键是 type|fallback|候选名，与存档内容无关、进程内恒定有效。
+        //   读档时清它零收益，代价是恢复深栈上的首次 FieldOffset 白跑一次反射解析
+        //   （2026-10-10 读档闪退修复要避免的正是这类操作）。
+        //   其余项（含 _lastLogTimeByKey / _diagSeen）读档时清 —— 换档 = 新会话，
+        //   日志去重集合一并重置，与 OnSceneWasLoaded 里 CatchLogOnce.Clear() 同哲学。
+        CacheRegistry.Register("_offsetCache", OffsetResolver.ClearCache, survivesLoadGame: true);
         CacheRegistry.Register("_diagSeen", ContainerSuiteLog.ClearDiagOnce);
     }
 

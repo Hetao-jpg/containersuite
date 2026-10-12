@@ -492,6 +492,39 @@ public static partial class DiyUpgradeMod
             // 再次读档 = 世界重置。先关掉门禁，让恢复流程从干净状态起步。
             WorldReadyGate.Invalidate("DIY.LoadGame");
             try { SaveSlotScope.Invalidate(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:save-slot-scope-invalidate", ex); }
+
+            // ★ A-2（2026-10-12）：读档 = 换存档内容，所有以「物品指针 / uniqueId」为键的缓存必须失效。
+            //   _metaCache 的 key 是 id#uniqueId，而 uniqueId 跨存档会重复（存档 A 的 uid=5 与
+            //   存档 B 的 uid=5 是不同物品）—— 读档若**不**触发场景切换，OnSceneLoaded 的
+            //   CacheRegistry.ClearAll() 不会跑，于是 A 档的元数据会污染 B 档同 uid 容器。
+            //   症状：tooltip 显示错误的「升级 N 次」、恢复链按错误的 base 算目标尺寸。
+            //   ★ 与 OnSceneLoaded 的三处**有意差异**（不要"顺手对齐"）：
+            //     ① 不清 _offsetCache —— 类型键（type|fallback|候选名），进程内稳定；
+            //        清了只会让恢复深栈上的首次 FieldOffset 白跑一次反射解析。
+            //     ② 不 ResetDistrust / 不清 _cachedIdOffset —— distrust 是进程级证据，读档不翻案；
+            //        同一进程内偏移不会变。
+            //     ③ 不碰 WageContainerRegistry._diyVoidBeadGrids —— 已评估，**有意不清**：
+            //        该集合只在 HandOverVoidBead / OnVoidBeadUpgraded / MigrateLegacy* 里登记，
+            //        而「已移交」的珠子（tag 持久化）读档后 HandOverVoidBead 会幂等返回、
+            //        MigrateLegacy* 又要求 !HasDiyMigrated ⇒ 清了之后整个会话都不会重新登记，
+            //        已移交珠子将失去对蛙哥 ApplyLockedShape 的拦截（真实回归）。
+            //        不清的代价仅是：地址复用可能对"本就没移交的珠子"误拦一次蛙哥锁形（轻微）。
+            //   _restoreMemo 不用显式清：它已登记在 CacheRegistry（Core.cs），本调用覆盖。
+            int metaBefore = 0;
+            try { metaBefore = _metaCache.Count; } catch { }
+            try { CacheRegistry.ClearForLoadGame(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:loadgame-clear-caches", ex); }
+            // ★ A-2 留痕（无条件，不走 Diag）：这是「uid 跨档污染」这个前提的**唯一证据来源**。
+            //   若长期恒为 0（即日志从不出现这一行），说明该前提在本环境不成立 —— 那就可以
+            //   据此把本改动整体回退掉，而不是靠"感觉没出问题"。
+            if (metaBefore > 0)
+                ContainerSuiteLog.Msg("[容器升级] 读档清缓存：_metaCache " + metaBefore
+                    + " 条 → 0（不处理会让同 uid 容器读到上一存档的升级次数）");
+
+            // ★ A-2 / H7b：换档 = 新会话，**一次性告警的去重集合**也一并重置
+            //   （与 OnSceneWasLoaded 里清 CatchLogOnce 同哲学）。不清的后果：存档 A 里
+            //   已打印过的 CatchLogOnce.Warn（paging.* / Patches.* 等）在存档 B 不会再出现
+            //   —— 正是本项目最忌讳的"静默"。
+            try { CatchLogOnce.Clear(); } catch { }
             try { MelonCoroutines.Start(DelayedRestore()); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         }
 
