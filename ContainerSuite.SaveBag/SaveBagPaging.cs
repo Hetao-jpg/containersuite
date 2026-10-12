@@ -38,6 +38,10 @@ public static class SaveBagPaging
     private static float _lastAfterLoadAt = -10f;
     private static float _lastSwitchAt = -10f;
 
+    // ★ 2026-10-12：拖拽中切页后，"跟随鼠标的物品图（假体）"复原重试计数器。
+    //   见 ReassertDragGhostIfDragging 的机制注释。
+    private static int _ghostReassertFrames;
+
     // ★ S9（2026-10-07）：页归属自愈轮询状态
     private static float _reconcilePoll;                    // 窗口内的轮询累加器
     private static float _reconcileUntil = -1f;              // 自愈观察窗口的截止时刻（realtime）
@@ -496,6 +500,87 @@ public static class SaveBagPaging
         return false;
     }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    //  拖拽中 TAB 换页：复原"跟随鼠标的物品图"（2026-10-12）
+    // ══════════════════════════════════════════════════════════════════════════
+    //
+    // 【机制】原生汇编取证（GameAssembly.dll + Il2CppDumper 的 dump.cs/script.json）：
+    //   · 拖拽时物品**仍留在网格里**：ItemMouseDragHandler.StartDrag 只做
+    //     UpdateFakeReal / ToggleFakeBackground / 隐藏 contentWindow·examineWindow
+    //     / 收集子物品，**从不 Expel**；跟着鼠标走的是该元素自己的"假体"节点
+    //     （fakeInner/fakeMiddle/fakeRotator/fakeBackground）。
+    //   · GameItemElement.ToggleFakeBackground(enabled, color) @0x78C3A0：
+    //       enabled=true  → SetParent(假体 → RenderHandler 静态实例的 Overlay 层
+    //                        [RenderHandler+0xb8]→[+0x50])；enabled=false → SetParent 回
+    //                        元素自己的 handler（就是网格里那一格）。
+    //   · ★ GameItemElement.ValidateSelectLocked @0x78E5E0 里有一条
+    //     **无条件**的 ToggleFakeBackground(enabled=false)（0x18078E8FC: xor edx,edx）。
+    //     ValidateSelectLocked ← ValidateSelect ← GameItemElement.Validate()（虚槽），
+    //     由网格在内容/贴图变化时对本格每个元素逐个调用。
+    //   · 于是我们拖拽中切页（Expel + UncheckedAccept 整格物品，每一件都会走
+    //     GameItem.ValidateShapeState 与 OverlayHandler.UpdateInventoryStateUI）
+    //     ⇒ 拖拽元素被 Validate ⇒ 假体被拆回网格那一格并禁用。
+    //     表现完全对得上：绿色落点照常跟手（Drag 里的 raycast + RefreshDragHighlight
+    //     不受影响），但物品图回到原格、不再跟手 —— 且**静默**（MovePosition /
+    //     OnEventUpdate 只判 fakeMiddle 非空，被拆回网格的指针依然有效 ⇒ 不报错、
+    //     不中止拖拽）。
+    //
+    // 【修法】用游戏自己的 GameItemElement.UpdateFakeReal(pickedUp) @0x78CB40 复原：
+    //   它内部就是 ToggleFakeBackground(enabled = pickedUp > 0, color) +
+    //   按 pickedUp 分配真/假背景与堆叠数字，所以
+    //     · 假体重新挂回 Overlay 层、恢复跟手；
+    //     · **拖拽堆叠物品时按堆叠语义复原**（真体显示 unitCount-pickedUp，
+    //       假体带 ×pickedUp 的数字）。
+    //   这是"复用游戏自己的状态机"，不是我们自己摆弄它的节点树。
+    //
+    // 【不做的】不改 fakeMiddle/fakeBackground 指针，不自己 SetParent，不碰
+    //   GridShapeBuilder —— 那些都是内部布局状态，手改容易把网格搞坏。
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 若此刻正在拖单件物品，则把它的"假体"（跟随鼠标的物品图）按当前拾取数复原。
+    /// 幂等、安全：不在拖拽中时第一行就返回；全程 try/catch 不外溢。
+    /// </summary>
+    private static void ReassertDragGhostIfDragging()
+    {
+        try
+        {
+            ItemMouseDragHandler drag = ItemMouseDragHandler.current;
+            if (drag == null || !drag.IsDraggingItem) return;
+
+            GameItemElement el = drag.currentItem;   // 手上那件的元素（拖拽期间它仍在网格里）
+            if (el == null) return;
+
+            int picked = drag.currentRemove;         // 游戏自己的"当前拾取数"（滚轮可调）
+            if (picked <= 0)
+            {
+                // 读不到拾取数时退回"整件"：UpdateFakeReal(0) 会把假体拆掉，
+                // 那正是我们要修的现象，所以绝不能传 0。
+                try { picked = el.unitCount; } catch { picked = 0; }
+            }
+            if (picked <= 0) return;                 // 两种都读不到 ⇒ 宁可不碰
+
+            el.UpdateFakeReal(picked);
+
+            // 无条件结构化标记：这是"切页后假体确实复原过"的唯一机器可读证据。
+            ContainerSuite.Shared.RegMark.Mark("sbe.tab.reassertGhost", true, "picked=" + picked);
+            SaveBagExpandCore.Diag("[SaveBagExpand] 拖拽中切页：已复原物品假体（拾取 " + picked + " 件）");
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("paging.reassertDragGhost", ex); }
+    }
+
+    /// <summary>
+    /// 切页后若干帧内重试复原假体。网格的 Validate 有可能不发生在我们的调用栈里
+    /// （例如紧随其后的窗口刷新），所以多给两帧；计数器归零后常态零开销。
+    /// 由 SaveBagExpandCore.Tick 每帧调用。
+    /// </summary>
+    internal static void TickDragGhostReassert()
+    {
+        if (_ghostReassertFrames <= 0) return;
+        _ghostReassertFrames--;
+        ReassertDragGhostIfDragging();
+    }
+
     internal static bool TryCycleNext()
     {
         // ★ 2026-09-30：全部日志改 TabLog，受 _dumpDiagEnabled 控制
@@ -589,6 +674,19 @@ public static class SaveBagPaging
             SnapshotCurrentPage(heldPtr);
             ClearGrid(_mainGrid, heldPtr);
             PlaceAll(_mainGrid, _storages[target]);
+
+            // ★ 2026-10-12：上面的 Expel/UncheckedAccept 会让游戏重新 Validate 网格里
+            //   每个元素，而 ValidateSelectLocked 会把"跟随鼠标的假体"拆掉（见
+            //   ReassertDragGhostIfDragging 注释）—— 拖着物品按 TAB 时表现就是
+            //   "绿色落点还在、物品图回到原格不跟手"。这里用游戏自己的
+            //   UpdateFakeReal(当前拾取数) 把它复原（含堆叠数量的真/假分配）。
+            //   放在 PlaceAll **之后**：拆是发生在 PlaceAll 的调用栈里的。
+            if (held != null)
+            {
+                ReassertDragGhostIfDragging();
+                _ghostReassertFrames = 2;   // 保险：网格 Validate 未必只发生在我们的栈内
+                TabLog("[TAB 切换] 已复原拖拽假体（真/假数量按当前拾取数重算）");
+            }
 
             _currentPage = target;
             RefreshPageIds();
@@ -1538,6 +1636,10 @@ public static class SaveBagPaging
             //   ProbeTabDrag 走 NotDragging 早退，无副作用）。
             Step("ProbeTabDrag(拖拽判定)", () => { ProbeTabDrag(out _, out _); });
             Step("GridContainsPtr/DescribeHeld", () => { _ = GridContainsPtr(null, IntPtr.Zero); _ = DescribeHeld(null); });
+            // 2026-10-12：拖拽假体复原（切页路径的新入口；主菜单没有拖拽 ⇒
+            //   ItemMouseDragHandler.current 可能为 null，走首行早退，无副作用）。
+            Step("ReassertDragGhostIfDragging（拖拽中切页的假体复原）",
+                () => { ReassertDragGhostIfDragging(); TickDragGhostReassert(); });
             Step("Uid(null)/FindPage(0)", () => { Uid(null); FindPage(0); });
             Step("Snapshot(null)", () => { Snapshot(null); });
             // ↓ S9：页归属自愈链（读档主路径）——必须在这里首编，

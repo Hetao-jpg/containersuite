@@ -250,6 +250,12 @@ public static class SaveBagExpandCore
             // 且其中 Bind 是 0x80131506 崩溃链的起点（见禁止事项 #22）。
             if (ContainerSuite.Shared.WorldReadyGate.ShouldDefer) return;
 
+            // 2026-10-12：拖拽中切页后的"物品假体"复原重试（未切过页时首行即返回，
+            //   常态零开销）。必须在本块之上——它不依赖分页开关/容器窗口实例。
+            ContainerSuite.Shared.CrashProbe.Enter("SBE.TickDragGhostReassert");
+            SaveBagPaging.TickDragGhostReassert();
+            ContainerSuite.Shared.CrashProbe.Exit("SBE.TickDragGhostReassert");
+
             ContainerSuite.Shared.CrashProbe.Enter("SBE.EmporiumEntry.Instance");
             var entry = EmporiumEntry.Instance;
             ContainerSuite.Shared.CrashProbe.Exit("SBE.EmporiumEntry.Instance");
