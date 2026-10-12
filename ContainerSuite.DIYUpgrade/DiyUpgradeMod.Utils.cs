@@ -120,16 +120,49 @@ public static partial class DiyUpgradeMod
         catch (System.Exception ex) { CatchLogOnce.Warn("DiyUpgradeMod.VerifyDragOffset", ex); }
     }
 
-    private static void LogOnce(string msg)
+    /// <summary>
+    /// C-2（2026-10-12）：去重集合的**有界淘汰** —— 只丢最旧的一批，不清空整体。
+    /// <para>
+    /// ★ 为什么不再用 <c>CacheLimits.Trim</c>：Trim 的语义是「超限即整体 Clear」。
+    ///   对**去重集合**用整体 Clear 是错的 —— 清空后旧 key 立刻可以重新打印，
+    ///   玩家看到"同一个错又出现了"，反而误判为功能反复出错。
+    /// </para>
+    /// <para>
+    /// ★ 为什么仍要淘汰：key 是消息文本，而部分调用点把物品 id / 槽号 / WxH 拼进了
+    ///   消息（见 GridWindow 的拖拽告警），键空间随玩家操作**单调增长** ⇒
+    ///   「会话内消息种类天然有限」这个假设不成立，不能完全不设上界。
+    ///   按"最后打印时间"淘汰最旧的一批：被淘汰的正好是长期没再出现的消息，
+    ///   近期活跃消息的去重信息不丢。
+    /// </para>
+    /// <para>
+    /// ★ 只在这里调用（热路径），超限时才排序，正常情况是 O(1) 判空返回。
+    /// </para>
+    /// </summary>
+    private static void EvictOldestLogKeys(int limit)
+    {
+        if (_lastLogTimeByKey.Count <= limit) return;
+        int target = limit - (limit >> 2);   // 一次淘汰到 3/4，避免"每加一条就淘汰一次"
+        var keys = new List<string>(_lastLogTimeByKey.Keys);
+        keys.Sort((a, b) => _lastLogTimeByKey[a].CompareTo(_lastLogTimeByKey[b]));
+        int remove = keys.Count - target;
+        for (int i = 0; i < remove; i++) _lastLogTimeByKey.Remove(keys[i]);
+    }
+
+    private static void LogOnce(string msg, bool warning = false)
     {
         if (string.IsNullOrEmpty(msg)) return;
         DateTime utcNow = DateTime.UtcNow;
-        if (!_lastLogTimeByKey.TryGetValue(msg, out var lastTime) || !((utcNow - lastTime).TotalSeconds < 3.0))
-        {
-            CacheLimits.Trim(_lastLogTimeByKey, CacheLimits.Small);   // A1（原裸写 >32）
-            _lastLogTimeByKey[msg] = utcNow;
-            ContainerSuiteLog.Diag(msg);
-        }
+        // ★ C-4（2026-10-12）：!(a < b) → a >= b —— 同一语义，少一层取反，可读性优先。
+        if (_lastLogTimeByKey.TryGetValue(msg, out var lastTime) && (utcNow - lastTime).TotalSeconds < 3.0) return;
+        // ★ C-2（2026-10-12）：淘汰改为"丢最旧一批"，不再整体 Clear（见 EvictOldestLogKeys）。
+        EvictOldestLogKeys(CacheLimits.Small);
+        _lastLogTimeByKey[msg] = utcNow;
+        // ★ D-1（2026-10-12）：warning=true 走**无条件**输出。
+        //   理由：走 Diag 的输出受 cfg z1_DiagLog（默认 false）门控 —— 默认静默的
+        //   "玩家可见提示"等于没做（项目教训：默认静默的日志会被误读成"没执行"）。
+        //   Diag 语义的调用点（warning 默认 false）行为一行未变。
+        if (warning) ContainerSuiteLog.Warn(msg);
+        else ContainerSuiteLog.Diag(msg);
     }
 
     private static bool PtrFieldNull(GameItem item, int offset)

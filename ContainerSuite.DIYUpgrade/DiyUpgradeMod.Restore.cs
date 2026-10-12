@@ -290,6 +290,19 @@ public static partial class DiyUpgradeMod
             }
 
             if (CanContainItems(inv, w, h)) list.Add((idx, w, h));
+            else
+            {
+                // ★ D-1（2026-10-12）：cfg 上限调小后容器内物品越界 → 静默跳过。
+                //   玩家视角是"改了 cfg 没反应"，其实是物品挡住了缩小。留一条 **Warning**：
+                //   走 LogOnce 的 warning 分支 = **无条件**输出，不受 z1_DiagLog 门控 ——
+                //   这是玩家可见的结果类提示，默认静默等于没做（项目教训：
+                //   默认静默的日志会被误读成"没执行"）。
+                //   3 秒去重防刷屏；msg 含容器 id + 槽号，不同 容器×槽 各留一条。
+                //   注意 w/h 在此处已是 clamp 后的值（上方 TryGetGridShapeLimits 夹过
+                //   [minC..maxC]×[minR..maxR]），日志打印的是"实际尝试的目标尺寸"。
+                LogOnce($"[容器升级] {IdOf(item)} 槽 {idx} 目标尺寸 {w}x{h} 小于容器内物品占用范围，"
+                    + "本次未恢复（请先清空容器，或把 cfg 上限调回原值）", warning: true);
+            }
         }
         return list;
     }

@@ -101,10 +101,14 @@ public static class ContainerSuiteLog
         if (!DiagEnabled) return;
         if (string.IsNullOrEmpty(key)) { Diag(msg); return; }
         if (!_diagSeen.Add(key)) return;
-        // 容量上限：防止 Diag 长期开启时集合无限增长。
-        // 超过上限就整体清空（而非逐项淘汰）—— 清空后可能重复打印少量旧 key，
-        // 但比逐项淘汰的 LRU 实现简单得多，且 DiagOnce 只用于诊断输出，重复打印无害。
-        CacheLimits.Trim(_diagSeen, CacheLimits.Large);   // A1（原裸写 >512）
+        // ★ C-2（2026-10-12）：删除此处的 CacheLimits.Trim。
+        //   原注释的理由是"整体清空后重复打印少量旧 key 无害"—— 对去重集合不成立：
+        //   一旦整体清空，**已经打过的诊断点会在同一会话里再打一遍**，看起来像
+        //   "这个状态又出现了一次"（去重信息丢失 = 制造假信号）。
+        //   key 由调用方**显式指定**（诊断点本身，不是消息文本），种类有限；
+        //   有界性交给 CacheRegistry 的场景/读档清空（ClearDiagOnce），不依赖这条兜底。
+        //   ★ 新增调用方时请确保 key 是固定诊断点 —— 若把物品 id / 坐标拼进 key，
+        //     键空间就变成单调增长，需要另行加淘汰（参照 DIY 的 EvictOldestLogKeys）。
         try { MelonLogger.Msg(msg); } catch { }
     }
 
