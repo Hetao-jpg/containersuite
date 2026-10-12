@@ -102,7 +102,7 @@ ModManager 改配置退出重进恢复默认？看 [cfg 自检] 是否报 ⚠（
 充能器超 4 颗电池只显示前 4 颗？有意为之。
 看日志（游戏目录 MelonLoader/Latest.log，行首带 [CustomInfrastructure] 前缀）：
 ContainerSuite v1.7.6（基础设施 v1.2.2 / 扩容仓库 v1.3.2 / 容器升级 v1.8.2 / 共享库 v1.0.0）
-Patch 汇总：N 个方法已挂补丁 ✓ · 已避让 XIAOWOTradePerks (7/7) · Wage 避让：14/14 成功
+Patch 汇总：N 个方法已挂补丁 ✓ · 已避让 XIAOWOTradePerks (7/7) · Wage 避让：7/7 成功
 [配置重排] 已把 N/M 个旧键名的值搬到新键名 · [配置合并] 诊断日志开关已合并为总开关 DiagLog
 [配置补齐] 已把代码默认新增的物品ID追加进 N 个白名单：MultiSlotModuleIds 追加 1 个ID（bottle_printer）
 [cfg 自检] MelonPreferences.cfg TOML 终态合法性检查通过

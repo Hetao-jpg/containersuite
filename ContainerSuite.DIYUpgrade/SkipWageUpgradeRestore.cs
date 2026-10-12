@@ -27,11 +27,19 @@ namespace DIYUpgrade;
 ///   · LuckScoutBackpackUpgrade.PrefixMayHaveValidInventorySlot
 /// 只拦善后层 = 拦不住"扣材料 + 改尺寸"这个动作本身。
 ///
+/// ★ 2026-10-12（C-1 复核结论）：上面那段里的「7 个入口层补丁挂钩」已**整段删除**。
+///   复核确认它们的 Prefix 一律 return true（无副作用空操作）—— 删掉与原方法直通
+///   完全等价，只是省掉 7 次 Harmony 调度与 7 个预热名额。上面这段历史描述保留
+///   （记录「为什么曾经挂过」），但**不要再拿它核对当前行为**。
+///
 /// 【判据说明 —— 2026-10-09 复核】
-///   入口层 7 个 Prefix（MayTarget / CanTarget / MayHaveValidInventorySlot 家族）
-///   经复核为**无副作用的空操作**（原 `if(!Owns…) return true; return true;` 判定
-///   结果被丢弃），已改为显式 `return true`（有意放行），保留补丁挂钩以便将来加判定。
-///   原私有判据 OwnsWageBox / OwnsVoidBead 仅被这些空操作调用，已随之删除。
+///   入口层不挂补丁（有意放行）：2026-10-09 复核确认那 7 个入口 Prefix
+///   （MayTarget / CanTarget / MayHaveValidInventorySlot 家族）是无副作用空操作
+///   （原 `if(!Owns…) return true; return true;` 判定结果被丢弃），
+///   2026-10-12（C-1）删除补丁挂钩本身 —— 行为等价：我们的 Prefix 一律 return true
+///   ⇒ 原方法本来就在跑；删掉后原方法照样跑，只是省掉 7 次 Harmony 调度与预热名额。
+///   将来需要入口层判据时按签名加回，并同步更新 readme.用户须知.md 的避让计数。
+///   原私有判据 OwnsWageBox / OwnsVoidBead 仅被这些空操作调用，已于 2026-10-09 删除。
 ///   真正拦蛙哥升级的是善后层：Prefix_WageBox_Target / RestoreWageBoxShape /
 ///   ConsumeNutsInBox / PostfixWageBoxTooltip / ConsumeNutsDirectly /
 ///   Prefix_DoUpgrade（判据 = IsWageBox / IsVoidBeadStorage + HasDiyMigrated，
@@ -53,11 +61,12 @@ internal static class SkipWageUpgradeRestore
     /// <summary>无 ref 的两 GameItem 参数（PrefixTarget_WageBox）。</summary>
     private static readonly Type[] PlainArgs = { typeof(GameItem), typeof(GameItem) };
 
-    /// <summary>
-    /// 带 ref bool 的三参数。妙妙箱 3 个入口与虚空珠 3 个入口签名完全相同，
-    /// 故合并为一个字段（原有两个字段内容一致，去重）。
-    /// </summary>
-    private static readonly Type[] RefBoolArgs = { typeof(GameItem), typeof(GameItem), typeof(bool).MakeByRefType() };
+    // ★ C-1（2026-10-12）：原 RefBoolArgs 字段（带 ref bool 的三参数签名）已删除 ——
+    //   它只被那 7 个入口层 Patch 调用使用，随之一并移除。
+    //   PlainArgs（两个 GameItem）保留：善后层 PrefixTarget_WageBox 的签名是
+    //   (GameItem, GameItem)，无 ref，仍在用。
+    //   若将来加回入口层补丁，按 ilspycmd --ilcode 从 WagesPerks.dll 读出的签名重建
+    //   （妙妙箱 3 个入口 + 虚空珠 3 个入口都带 ref bool，PrefixTarget_Bead 不带）。
 
     internal static void Install(HarmonyLib.Harmony harmony)
     {
@@ -72,32 +81,17 @@ internal static class SkipWageUpgradeRestore
 
         if (typeUpgrade != null)
         {
-            // ── 【S8i】Target 家族入口（现为「真直通」挂钩）──────────
-            // ★ 这里 patch 的是**蛙哥自己的补丁方法**（不是游戏的 MayTarget）。
-            //   当前我们的 Prefix 一律 return true（有意放行，理由见下方方法注释与
-            //   README #13），即不改变行为；保留这些补丁挂钩，便于将来需要时在此加判定。
-            //   真正拦住蛙哥升级的是下面的善后层 Prefix_WageBox_Target / Prefix_DoUpgrade。
-            //
-            // ★★ 参数必须带 ref bool！AccessTools.Method 的参数匹配是精确的，
-            //   漏掉第三个参数就找不到方法（2026-10-02 实测：6 个补丁全挂不上，
-            //   日志刷"找不到 ... 跳过"，只有恰好无 ref 的 PrefixTarget_WageBox
-            //   挂上了）。签名经 ilspycmd --ilcode 从 WagesPerks.dll 读出：
-            //     PrefixMayTarget_WageBox            (GameItem, GameItem, ref bool)
-            //     PrefixCanTarget_WageBox            (GameItem, GameItem, ref bool)
-            //     PrefixMayHaveValidInventorySlot_…  (GameItem, GameItem, ref bool)
-            //     PrefixTarget_WageBox               (GameItem, GameItem)   ← 无 ref
-            //   我们的拦截方法签名要跟被 patch 的方法**完全一致**（含 ref）。
-            if (Patch(harmony, typeUpgrade, "PrefixMayTarget_WageBox", RefBoolArgs,
-                nameof(PrefixMayTarget_WageBox))) patched++;
-            else failed++;
-
-            if (Patch(harmony, typeUpgrade, "PrefixCanTarget_WageBox", RefBoolArgs,
-                nameof(PrefixCanTarget_WageBox))) patched++;
-            else failed++;
-
-            if (Patch(harmony, typeUpgrade, "PrefixMayHaveValidInventorySlot_WageBox", RefBoolArgs,
-                nameof(PrefixMayHaveValidInventorySlot_WageBox))) patched++;
-            else failed++;
+            // ── 【S8i】Target 家族入口 —— ★ 2026-10-12（C-1）已整段删除 ──────────
+            //   历史：S8i 曾在这里 patch 蛙哥自己的 3 个入口 Prefix
+            //     PrefixMayTarget_WageBox / PrefixCanTarget_WageBox /
+            //     PrefixMayHaveValidInventorySlot_WageBox（签名均带 ref bool），
+            //   但我们的 Prefix 一律 return true（无副作用空操作），挂着只是让
+            //   Harmony 多跑一次调度。2026-10-12 删除，行为与原方法直通完全等价。
+            //   ★★ 若将来要加回：参数必须带 ref bool —— AccessTools.Method 参数匹配
+            //      是精确的，漏掉第三个参数就找不到方法（2026-10-02 实测：6 个补丁全
+            //      挂不上、日志刷"找不到 ... 跳过"，只有恰好无 ref 的 PrefixTarget_WageBox
+            //      挂上了）。签名经 ilspycmd --ilcode 从 WagesPerks.dll 读出，
+            //      加回时请按同一来源重建，不要凭方法名猜。
 
             // ── 原有的善后层拦截 ──
             if (Patch(harmony, typeUpgrade, "PrefixTarget_WageBox", PlainArgs,
@@ -132,23 +126,11 @@ internal static class SkipWageUpgradeRestore
 
         if (typeLuckScout != null)
         {
-            // ── 【S8i 新增】虚空珠的 4 个入口。同样 patch 蛙哥自己的补丁方法。
-            // 签名同样带 ref bool（实测读 WagesPerks.dll IL 确认）。
-            if (Patch(harmony, typeLuckScout, "PrefixMayTarget", RefBoolArgs,
-                nameof(PrefixMayTarget_Bead))) patched++;
-            else failed++;
-
-            if (Patch(harmony, typeLuckScout, "PrefixCanTarget", RefBoolArgs,
-                nameof(PrefixCanTarget_Bead))) patched++;
-            else failed++;
-
-            if (Patch(harmony, typeLuckScout, "PrefixTarget", PlainArgs,
-                nameof(PrefixTarget_Bead))) patched++;
-            else failed++;
-
-            if (Patch(harmony, typeLuckScout, "PrefixMayHaveValidInventorySlot", RefBoolArgs,
-                nameof(PrefixMayHaveValidInventorySlot_Bead))) patched++;
-            else failed++;
+            // ── 【S8i】虚空珠的 4 个入口 —— ★ 2026-10-12（C-1）已整段删除 ──────
+            //   历史：PrefixMayTarget / PrefixCanTarget / PrefixMayHaveValidInventorySlot
+            //   （带 ref bool）与 PrefixTarget（无 ref，用 PlainArgs）—— 同样一律
+            //   return true（无副作用空操作），删掉后蛙哥原方法照常执行，行为等价。
+            //   ★ 加回时按 ilspycmd --ilcode 从 WagesPerks.dll 读出的签名重建。
 
             // ── 原有的虚空珠拦截 ──
             if (Patch(harmony, typeLuckScout, "ApplyLockedShape",
@@ -160,9 +142,13 @@ internal static class SkipWageUpgradeRestore
             // ★★ 2026-10-06 实机发现这条**从来没挂上过**：
             //   用 ilsdump 读当前 Mods\WagePerks.dll，真实签名是
             //   DoUpgrade(GameItem, GameItem, Boolean) -> Boolean，
-            //   而我们按 (GameItem, GameItem) 打 —— AccessTools 精确匹配不到，
-            //   日志表现为 "Wage 避让：13/14 成功"（README 有 5 处写 14/14）。
+            //   而我们按 (GameItem, GameItem) 打 —— AccessTools 精确匹配不到。
             //   改成候选签名依次试：新版 3 参在前，旧版 2 参兜底。
+            // ★ 2026-10-12（C-1）：当时的日志表现是 "Wage 避让：13/14 成功"。
+            //   入口层 7 个挂钩删除后总数回到 7，"13/14" 与旧注释里的
+            //   "README 有 5 处写 14/14" 都已过时（那是 _archive 旧 README 的情况，
+            //   当前 README.md.txt 里没有 14/14；需要同步的只有
+            //   readme.用户须知.md 的示例日志，已改为 7/7）。
             if (PatchAny(harmony, typeLuckScout, "DoUpgrade", nameof(Prefix_DoUpgrade),
                 new[]
                 {
@@ -317,44 +303,23 @@ internal static class SkipWageUpgradeRestore
     //   Prefix_WageBox_Target / Prefix_DoUpgrade 等。
     // ─────────────────────────────────────────────────────────────────
 
-    public static bool PrefixMayTarget_WageBox(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixCanTarget_WageBox(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixMayHaveValidInventorySlot_WageBox(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixMayTarget_Bead(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixCanTarget_Bead(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixTarget_Bead(GameItem __0, GameItem __1)
-    {
-        return true;   // 有意放行（见上）
-    }
-
-    public static bool PrefixMayHaveValidInventorySlot_Bead(GameItem __0, GameItem __1, ref bool __result)
-    {
-        return true;   // 有意放行（见上）
-    }
+    // ★ 2026-10-12（C-1）：上面那一节列出的 7 个入口 Prefix **已全部删除** ——
+    //   · 妙妙箱：PrefixMayTarget_WageBox / PrefixCanTarget_WageBox /
+    //             PrefixMayHaveValidInventorySlot_WageBox
+    //   · 虚空珠：PrefixMayTarget_Bead / PrefixCanTarget_Bead /
+    //             PrefixMayHaveValidInventorySlot_Bead / PrefixTarget_Bead
+    //   它们的实现体都是 `return true;`（一行空操作），挂着只多付一次 Harmony 调度；
+    //   删除后蛙哥原方法照常执行 —— 行为等价，不是功能变更。
+    //   ★ 上面「不要改成 return false」的警告**将来加回时仍然有效**：我们的入口
+    //     Prefix 必须放行，否则会连带堵死「把材料正常放进容器」这条最普通的操作。
+    //   ★ 上面提到的「README #13」在 README.md.txt 里并不存在（只存在于 _archive
+    //     的旧 README），不要再去找它。
 
     // ═══════════════════════════════════════════════════════════════════
     //  （原判据 OwnsWageBox / OwnsVoidBead 已于 2026-10-09 删除：它们仅被上面
     //    7 个已改为「真直通」的入口 Prefix 调用，删除后无引用。）
+    //  ★ 2026-10-12（C-1）：那 7 个入口 Prefix 本身也已删除（见上一段），
+    //    故本段与上面提到的判据一起成为纯历史记录 —— 当前不存在任何入口层补丁。
     // ═══════════════════════════════════════════════════════════════════
 
     // F11 诊断台账（Note 逐条记录 + TickDiagnostics 打印）已于 S8m 移除：属排障期
