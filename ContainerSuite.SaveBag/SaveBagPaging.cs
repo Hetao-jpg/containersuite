@@ -984,6 +984,10 @@ public static class SaveBagPaging
     // 227 槽行都不存在）→ 读档 FindPage 全返回 0 → 第二页物品全部叠进第一页。
     // 结论：页 ID 不能走 MelonPreferences。格式（每行一个槽，ASCII）：
     //     slotId;pageCount;page2Ids;page3Ids;...
+    // ★ T4（2026-10-12）：槽号后面可带一段「局标识」：
+    //     slotId#runKey;pageCount;page2Ids;...
+    //   带 #runKey 的行只在 runKey 与当前这一局一致时才匹配；**不带**该段的（老文件）
+    //   仍按老规则匹配 —— 保证升级套件本身不会让玩家已有的页归属失效。
     // 写入在 SaveIdSets 里同步落盘（存档合并/切页即刻生效），失败才进
     // Tick 的 5 秒重试（_idsDirty）。
 
@@ -1046,23 +1050,81 @@ public static class SaveBagPaging
         }
     }
 
+    /// <summary>
+    /// T4（2026-10-12）：从一行里解出槽号。表头形如 <c>12</c> 或 <c>12#runKey</c>。
+    /// <para>
+    /// ★ 必须**只有这一处**做表头解析 —— 读侧（FindIdsLine）与写侧（SaveIdSets 的替换）
+    ///   一旦用不同规则，写成 <c>12#run</c> 之后写侧认不出旧行（表头不再能 int.TryParse），
+    ///   于是每次存档都**追加**一行、而读侧永远命中靠前的那条旧行 —— 页归属直接冻结。
+    ///   这是实现 T4 时实际踩到的坑，故抽成公共实现。
+    /// </para>
+    /// </summary>
+    private static bool TryParseSlotHead(string line, out int slot)
+    {
+        slot = -1;
+        if (string.IsNullOrEmpty(line)) return false;
+        string t = line.Trim();
+        if (t.Length == 0 || t[0] == '#') return false;   // '#v1' / '#run=' 是头行，不是数据行
+        int semi = t.IndexOf(';');
+        string head = semi >= 0 ? t.Substring(0, semi) : t;
+        int hash = head.IndexOf('#');
+        if (hash >= 0) head = head.Substring(0, hash);    // 丢掉可选的局标识段
+        return int.TryParse(head, out slot);
+    }
+
     private static string FindIdsLine(List<string> lines, int slot)
     {
+        // T4：当前局的标识（拿不到 = 空串 ⇒ 不做局隔离，保持旧行为）。
+        string runKey = SaveSlotScope.GetRunKey();
         for (int i = 0; i < lines.Count; i++)
         {
             string t = lines[i] == null ? "" : lines[i].Trim();
-            if (t.Length == 0 || t[0] == '#') continue;
+            if (!TryParseSlotHead(t, out int s) || s != slot) continue;
+
+            // T4：取出这一段局标识（表头里 '#' 之后的部分）。
+            string runPart = null;
             int semi = t.IndexOf(';');
             string head = semi >= 0 ? t.Substring(0, semi) : t;
-            if (int.TryParse(head, out int s) && s == slot) return t;
+            int hash = head.IndexOf('#');
+            if (hash >= 0) runPart = head.Substring(hash + 1);
+
+            // T4：写了局标识却与本局不符 → 这一行属于**同一存档槽的上一局**（开新游戏），
+            //   当作不存在。★ 只跳过这一行，绝不删别的行 —— 文件里还有其它存档槽的行。
+            //   ★ 无局标识（老文件 / 自检探针行）一律按老规则匹配。
+            if (!string.IsNullOrEmpty(runPart) && !string.IsNullOrEmpty(runKey)
+                && !string.Equals(runPart, runKey, StringComparison.Ordinal))
+            {
+                if (!_idsRunForeignWarned)
+                {
+                    _idsRunForeignWarned = true;
+                    SaveBagExpandCore.Log.Warning(
+                        $"[SaveBagExpand] 页ID旁路文件里槽 {slot} 的记录属于**上一局**（runKey 不符），已忽略："
+                        + "同槽开新游戏时物品 ID 会重排，沿用旧归属会让第二页物品叠进第一页。"
+                        + "本次进游戏后整理一次并存档即可写入本局记录。");
+                }
+                continue;
+            }
+            return t;
         }
         return null;
     }
 
+    // T4：局不符只告警一次（每次查询都刷屏没意义）。
+    private static bool _idsRunForeignWarned;
+
     private static string BuildIdsLine()
     {
         var sb = new StringBuilder();
-        sb.Append(_boundSlotId).Append(';').Append(_pageCount);
+        sb.Append(_boundSlotId);
+        // T4（2026-10-12）：把「局标识」拼在槽号后面（`<slot>#<run>`），只借蛙哥
+        //   「#runID=」的思路做按局隔离；拿不到 runID 时**不写这一列**（老格式，仍然可用）。
+        try
+        {
+            string runKey = SaveSlotScope.GetRunKey();
+            if (!string.IsNullOrEmpty(runKey)) sb.Append('#').Append(runKey);
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("paging.BuildIdsLine.runKey", ex); }
+        sb.Append(';').Append(_pageCount);
         for (int i = 1; i < _pageIds.Count; i++)
             sb.Append(';').Append(FormatIds(_pageIds[i]));
         return sb.ToString();
@@ -1079,9 +1141,10 @@ public static class SaveBagPaging
             for (int i = 0; i < lines.Count; i++)
             {
                 string t = lines[i] == null ? "" : lines[i].Trim();
-                int semi = t.IndexOf(';');
-                string head = semi >= 0 ? t.Substring(0, semi) : t;
-                if (int.TryParse(head, out int s) && s == _boundSlotId)
+                // ★ T4：必须用与读侧**同一个**表头解析（TryParseSlotHead）——
+                //   否则写成 `<slot>#<run>;...` 之后这里 int.TryParse 失败 ⇒ 认不出旧行
+                //   ⇒ 每次存档追加一行，而读侧永远命中靠前的旧行（页归属冻结）。
+                if (TryParseSlotHead(t, out int s) && s == _boundSlotId)
                 {
                     lines[i] = line;
                     replaced = true;

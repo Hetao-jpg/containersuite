@@ -51,5 +51,62 @@ public static class SaveSlotScope
     {
         _cachedSlotId = -1;
         _cacheGate.Reset();
+        _cachedRunKey = null;
+        _runKeyGate.Reset();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // T4（2026-10-12，借鉴蛙哥 WageSaveStore 的「#runID=」做法 —— **只借思路**，
+    //     命名/存储实现都不照抄；蛙哥是自建文件库，我们只是给现有旁路文件加一列）
+    //
+    // 为什么需要：saveSlotId 只是**存档槽号**。同一个槽开新游戏时槽号不变、但物品的
+    //   uniqueId 会重新分配 ⇒ 上一局的页归属会被当成这一局的用，第二页物品可能整片
+    //   叠进第一页。这与"跨档 uid 复用污染内存缓存"（A-2 修的那类）是**同一类**问题，
+    //   只是这份数据在磁盘上，不会因为读档清缓存而消失。
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private static string _cachedRunKey;
+    private static PollThrottle _runKeyGate;
+    private const int RunKeyCacheMillis = 1500;
+
+    /// <summary>
+    /// 当前这一局的标识（<c>PlayerStore.runID</c>），供外部存储做**按局隔离**。
+    /// <para>
+    /// ★ 拿不到时返回**空串**，调用方必须把空串当作"不做局隔离"（保持旧行为）——
+    ///   绝不能用空串去匹配，那会把玩家已有的数据整片判成"外来局"。
+    /// </para>
+    /// <para>
+    /// 字符集：runID 会被写进以 ';' 与 '#' 分隔的旁路文件行，故只保留
+    /// [0-9A-Za-z_-]，其余替换为 '_'，并截断到 24 字符（够区分，也不会把行撑长）。
+    /// </para>
+    /// <para>缓存 1.5 秒；拿不到时不消耗闸门、每次重试（与 <see cref="GetCurrent"/> 同策略）。</para>
+    /// </summary>
+    public static string GetRunKey()
+    {
+        if (!string.IsNullOrEmpty(_cachedRunKey) && !_runKeyGate.Due(RunKeyCacheMillis))
+            return _cachedRunKey;
+        string raw = null;
+        try
+        {
+            if (PlayerStore.IsInstanceExist() && PlayerStore.Instance != null)
+                raw = PlayerStore.Instance.runID;
+        }
+        catch { raw = null; }
+        _cachedRunKey = SanitizeRunKey(raw);
+        return _cachedRunKey;
+    }
+
+    private static string SanitizeRunKey(string raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return "";
+        var sb = new System.Text.StringBuilder(24);
+        for (int i = 0; i < raw.Length && sb.Length < 24; i++)
+        {
+            char c = raw[i];
+            bool ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')
+                      || (c >= 'a' && c <= 'z') || c == '_' || c == '-';
+            sb.Append(ok ? c : '_');
+        }
+        return sb.ToString();
     }
 }
