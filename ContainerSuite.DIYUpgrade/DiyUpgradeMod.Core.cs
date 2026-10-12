@@ -133,6 +133,10 @@ public static partial class DiyUpgradeMod
         MigrateIncKeys(category);             // 2026-10-07：把旧「每槽」升级增量合并到全局 IncW/IncH / ModIncW/ModIncH
         MigrateDiagKeys(category);            // 2026-10-07：三个模块的诊断开关合并为一个总开关（OR 迁移 + 清旧键）
         // 2026-10-08：把代码默认新增的物品ID追加进各 *Ids（只追加，不动玩家手改的值）。
+        // S2（2026-10-12）：先加载 UserData 配置文件 —— 它决定"哪些类别的白名单以文件为准"，
+        //   紧随其后的 EnsureDefaultIds 需要按这个信息决定「补 cfg」还是「补文件」，
+        //   再后面的 RefreshIdLists 才能取到生效后的白名单。
+        LoadContainerConfigFile(createIfMissing: true);
         EnsureDefaultIds(category);
         category.SaveToFile(true);
         RefreshIdLists();
@@ -301,6 +305,9 @@ public static partial class DiyUpgradeMod
         // T3（2026-10-12）：组拖"事件丢失"对账（已武装 + 鼠标抬起 N 帧却没等到 EndGroupDrag）。
         //   未武装时方法内第一行就返回，常态零开销；内部全 try/catch，异常不外溢。
         ReconcileGroupDragArm();
+
+        // S2（2026-10-12）：配置文件热重载（2 秒节流；未加载 / 文件未改动时立即返回）。
+        TickContainerConfigFile();
         // S8m：原此处每帧调 SkipWageUpgradeRestore.TickDiagnostics()（F11）+
         //       SkipXiaowoBayRestore.TickDiagnostics()（F12），已随诊断台账一并移除
         //       （S8l 实机验证通过，台账属排障期脚手架）。恢复方法见两个文件内的注释块。

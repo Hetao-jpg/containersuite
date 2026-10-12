@@ -105,6 +105,16 @@ public static partial class DiyUpgradeMod
                 //   这是正常状态，不是失败。
                 if (entry == null) continue;
 
+                // S2（2026-10-12）：这一类白名单已由配置文件管理 ⇒ 不能只往 cfg 里补
+                //   （补了也不会被读，等于"代码新增容器"对这类玩家静默失效）。
+                //   改为把缺失的默认 id 补进**配置文件**的那一行。
+                string wlKey = WhitelistKeyOf(key);
+                if (IsWhitelistFromFile(wlKey))
+                {
+                    EnsureFileWhitelistHasDefaults(wlKey, DefaultIdLists[i].Value, changes, failures);
+                    continue;
+                }
+
                 var se = entry as MelonPreferences_Entry<string>;
                 if (se == null) { failures.Add(key + "（条目类型不是 string）"); continue; }
 

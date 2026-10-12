@@ -201,11 +201,13 @@ public static partial class DiyUpgradeMod
     }
     private static void RefreshIdLists()
     {
-        _box.IdList = SplitIds(_box.Ids.Value);
-        _backpack.IdList = SplitIds(_backpack.Ids.Value);
-        _cage.IdList = SplitIds(_cage.Ids.Value);
-        _multiSlot.IdList = SplitIds(_multiSlot.Ids.Value);
-        _multiSlotModule.IdList = SplitIds(_multiSlotModule.Ids.Value);
+        // S2（2026-10-12）：每类白名单先过一遍「文件 or cfg」的仲裁 ——
+        //   文件里声明过的类别以文件为准（见 DiyUpgradeMod.FileConfig.cs 头注）。
+        _box.IdList = SplitIds(EffectiveWhitelistRaw("box", _box.Ids.Value));
+        _backpack.IdList = SplitIds(EffectiveWhitelistRaw("backpack", _backpack.Ids.Value));
+        _cage.IdList = SplitIds(EffectiveWhitelistRaw("cage", _cage.Ids.Value));
+        _multiSlot.IdList = SplitIds(EffectiveWhitelistRaw("multislot", _multiSlot.Ids.Value));
+        _multiSlotModule.IdList = SplitIds(EffectiveWhitelistRaw("multislotmodule", _multiSlotModule.Ids.Value));
         try { _resizableCache.Clear(); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
     }
     private static string[] SplitIds(string raw)
