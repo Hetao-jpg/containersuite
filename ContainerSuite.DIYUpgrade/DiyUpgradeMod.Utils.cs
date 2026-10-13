@@ -283,7 +283,12 @@ public static partial class DiyUpgradeMod
         catch { }
     }
 
-    /// <summary>诊断模式（DiagLog=true）下输出完整偏移解析结果，排障用，默认关闭。</summary>
+    /// <summary>
+    /// 诊断模式（DiagLog=true）下输出完整偏移解析结果，排障用，默认关闭。
+    /// ★ 2026-10-13：整体收进 <c>#if DIAG</c>（调用点同门控）——
+    ///   纯文本诊断，Release 不编译；绝不删，保留排障能力（见方案 T-B3）。
+    /// </summary>
+#if DIAG
     internal static void LogOffsetDiag()
     {
         LogOffsetDiagOne(typeof(GameItem), new string[] { "identifier", "id" }, Off.Id);
@@ -301,4 +306,5 @@ public static partial class DiyUpgradeMod
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("DiyUpgradeMod.LogOffsetDiagOne", ex); }
     }
+#endif
 }

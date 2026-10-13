@@ -175,7 +175,10 @@ public static partial class DiyUpgradeMod
         // 偏移自检预热（审查 #6）：提前解析好，省得首次用到时才做。
         // 默认不输出任何日志；只有 DiagLog=true 时才打印完整解析报告。
         WarmUpOffsetDiag();
+        // 2026-10-13：完整偏移解析报告仅 DIAG 构建输出（LogOffsetDiag 已收进 #if DIAG）。
+#if DIAG
         if (_diagLog != null && _diagLog.Value) LogOffsetDiag();
+#endif
         // P1-1：登记「场景切换必须清空」的可重建缓存（OnSceneLoaded 只调 ClearAll）。
         RegisterSceneCaches();
         _log.Msg($"已加载。读档尺寸恢复={(_restoreOnLoad == null || _restoreOnLoad.Value ? "开" : "关")}");
@@ -302,7 +305,10 @@ public static partial class DiyUpgradeMod
 
         // T3（2026-10-12）：组拖"事件丢失"对账（已武装 + 鼠标抬起 N 帧却没等到 EndGroupDrag）。
         //   未武装时方法内第一行就返回，常态零开销；内部全 try/catch，异常不外溢。
+        //   ★ 2026-10-13：随 T-A5 收进 #if DIAG（方法体同门控，Release 里整体消失）。
+#if DIAG
         ReconcileGroupDragArm();
+#endif
 
         // S8m：原此处每帧调 SkipWageUpgradeRestore.TickDiagnostics()（F11）+
         //       SkipXiaowoBayRestore.TickDiagnostics()（F12），已随诊断台账一并移除

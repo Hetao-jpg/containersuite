@@ -87,10 +87,14 @@ public static partial class DiyUpgradeMod
     //   玩家视角是"松手没反应"（静默失效）。
     //   ★ 只观测、**不自动复位** —— 擅自把 _groupDragArmed 清掉会与游戏自身状态打架
     //     （也不知道该不该替它把材料放回去）。先拿证据，再决定要不要干预。
+    //   ★ 2026-10-13：T3 对账三件套（字段 / ReconcileGroupDragArm / 调用点）整体收进
+    //     #if DIAG —— 它是"只观测不干预"的排障脚手架，Release 无需承担（绝不删，见方案 T-A5）。
+#if DIAG
     private static int _groupDragMouseUpFrames;
     private static bool _groupDragLostLogged;
     /// <summary>鼠标抬起后连续多少帧仍处于"已武装"才判定事件丢失（毫秒级抖动不算）。</summary>
     private const int GroupDragLostAfterUpFrames = 5;
+#endif
 
     // ★ D-2（2026-10-12）：组拖进度提示的状态（100 堆材料 × 6 帧 ≈ 10 秒 @60fps，
     //   中间无任何反馈玩家会以为卡死了）。由 RunGroupUpgrade 每步更新，
@@ -166,9 +170,11 @@ public static partial class DiyUpgradeMod
             if (_groupDragMaterials.Count > 0)
             {
                 _groupDragArmed = true;
+#if DIAG
                 // T3：本次武装从头计数（对账用的"鼠标抬起连续帧数"要干净起步）。
                 _groupDragMouseUpFrames = 0;
                 _groupDragLostLogged = false;
+#endif
                 // 首次启用留一条**无条件**日志（项目教训：默认静默的日志会被
                 // 误读成"没执行"）。用 LogOnce 的 3 秒去重避免刷屏。
                 LogOnce("[容器升级] 批量框选已武装：" + _groupDragMaterials.Count + " 堆材料（松手在容器上即连续升级）");
@@ -499,7 +505,12 @@ public static partial class DiyUpgradeMod
     /// ★ 已知误报面：若游戏支持**非鼠标**的框选方式（键盘/手柄），鼠标整场都是抬起的，
     ///   会误报。当前游戏的框选是鼠标框选，故可接受；即使误报也只多一行日志，不改变行为。
     /// </para>
+    /// <para>
+    /// ★ 2026-10-13：整体收进 <c>#if DIAG</c>（Release 不编译；调用点同门控）。
+    ///   它是纯观测脚手架，绝不删——删掉就丢了对"松手没反应"这类静默失效的唯一现场证据。
+    /// </para>
     /// </summary>
+#if DIAG
     internal static void ReconcileGroupDragArm()
     {
         try
@@ -524,6 +535,7 @@ public static partial class DiyUpgradeMod
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("GroupDrag:reconcile", ex); }
     }
+#endif
 
     // ═══════════════════════════════════════════════════════════════════════
     // Harmony 补丁类
