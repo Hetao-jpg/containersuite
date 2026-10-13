@@ -110,10 +110,6 @@ public static partial class DiyUpgradeMod
         { "5C_WageBackpackEnable", "7H_WageBackpackEnable" },
         { "5C_WageBackpackMaxH", "7H_WageBackpackMaxH" },
         { "5C_WageBackpackMaxW", "7H_WageBackpackMaxW" },
-        // ── z_ 诊断与实验 ──
-        { "z2_CIReadLoadWarmup", "z3_CIReadLoadWarmup" },
-        { "z3_DisableLoadRestore", "z4_DisableLoadRestore" },
-        { "27_SyncModifiedStateProbe", "z9_SyncModifiedStateProbe" },
     };
 
     /// <summary>
@@ -134,6 +130,11 @@ public static partial class DiyUpgradeMod
         "4E_MultiSlotModuleT2Enable", "4E_MultiSlotModuleT3Enable",
         // 诊断期遗留（不属于任何构建）
         "z4_DisableCfgKeepAlive", "z2_JitPrecompileProbe",
+        // 2026-10-13：两个「读档闪退排查」开关 + 一个 T5 探针整体删除。
+        //   改名前(z2_/z3_/27_)与现名(z3_/z4_/z9_)都要清 —— 老用户 cfg 里两种名都可能残留。
+        "z2_CIReadLoadWarmup", "z3_CIReadLoadWarmup",
+        "z3_DisableLoadRestore", "z4_DisableLoadRestore",
+        "27_SyncModifiedStateProbe", "z9_SyncModifiedStateProbe",
 #if !DIAG
         // 仅 DIAG 构建注册的探针；Release 下是孤儿键
         "24_R1Probe", "25_ResizeDiag",

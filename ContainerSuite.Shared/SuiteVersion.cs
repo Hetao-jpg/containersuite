@@ -11,13 +11,14 @@ namespace ContainerSuite.Shared;
 ///   · <see cref="Suite"/> 是唯一的对外版本号：MelonInfo、所有 AssemblyInfo、
 ///     README 标题都用它，改版本只改这一处常量（AssemblyInfo 里仍写字面量，
 ///     见各文件顶部注释，改的时候记得同步）。
-///   · 三个 <c>Component*</c> 常量只用于启动日志里"一行显示组件版本"，
-///     不对外冒充套件版本，保留各自的演进历史。
+///   · 三个 <c>Component*</c> 常量现在**只在 DIAG 构建的启动横幅里显示**——
+///     Release 产物只有 <see cref="Suite"/> 一个版本号对用户可见（见 <see cref="Banner"/>）。
+///     它们保留各自的演进历史，用于 DIAG 排障时定位「哪个组件改过什么」。
 /// </summary>
 public static class SuiteVersion
 {
     /// <summary>对外显示的套件版本。</summary>
-    public const string Suite = "1.7.8";                  // ← 1.7.7 改（修拖拽缩放网格残留/乱格 + 清 XIAOWO 残留手柄 + 补顶边 Top 手柄）
+    public const string Suite = "1.7.9";                  // ← 1.7.8 改（组件版本号改为仅 DIAG 构建显示）
 
     /// <summary>
     /// CFG 迁移的**最低支持来源版本**（迁移终止线）：只把「≥ 本版本」的配置自动迁移到当前格式，
@@ -49,11 +50,20 @@ public static class SuiteVersion
     /// </remarks>
     public const string ComponentDiyUpgrade = "1.8.3";      // ← 1.8.2 改
 
-    /// <summary>启动横幅：套件版本 + 一行组件版本。</summary>
-    public static string Banner =>
-        $"ContainerSuite v{Suite}" +
-        $"（基础设施 v{ComponentInfrastructure}" +
-        $" / 扩容仓库 v{ComponentSaveBag}" +
-        $" / 容器升级 v{ComponentDiyUpgrade}" +
-        $" / 共享库 v{ComponentShared}）";
+    /// <summary>启动横幅。Release 只显示套件版本；DIAG 构建额外显示组件版本（排障用）。</summary>
+    public static string Banner
+    {
+        get
+        {
+#if DIAG
+            return $"ContainerSuite v{Suite}" +
+                   $"（基础设施 v{ComponentInfrastructure}" +
+                   $" / 扩容仓库 v{ComponentSaveBag}" +
+                   $" / 容器升级 v{ComponentDiyUpgrade}" +
+                   $" / 共享库 v{ComponentShared}）";
+#else
+            return $"ContainerSuite v{Suite}";
+#endif
+        }
+    }
 }

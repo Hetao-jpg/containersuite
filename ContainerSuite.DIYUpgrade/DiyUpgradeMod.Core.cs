@@ -66,14 +66,6 @@ public static partial class DiyUpgradeMod
         //         （答案：不持久化，本套件靠 DIY_UPGRADE_*_TAG 自己记忆）。
         //     两者都是每会话往 UserData 写文本的实验脚手架，留着只会污染 cfg 与代码。
         //     需要时可从 git 历史找回（commit 4af13c6 之前）。
-        // P1-3：同步修饰状态实验开关（T5），保留。
-#if DIAG
-        //   为什么做成开关而不是直接加：GameItem.SyncModifiedState() 的语义未经核实
-        //   （只从蛙哥源码看到它在"批量升级收尾 / 骰子吸收后"调用；本套件此前零调用）。
-        //   打开后：每次成功升级的收尾会补调一次，并在异常时无条件留痕 ——
-        //   用于回答"我们是不是漏了这一步同步"。定性后再决定转正或删除。
-        _syncStateProbe = category.CreateEntry<bool>(CfgKeys.SyncModifiedStateProbe, false, (string)null, "[诊断·实验] 升级收尾补调 GameItem.SyncModifiedState()：验证本套件是否漏了这一步游戏侧同步。默认关。", false, false, (ValueValidator)null, (string)null);
-#endif
         // ── S8k：避让热开关（2026-10-02）────────────────────────────────────
         // 语义：「关」= 把尺寸主权交还给对方 mod；默认「开」= 全权优先。
         // 补丁始终常驻，开关只短路判据函数的第一行（不 Unpatch、不重装），
@@ -146,6 +138,11 @@ public static partial class DiyUpgradeMod
         ((MelonEventBase<LemonAction<string, string>>)(object)_multiSlotModule.Ids.OnEntryValueChanged).Subscribe((LemonAction<string, string>)delegate { RefreshIdLists(); }, 0, false);
         ((MelonEventBase<LemonAction<string, string>>)(object)_upgradeKey.OnEntryValueChanged).Subscribe((LemonAction<string, string>)delegate { RefreshUpgradeKey(); }, 0, false);
         ApplyConfigLabels();
+        // 2026-10-13：把「每个 id 当前生效的上限」写进 8A 的 cfg 注释。
+        //   ★ 必须在 ApplyConfigLabels()（会覆盖 Description）之后、且 RefreshIdLists() 之后
+        //     （IdList 才就绪）；写完立刻落盘，否则 CreateEntry 时的旧注释会留在文件里。
+        RefreshPerIdLimitsComment();
+        category.SaveToFile(true);
         WarnAboutUnlabeledEntries(category);   // 自检：漏标中文名会在面板里露出英文键名
         LogPerIdLimitsSummary();               // 每容器上限到底配成了什么样（无条件输出）
 

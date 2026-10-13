@@ -1,0 +1,150 @@
+两个 Bug 的精确修复方案
+Bug 1：PrepareGrid 从不读 perId 上限
+位置
+DiyUpgradeMod.Upgrade.cs → PrepareGrid 方法
+
+当前代码（问题所在）
+csharp
+List<(int Index, int NewW, int NewH)> plan = new List<(int, int, int)>();
+int maxW = Math.Max(1, d.MaxW.Value);   // ← 只用分类上限
+int maxH = Math.Max(1, d.MaxH.Value);   // ← perId 从没进来
+
+// ═══════════════════════════════════════════════════════════════════
+// 【2026-10-11 修复】"已达上限"闸门 —— 与拖拽上限同口径。
+// ...
+// ═══════════════════════════════════════════════════════════════════
+{
+    TargetSlot primarySlotForCap = GetPrimarySlot(d);
+    int capIncW = ((primarySlotForCap != null) ? Math.Max(0, primarySlotForCap.IncW.Value) : 0);
+    int capIncH = ((primarySlotForCap != null) ? Math.Max(0, primarySlotForCap.IncH.Value) : 0);
+    int expectedW = Math.Min(maxW, baseW + spent * capIncW);
+    int expectedH = Math.Min(maxH, baseH + spent * capIncH);
+    if (expectedW >= maxW && expectedH >= maxH)
+    {
+        reason = "已达最大尺寸";
+        return false;
+    }
+}
+修复
+在 int maxH = Math.Max(1, d.MaxH.Value); 之后插入：
+
+csharp
+int maxW = Math.Max(1, d.MaxW.Value);
+int maxH = Math.Max(1, d.MaxH.Value);
+
+// ★ 2026-10-13：perId 上限必须在升级路径生效 —— 它是比分类上限更细的一层。
+//   原实现只在 TryGetGridShapeLimits（tooltip / 拖拽路径）里读，
+//   升级路径完全绕过它，导致「配了 perId 也能一直升过它」。
+//   语义：perId 写了就完全覆盖分类上限（与 TryGetGridShapeLimits 保持一致）。
+if (TryGetPerIdLimit(container, out int idMaxW, out int idMaxH))
+{
+    maxW = Math.Max(1, idMaxW);
+    maxH = Math.Max(1, idMaxH);
+}
+只改这一处。下面的「已达上限闸门」和 plan 计算都基于 maxW / maxH 变量，改初值即可，无需再动。
+
+Bug 2：TryGetGridShapeLimits 的「当前尺寸兜底」吃掉 perId
+位置
+DiyUpgradeMod.GridWindow.cs → TryGetGridShapeLimits 方法
+
+当前代码（两处问题）
+csharp
+// 多槽容器用 peak 作上限（避免拖小后上限缩水）；单槽容器用主槽当前尺寸兜底。
+if (isMultiSlot)
+{
+    if (peakW > 0 && peakW > maxW) maxW = peakW;   // ← 问题 1：peak 顶掉 perId
+    if (peakH > 0 && peakH > maxH) maxH = peakH;
+}
+else
+{
+    List<GameGridInventory> allGridInventories = GetAllGridInventories(item);
+    GridDef gridDefForBounds = GetGridDefForItem(item);
+    if (gridDefForBounds != null)
+    {
+        foreach (var si in GetEnabledSlotsWithIndex(gridDefForBounds))
+        {
+            int idx = si.Index;
+            if (idx < 0 || idx >= allGridInventories.Count) continue;
+            GameGridInventory gameGridInventory = allGridInventories[idx];
+            if (gameGridInventory?.inventoryShape != null)
+            {
+                if (gameGridInventory.inventoryShape.width > maxW)
+                    maxW = gameGridInventory.inventoryShape.width;   // ← 问题 2：当前尺寸顶掉 perId
+                if (gameGridInventory.inventoryShape.height > maxH)
+                    maxH = gameGridInventory.inventoryShape.height;
+            }
+        }
+    }
+}
+修复：两个分支都加 perId 判据
+关键概念：兜底的原意是「防止上限算小了，把已升级的容器缩回」，不是「允许上限比当前尺寸小」。所以只要玩家显式配了 perId，就该以 perId 为准——「不强制缩回」和「上限」是两码事。
+
+csharp
+// ★ 2026-10-13：perId 存在时不走「尺寸兜底」——
+//   兜底的原意是"防止上限算小了把已升级的容器缩回"，但它会把玩家配的
+//   缩小上限一起吃掉（"最大允许尺寸"被改成"当前尺寸"）。
+//   例：perId 配 15x15，容器已升到 16x16 → 兜底让 maxW = 16，perId 白配。
+//   ⇒ 玩家显式配了上限就该按上限来；"不强制缩回"由 minW/minH 和
+//     CanContainItems 各管一段，不靠这里的兜底。
+bool hasPerId = TryGetPerIdLimit(item, out _, out _);
+
+// 多槽容器用 peak 作上限（避免拖小后上限缩水）；单槽容器用主槽当前尺寸兜底。
+if (isMultiSlot)
+{
+    if (!hasPerId)
+    {
+        if (peakW > 0 && peakW > maxW) maxW = peakW;
+        if (peakH > 0 && peakH > maxH) maxH = peakH;
+    }
+}
+else
+{
+    if (!hasPerId)
+    {
+        List<GameGridInventory> allGridInventories = GetAllGridInventories(item);
+        GridDef gridDefForBounds = GetGridDefForItem(item);
+        if (gridDefForBounds != null)
+        {
+            foreach (var si in GetEnabledSlotsWithIndex(gridDefForBounds))
+            {
+                int idx = si.Index;
+                if (idx < 0 || idx >= allGridInventories.Count) continue;
+                GameGridInventory gameGridInventory = allGridInventories[idx];
+                if (gameGridInventory?.inventoryShape != null)
+                {
+                    if (gameGridInventory.inventoryShape.width > maxW)
+                        maxW = gameGridInventory.inventoryShape.width;
+                    if (gameGridInventory.inventoryShape.height > maxH)
+                        maxH = gameGridInventory.inventoryShape.height;
+                }
+            }
+        }
+    }
+}
+关于「缩到比当前还小」的物理约束
+玩家若配了 storage_bay=8x8，而容器当前是 16x16——修复后 maxW = 8、minW = baseW = 10。代码末尾有：
+
+csharp
+minC = minW; minR = minH; maxC = maxW; maxR = maxH;
+if (maxC < minC) maxC = minC;   // ← 把 maxC 顶回 minC
+if (maxR < minR) maxR = minR;
+此时 maxC = 10，显示「范围 10x10 ~ 10x10」。这是对的行为——物理上不能强制缩回（容器里有物品会 CanContainItems 拒绝），玩家看到的「上限 = 当前 = base」正好表达了「不能再升，也不会强缩」。玩家想真正缩小到 8，需要先清空容器再配。
+
+修复后必须验证的行为
+场景	预期
+storage_bay=15x15，容器 10x10 升到 15x15 后继续喂料	拒绝，提示「已达最大尺寸」
+同上，tooltip	显示 范围 10x10 ~ 15x15
+同上，拖手柄到 15x15 后再往上拖	拖不动
+容器已 16x16，cfg 改成 storage_bay=15x15，重启	tooltip 显示 范围 10x10 ~ 15x15；不能再升；当前尺寸仍是 16（不强制缩回）
+cfg 改成 storage_bay=8x8（小于 base 10），重启	tooltip 显示 范围 10x10 ~ 10x10（物理下限 = base）
+删掉 cfg 的 8A_PerIdSizeLimits 行后重启	全部走分类上限（50x30），无 perId 影响
+两处修复的关系
+两个 Bug 必须一起修——只修 Bug 1，升级路径拦得住，但玩家拖手柄仍然能拖到 16（走 Bug 2 的路径）；只修 Bug 2，tooltip 显示 15，但喂料还能升到 16。它们分别覆盖「材料升级」和「拖拽缩放」两条独立入口。
+
+关于后续（Tick 轮询、rat_cage）
+Tick 轮询（手改 cfg 不用重启）：修完这两个 Bug 之后再做——那时它才有意义（否则改完不生效，轮询也救不了）。技术上按之前方案实现即可。
+
+rat_cage 删除：与这两个 Bug 完全独立，可顺手做——CageIds 默认值改为 "animal_cage"，ContainerNameTable 里删掉 rat_cage=鼠笼 一行。
+
+一句话总结
+两处修改，各自 3~6 行。Bug 1 在 PrepareGrid 的 maxW/maxH 初值后插入 perId 覆盖；Bug 2 在 TryGetGridShapeLimits 的两个兜底分支前各加一个 if (!hasPerId)。逻辑同源：perId 是玩家显式意图，优先于任何自动推导。改完立即生效——config 里的 storage_bay=15x15 第一次会真正被尊重。

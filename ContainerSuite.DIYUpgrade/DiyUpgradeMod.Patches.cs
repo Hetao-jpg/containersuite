@@ -303,9 +303,6 @@ public static partial class DiyUpgradeMod
                         apply();
                         ConsumeMaterial(material);
                         _targetConsumeAtMs = PollThrottle.NowMs;   // T1：单调钟（原 DateTime.UtcNow）
-#if DIAG
-                        ProbeSyncModifiedState(container);         // T5：DIAG 实验（默认关）
-#endif
                     }
                     try { _prepareCache.Clear(); _ggiCache.Clear(); return; } catch { return; }
                 }
@@ -581,14 +578,7 @@ public static partial class DiyUpgradeMod
                             realChainWarmed = true;
                             WarmupRestoreChainRealItem(gameItem);
                         }
-                        // 【2026-10-10 A/B z3】诊断开关：跳过恢复请求（恢复链完全不执行），
-                        //   但预热照跑 —— 用于区分"崩因在恢复执行"还是"崩因在恢复之外"。
-                        bool disableRestore = CustomInfrastructure.CustomInfrastructureConfig
-                            .DisableLoadRestoreA?.Value == true;
-                        if (!disableRestore)
-                        {
-                            RestoreArbiter.Request(gameItem, "LoadGame"); processed++;
-                        }
+                        RestoreArbiter.Request(gameItem, "LoadGame"); processed++;
                     }
                 }
                 catch (System.Exception ex) { CatchLogOnce.Warn(ex); }

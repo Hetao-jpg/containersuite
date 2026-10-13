@@ -67,13 +67,6 @@ public static partial class DiyUpgradeMod
     {
         get { try { return _groupDragEnabled == null || _groupDragEnabled.Value; } catch { return true; } }
     }
-    // ── DIAG 专属的实验开关（Release 下不注册、不留字段）─────────────────
-#if DIAG
-    // T5（2026-10-12，借鉴蛙哥的调用点、只做**实验**）：升级收尾是否补调
-    // GameItem.SyncModifiedState()。默认关 —— 该 API 的语义未定论（只知道蛙哥在批量升级
-    // 收尾与骰子吸收后调它，而本套件全树零调用），所以先做成可开关的观测，不直接进正式路径。
-    private static MelonPreferences_Entry<bool> _syncStateProbe;
-#endif
     // ── S8k：避让热开关（2026-10-02）────────────────────────────────────
     // 语义是「关掉 = 把尺寸主权交还给对方 mod」，默认全开（= 全权优先）。
     // ★ 虚空珠（void_bead_storage）单独处理（S8l 起）：

@@ -358,9 +358,6 @@ public static partial class DiyUpgradeMod
                         consumed = true;
                         done++;
                         _groupDragProgressCurrent = done;   // D-2：进度 = 已实际升的堆数
-#if DIAG
-                        ProbeSyncModifiedState(container);   // T5：DIAG 实验（默认关）
-#endif
                     }
                     else
                     {

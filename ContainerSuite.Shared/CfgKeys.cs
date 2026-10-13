@@ -128,12 +128,6 @@ namespace ContainerSuite.Shared
         public const string DiagLog = "z1_DiagLog";
         /// <summary>显示仓库网格线。</summary>
         public const string ShowGrid = "z2_ShowGrid";
-        /// <summary>⚠ 排查用：CI 读档链「真实容器」JIT 预热（实测开启后读档必崩）。</summary>
-        public const string CIReadLoadWarmup = "z3_CIReadLoadWarmup";
-        /// <summary>⚠ 排查用：关掉读档链的尺寸恢复（A/B 定位崩溃诱因）。</summary>
-        public const string DisableLoadRestore = "z4_DisableLoadRestore";
-        /// <summary>T5 实验（仅 DIAG 构建）：升级收尾补调 GameItem.SyncModifiedState()。</summary>
-        public const string SyncModifiedStateProbe = "z9_SyncModifiedStateProbe";
 
         // ══════════════════════════════════════════════════════════════
         // 7_ 容器升级 · 分类上限

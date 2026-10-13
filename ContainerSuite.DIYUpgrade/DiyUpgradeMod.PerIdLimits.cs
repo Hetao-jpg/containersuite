@@ -65,7 +65,7 @@ public static partial class DiyUpgradeMod
         + "smuggler_bay_mini=迷你走私舱;makeshift_storage_bay=简易储物舱;expedition_box=远征补给箱;"
         + "backpack_small=背包（小）;backpack_medium=背包（基础）;backpack_large=背包（大）;"
         + "satchel=挎包（小）;fanny_pack=腰包;backpack_medium_military=背包（军用）;"
-        + "backpack_large_military=大型军用背包;animal_cage=动物笼;rat_cage=鼠笼;"
+        + "backpack_large_military=大型军用背包;animal_cage=动物笼;"
         + "fridge=冰箱;recharger=充能器;vacuum_robot=清洁机器人;"
         + "furnace=熔炉;desequencer=密码解序器;security_alarm=警报系统;mirage_projector=幻影投影仪;"
         + "water_purifier=净水器;moisture_farm=水分收集器;wine_rack=催陈器;bottle_printer=水瓶打印机;"
@@ -257,5 +257,78 @@ public static partial class DiyUpgradeMod
                 return pairs[i].Substring(eq + 1);
         }
         return "";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 动态注释：把「每个 id 当前生效的上限」写进 cfg（2026-10-13）
+    //
+    // 玩家要手改 8A_PerIdSizeLimits 时，得先知道「这个 id 现在算多大的上限」——
+    // 那要么翻分类上限、要么记住 id 的中文名。这里把两者都摊在条目正上方的注释里：
+    // id=宽x高（中文名），已单独配的加 ★。
+    // ★ 依赖白名单就绪 ⇒ 必须在 RefreshIdLists() 之后调用（见 Core.Init）。
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 重建 <c>8A_PerIdSizeLimits</c> 的 cfg 注释（条目上方的 <c>#</c> 注释即 entry.Description）。
+    /// <para>数值口径与 <see cref="TryGetPerIdLimit"/> 一致：配了 perId 用 perId，否则用分类上限。</para>
+    /// </summary>
+    private static void RefreshPerIdLimitsComment()
+    {
+        try
+        {
+            if (_perIdSizeLimits == null) return;
+            ((MelonPreferences_Entry)_perIdSizeLimits).Description = BuildPerIdLimitsCommentBody();
+        }
+        catch (Exception ex) { CatchLogOnce.Warn("PerIdLimits:comment", ex); }
+    }
+
+    /// <summary>拼出 8A 的完整注释正文（用法说明 + 按 8 个分类列出全部白名单 id 及其生效上限）。</summary>
+    private static string BuildPerIdLimitsCommentBody()
+    {
+        var sb = new StringBuilder();
+        sb.Append(DefaultPerIdSizeLimitsComment);
+        sb.Append("\n");
+        sb.Append("\n★ 下表 = 白名单里每个容器「当前确认生效」的上限（id=宽x高（中文名））。");
+        sb.Append("\n· 数值口径：你单独配了的按你配的（行尾标 ★）；没配的用它所属分类的上限（面板「容器升级·分类」里那几项）。");
+        sb.Append("\n· 想单独改某件：对照下表的中文名找到容器id，在本行引号里写成 `容器id=宽x高`（多个用逗号隔开）保存即生效。");
+
+        AppendPerIdCommentGroup(sb, "箱子", _box);
+        AppendPerIdCommentGroup(sb, "背包", _backpack);
+        AppendPerIdCommentGroup(sb, "笼子", _cage);
+        AppendPerIdCommentGroup(sb, "多槽容器", _multiSlot);
+        AppendPerIdCommentGroup(sb, "机器模组槽", _multiSlotModule);
+        AppendPerIdCommentGroup(sb, "Mod容器", WageContainerRegistry._modContainer);
+        AppendPerIdCommentGroup(sb, "蛙哥妙妙箱", WageContainerRegistry._wageBox);
+        AppendPerIdCommentGroup(sb, "蛙哥虚空珠袋", WageContainerRegistry._wageBackpack);
+        return sb.ToString();
+    }
+
+    /// <summary>追加一个分类：标题行 + 每个 id 一行 <c>id=宽x高（中文名）</c>。</summary>
+    private static void AppendPerIdCommentGroup(StringBuilder sb, string label, GridDef d)
+    {
+        if (d == null) return;
+        string[] ids;
+        try { ids = IdMatch.SplitIds(d.Ids.Value); }
+        catch (Exception ex) { CatchLogOnce.Warn("PerIdLimits:comment-ids", ex); return; }
+        if (ids == null || ids.Length == 0) return;
+
+        int catMaxW = (d.MaxW != null && d.MaxW.Value > 0) ? d.MaxW.Value : PerIdLimitMaxDim;
+        int catMaxH = (d.MaxH != null && d.MaxH.Value > 0) ? d.MaxH.Value : PerIdLimitMaxDim;
+
+        sb.Append("\n[").Append(label).Append("]");
+        for (int i = 0; i < ids.Length; i++)
+        {
+            string id = NormalizeContainerId(ids[i]);
+            if (id.Length == 0) continue;
+
+            int w = catMaxW, h = catMaxH;
+            bool isPerId = false;
+            if (_perIdLimit.TryGetValue(id, out var lim)) { w = lim.W; h = lim.H; isPerId = true; }
+
+            string cn = ContainerNameOf(id);
+            sb.Append("\n  ").Append(id).Append('=').Append(w).Append('x').Append(h);
+            if (cn.Length > 0) sb.Append("（").Append(cn).Append('）');
+            if (isPerId) sb.Append("  ★");
+        }
     }
 }

@@ -143,11 +143,6 @@ public sealed class Mod : MelonMod
         CrashProbe.TickFrame(ref _crashProbeArmed);
         CrashProbe.Exit("FrameStart");
 
-        CrashProbe.Enter("CIWarmup");
-        try { ContainerExpander.WarmupJit(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.CIWarmup", ex); }
-        CrashProbe.Exit("CIWarmup");
-
         // ═══════════════════════════════════════════════════════════════════
         // 【2026-10-10 P1】CI 容器扩展的**唯一安全执行点**。
         //
@@ -155,10 +150,8 @@ public sealed class Mod : MelonMod
         // 必须极小）；真正的 TryExpand 在这里跑 —— 本帧栈顶是 Unity 的 Update，
         // 没有任何第三方 detour trampoline，冷方法首次 JIT 不会触发 CLR fatal。
         //
-        // 顺序：放在 CIWarmup 之后、Arbiter 之前 ——
-        //   · 在 Warmup 之后：让 WarmupJit 有机会先用真实容器把热路径编掉；
-        //   · 在 Arbiter 之前：先扩尺寸、再让 DIY 恢复链基于最终尺寸做恢复，
-        //     与历史顺序（Postfix 同步执行 → 恢复链随后）一致。
+        // 顺序：放在 Arbiter 之前 —— 先扩尺寸、再让 DIY 恢复链基于最终尺寸做恢复，
+        //   与历史顺序（Postfix 同步执行 → 恢复链随后）一致。
         // ═══════════════════════════════════════════════════════════════════
         CrashProbe.Enter("CIExpandQueue");
         try { ContainerExpander.ProcessExpandQueue(); }

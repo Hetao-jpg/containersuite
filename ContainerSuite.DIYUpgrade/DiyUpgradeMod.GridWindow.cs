@@ -287,27 +287,41 @@ public static partial class DiyUpgradeMod
             }
             else { maxW = 1; maxH = 1; minW = 1; minH = 1; }
         }
+        // ★ 2026-10-13：perId 存在时不走「尺寸兜底」——
+        //   兜底的原意是"防止上限算小了把已升级的容器缩回"，但它会把玩家配的
+        //   缩小上限一起吃掉（"最大允许尺寸"被改成"当前尺寸"）。
+        //   例：perId 配 15x15，容器已升到 16x16 → 兜底让 maxW = 16，perId 白配。
+        //   ⇒ 玩家显式配了上限就该按上限来；"不强制缩回"由 minW/minH 和
+        //     CanContainItems 各管一段，不靠这里的兜底。
+        bool hasPerId = TryGetPerIdLimit(item, out _, out _);
+
         // 多槽容器用 peak 作上限（避免拖小后上限缩水）；单槽容器用主槽当前尺寸兜底。
         if (isMultiSlot)
         {
-            if (peakW > 0 && peakW > maxW) maxW = peakW;
-            if (peakH > 0 && peakH > maxH) maxH = peakH;
+            if (!hasPerId)
+            {
+                if (peakW > 0 && peakW > maxW) maxW = peakW;
+                if (peakH > 0 && peakH > maxH) maxH = peakH;
+            }
         }
         else
         {
-            List<GameGridInventory> allGridInventories = GetAllGridInventories(item);
-            GridDef gridDefForBounds = GetGridDefForItem(item);
-            if (gridDefForBounds != null)
+            if (!hasPerId)
             {
-                foreach (var si in GetEnabledSlotsWithIndex(gridDefForBounds))
+                List<GameGridInventory> allGridInventories = GetAllGridInventories(item);
+                GridDef gridDefForBounds = GetGridDefForItem(item);
+                if (gridDefForBounds != null)
                 {
-                    int idx = si.Index;
-                    if (idx < 0 || idx >= allGridInventories.Count) continue;
-                    GameGridInventory gameGridInventory = allGridInventories[idx];
-                    if (gameGridInventory?.inventoryShape != null)
+                    foreach (var si in GetEnabledSlotsWithIndex(gridDefForBounds))
                     {
-                        if (gameGridInventory.inventoryShape.width > maxW) maxW = gameGridInventory.inventoryShape.width;
-                        if (gameGridInventory.inventoryShape.height > maxH) maxH = gameGridInventory.inventoryShape.height;
+                        int idx = si.Index;
+                        if (idx < 0 || idx >= allGridInventories.Count) continue;
+                        GameGridInventory gameGridInventory = allGridInventories[idx];
+                        if (gameGridInventory?.inventoryShape != null)
+                        {
+                            if (gameGridInventory.inventoryShape.width > maxW) maxW = gameGridInventory.inventoryShape.width;
+                            if (gameGridInventory.inventoryShape.height > maxH) maxH = gameGridInventory.inventoryShape.height;
+                        }
                     }
                 }
             }

@@ -25,7 +25,7 @@ internal static class ContainerExpander
     //   原实现 ValidateShapeStatePostfix 直接在 trampoline 上跑 TryExpand，
     //   而 TryExpand 的 callees（CollectGrids / Walk / SetShape /
     //   ForceRecomputeDynamicBackground / RefreshWindow）是**冷方法**、从未预热
-    //   （CIReadLoadWarmup 默认关闭）⇒ 首次 JIT 恰好落在 trampoline 上 ⇒ 崩。
+    //   （读档链 JIT 预热默认关闭）⇒ 首次 JIT 恰好落在 trampoline 上 ⇒ 崩。
     //
     // 治本：Postfix 只做「入队」（指针去重 + 存活校验，全是已编译的托管代码，
     //   不触碰任何冷 IL2CPP 路径）；真正的 TryExpand 放到 Mod.OnUpdate 的
@@ -349,95 +349,6 @@ internal static class ContainerExpander
         return list;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 【读档崩溃防护】CI 读档链启动期 JIT 预热。
-    //
-    // 读档链：PlayerStore.LoadGame → LoadGamePostfix → DelayedRestoreFromLoad
-    //         → TryExpand（+ CollectGrids / RefreshWindow）。
-    // 这些方法的 IL2CPP 热路径（SetShape / ForceRecomputeDynamicBackground /
-    // FixBounds / Validate / Walk 递归 / TryCast）若在「读档深栈」上首次被 JIT
-    // 编译，会触发 Internal CLR error 0x80131506（CLR fatal，托管 catch 抓不到）。
-    //
-    // 修复方式：等 WorldReadyGate 开门（容器已加载）后，用**真实容器**跑一遍
-    // TryExpand —— 让上述热路径在浅栈上完成 JIT。
-    // ★ 禁止传 null 预热：各方法首行 container==null 早退，传 null 只编译到早退前，
-    //   热路径根本没被编译；旧写法正是这个无效预热 + 一堆 NRE 噪声的根源。
-    // ★ 禁止 Mode B（PrepareMethod 预编译）—— R3 门禁零豁免（实测会自己崩）。
-    // ═══════════════════════════════════════════════════════════════════
-    private static bool _jitWarmed;
-    private const int WarmupInvokeCount = 1;   // 禁用分层 JIT 后单次真实调用即可完成 tier0 编译，无需多次
-
-    internal static void WarmupJit()
-    {
-        if (_jitWarmed) return;
-        // 【2026-10-10 ★★★ 读档闪退定位】默认关闭！
-        //   本预热是五次读档崩溃里唯一被推迟到"读档后"执行的（SBE/DIY 的都在启动期
-        //   跑完），且崩点稳定落在它 1.86 秒后（五次实测 1.815~1.911s）。
-        //   它与其它预热哲学相反：用**真实容器真执行** TryExpand（改网格形状 + 重建 UI），
-        //   而 SBE/DIY 一律用 null 安全入口。门刚开、场景仍在重建时执行这些操作
-        //   风险极高（0x80131506，托管 catch 抓不到）。
-        //   保留代码 + cfg 开关（z2_CIReadLoadWarmup，默认 false），便于复现排查。
-        if (CustomInfrastructureConfig.CIReadLoadWarmup == null
-            || !CustomInfrastructureConfig.CIReadLoadWarmup.Value)
-        {
-            _jitWarmed = true;   // 置位：不预热也视为"已处理"，避免每帧重进
-            Mod.Log.Msg("[CI-JIT] 读档链真实容器预热已跳过（z2_CIReadLoadWarmup=false，默认·读档闪退规避）");
-            return;
-        }
-        // 等世界就绪（容器已加载）再预热：用真实容器跑一遍才能真正 JIT 热路径。
-        // 门没开时预热只会拿到 null 兜底、什么都没编译到（且旧写法传 null 会触发 NRE 噪声）。
-        if (!WorldReadyGate.IsReady) return;
-        _jitWarmed = true;
-
-        // ★ 2026-10-09：入口 / 每步打点改走 Diag（受 DiagLog 总闸控制）。
-        //   「想知道崩在哪一步」属排障；日常不开闸则这串追踪完全静默。
-        Mod.Diag("[CI-JIT] CI 读档链预热进入（已确认世界就绪，使用真实容器）");
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        int steps = 0;
-
-        void Step(string label, Action a)
-        {
-            try
-            {
-                Mod.Diag("[CI-JIT] > " + label);
-                for (int i = 0; i < WarmupInvokeCount; i++) a();
-                steps++;
-            }
-            catch (Exception ex) { Mod.Log.Warning($"[CI-JIT] > {label} 异常: {ex.Message}"); }
-        }
-
-        // Mode A 真实调用：用当前已加载的容器实际跑一遍 TryExpand，
-        // 让 CollectGrids / Walk / SetShape / ForceRecomputeDynamicBackground /
-        // FixBounds / Validate 等 IL2CPP 热路径在浅栈上完成 JIT。
-        // 读档深栈上做这些事会触发 0x80131506（CLR fatal，托管 catch 抓不到）。
-        // TryExpand 只扩不缩、且已达标即早退，对真实容器是幂等操作，无副作用。
-        int warmed = 0;
-        foreach (var cfg in CustomInfrastructureConfig.GetActiveContainers())
-        {
-            try
-            {
-                var item = DirectoryMaster.Item(cfg.Id, true);
-                if (item == null) continue;
-                Step("TryExpand(" + cfg.Id + ")", () => TryExpand(item));
-                warmed++;
-            }
-            catch (Exception ex) { CatchLogOnce.Warn("ContainerExpander.WarmupJit." + cfg.Id, ex); }
-        }
-
-        if (warmed == 0)
-        {
-            // 罕见：门已开但容器仍未就绪。退而求其次，确保辅助方法桩被 JIT
-            // （它们对 null 已安全，不会抛）。真正的热路径仍依赖 WorldReadyGate 读档期关门。
-            Step("CollectGrids(null)（无容器兜底）", () => CollectGrids(null));
-            Step("RefreshWindow(null)（无容器兜底）", () => RefreshWindow(null));
-            Step("FindGridsInWindow(null)（无容器兜底）", () => FindGridsInWindow(null));
-        }
-
-        sw.Stop();
-        // ★ 保持无条件（2026-10-09）：与 [SBE-JIT] / [DIY-JIT] 的"预热完成"同理 ——
-        //   这是「预热确实跑过、且用的是真实容器」这个结论本身，属于加载状态汇报。
-        Mod.Log.Msg($"[CI-JIT] 预热完成：realContainers={warmed} steps={steps} 耗时={sw.ElapsedMilliseconds}ms");
-    }
 }
 
 

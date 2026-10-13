@@ -27,27 +27,6 @@ internal static class CustomInfrastructureConfig
     internal static MelonPreferences_Entry<int> CassettePlayerHeight;
     internal static MelonPreferences_Entry<bool> DiagLog;
 
-    /// <summary>
-    /// 【2026-10-10 ★★★ 读档闪退定位】CI 读档链「真实容器」JIT 预热开关。
-    /// <para>
-    /// **默认 false = 关闭**。理由：这是五次读档崩溃里唯一被推迟到"读档后"执行的
-    /// 预热（SBE/DIY 的预热都在启动期主菜单跑完），且崩溃点稳定落在它 1.86 秒后
-    /// （五次实测 1.815~1.911s）。它与其它预热的**设计哲学相反** ——
-    /// SBE/DIY 一律用 null 安全入口（不碰游戏状态），而它用**真实容器真执行**
-    /// 一遍容器扩展（会改动网格形状并重建窗口 UI，详见 ContainerExpander 内的实现），
-    /// 这些都是游戏原生操作。在"门刚开、场景仍在重建"时执行风险极高
-    /// （CLR fatal，托管 catch 抓不到）。
-    /// </para>
-    /// <para>
-    /// 它的初衷（2026-10-09）是让读档链热路径在浅栈完成 JIT；但实测**引入后读档反而
-    /// 每次必崩**，而 10-02 版本（无此预热）无此问题。故默认关闭，回归旧行为。
-    /// 排查时置 true 可复现（开=崩、关=不崩 ⇒ 坐实崩点）。
-    /// </para>
-    /// </summary>
-    internal static MelonPreferences_Entry<bool> CIReadLoadWarmup;
-    // 【2026-10-10 读档闪退 A/B】z3：诊断开关（默认 false，见 CreateEntry 处注释）
-    internal static MelonPreferences_Entry<bool> DisableLoadRestoreA;
-
     internal static event Action OnConfigChanged;
 
     internal static void Init()
@@ -121,24 +100,6 @@ internal static class CustomInfrastructureConfig
     "[诊断] 日志(排查时开)",
     "true = 输出【全部模块】的诊断日志（基础设施容器扩展 / 主仓库分页 / 容器升级 / 读档仲裁）。"
     + "一个开关管三家，面板改完立即生效，无需重启。排查问题时才开，正常玩保持 false。");
-
-        // 【2026-10-10 ★★★ 读档闪退定位】CI 读档链「真实容器」JIT 预热。
-        //   默认 false = 关（见字段注释的完整推理）。
-        CIReadLoadWarmup = Category.CreateEntry(
-    CfgKeys.CIReadLoadWarmup, false,
-    "[诊断] CI 读档链真实容器预热(⚠仅排查)",
-    "true = 读档后对 3 个真实容器重跑一遍扩展（修改网格形状 + 重建窗口 UI），"
-    + "以此把读档链热路径的 JIT 提前到浅栈。⚠ 默认 false：实测开启后读档必崩 "
-    + "(0x80131506)，仅在排查读档闪退时用于复现，正常玩保持 false。");
-
-        // 【2026-10-10 ★ 读档闪退 A/B 测试】z3：读档恢复总闸（默认 false = 正常恢复）。
-        //   true = DelayedRestore 只做 JIT 预热、完全跳过恢复队列（不建手柄 UI、不改网格）。
-        //   用途：判断崩溃诱因是否在"恢复链的实际执行"（Attach/网格/UI）——
-        //   z3=true 后不崩 ⇒ 诱因在恢复执行；仍崩 ⇒ 诱因在恢复之外（预热本身/其它 mod/游戏）。
-        DisableLoadRestoreA = Category.CreateEntry(
-    CfgKeys.DisableLoadRestore, false,
-    "[诊断] 关读档恢复(⚠仅排查)",
-    "true = 读档后不做容器尺寸恢复（只保留 JIT 预热）。仅用于读档闪退 A/B 定位，正常玩保持 false。");
 
     Subscribe(TrashcanEnable); Subscribe(TrashcanWidth); Subscribe(TrashcanHeight);
         Subscribe(DossierEnable); Subscribe(DossierWidth); Subscribe(DossierHeight);

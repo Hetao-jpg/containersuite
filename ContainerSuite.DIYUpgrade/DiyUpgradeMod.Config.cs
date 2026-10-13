@@ -56,12 +56,6 @@ public static partial class DiyUpgradeMod
             //   CustomInfrastructureConfig.Init 里随 CreateEntry 一起给出。
             SetLabel<bool>(_restoreOnLoad, "[升级] 读档恢复尺寸", "读档后自动把已升级的容器恢复成升级后的尺寸。若读档崩溃（CLR 0x80131506）请关掉本项。");
             SetLabel<bool>(_groupDragEnabled, "[升级] 批量框选升级", "按住升级键框选多堆材料、拖到容器上松手，连续升级该容器（一堆材料一级）。只对同一个容器生效；蛙哥未满级的妙妙箱、未移交的虚空珠仍由蛙哥处理。");
-            // P1-3：R1 探针项只在 DIAG 构建存在，标签随之条件编译。
-#if DIAG
-            // T5：SyncModifiedState 实验项（仅 DIAG 构建存在）。
-            // （2026-10-13：R1 探针 / ResizeDiag 两个标签随各自探针删除。）
-            SetLabel<bool>(_syncStateProbe, "[诊断] 实验·收尾同步", "升级收尾补调一次 GameItem.SyncModifiedState()，用于验证本套件是否漏了这一步游戏侧同步。默认关；只在排查\"升级后状态没跟上\"类问题时开。");
-#endif
             // ── S8k 避让热开关 ────────────────────────────────────────────
             // 描述要写清「关掉」的后果，否则玩家只会看到"避让/不避让"两个字。
             SetLabel<bool>(_skipXiaowoBay, "[升级] 避让·精工扩舱",

@@ -23,7 +23,7 @@ using System.Runtime.InteropServices;
 using CustomInfrastructure;
 using MelonLoader;
 
-[assembly: MelonInfo(typeof(Mod), "CustomInfrastructure", "1.7.8", "核桃", null)]
+[assembly: MelonInfo(typeof(Mod), "CustomInfrastructure", "1.7.9", "核桃", null)]
 [assembly: MelonGame(null, "Probably Stolen")]
 
 // ★★ 必须显式声明 [HarmonyDontPatchAll]，否则每个补丁会被 MelonLoader 自动装两遍。
@@ -40,6 +40,6 @@ using MelonLoader;
 
 // S5：程序集版本统一跟随 SuiteVersion.Suite（1.7.8）。
 //     改了 SuiteVersion.Suite 必须同步这里，否则 _shared\check-suite-version.ps1 编译期报错。
-[assembly: AssemblyVersion("1.7.8.0")]
-[assembly: AssemblyFileVersion("1.7.8.0")]
-[assembly: AssemblyInformationalVersion("1.7.8")]
+[assembly: AssemblyVersion("1.7.9.0")]
+[assembly: AssemblyFileVersion("1.7.9.0")]
+[assembly: AssemblyInformationalVersion("1.7.9")]
