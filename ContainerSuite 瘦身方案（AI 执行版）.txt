@@ -736,4 +736,21 @@ Get-ChildItem -Recurse -Filter *.cs ContainerSuite.*/ |
     不是从零重写。恢复后需核对 R1~R6 规则是否适配当前源码（已新增 CfgKeys.cs /
     删除 FileConfig.cs，规则里的路径/键名清单可能需同步更新）。
   - 优先级：这是解锁 §1.2 验收的前置，建议作为瘦身执行的第一步。
+
+【偏差 12｜门禁已恢复并校准完成】2026-10-13 晚
+  - 动作：`git checkout e14dafb -- _shared/` 恢复 4 个文件；核对后做如下校准：
+    1) 直接运行 check-forbidden.ps1 / check-suite-version.ps1：当前 55 个文件
+       全部 PASS（8 条规则 R1a/R1b/R2/R3/R4/R5/R6/R7/R8 无误报），
+       P4 版本一致性 PASS（1.7.8 ↔ 1.7.8.0）。→ 规则本身仍适配当前代码，无需改规则。
+    2) check-readme-defaults.ps1 已过时（配置收敛后 7A_~7F_ 键名重排，脚本报
+       「No default-size rows found」）。该脚本在 CommonMod.props 里本就注释停用，
+       故不挂载，保持停用。
+    3) 关键校准：当前 csproj 已把公共属性内联、不再 Import CommonMod.props，
+       所以恢复的脚本**不会自动挂载**。已在 csproj 里直接声明两个 Exec Target
+       （CheckForbiddenPatterns / CheckSuiteVersionConsistency，BeforeTargets=Build），
+       把 check-forbidden + check-suite-version 重新接入编译流程。
+    4) 验证：dotnet build（Release 与 -p:Diag=true 两种）均自动触发门禁，
+       输出「FBD: forbidden-pattern check passed (55 files...)」+
+       「P4: Version consistency check passed」后才继续编译。
+  - 结论：§1.2 验收 ②③ 的地基已就位。瘦身方案现在具备完整的安全网。
 ════════════════════════════════════════════════════════════════════════════

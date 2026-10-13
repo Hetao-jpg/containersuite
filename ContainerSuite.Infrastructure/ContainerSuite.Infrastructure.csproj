@@ -142,4 +142,31 @@
     </Reference>
   </ItemGroup>
 
+  <!-- ═══════════════════════════════════════════════════════════════════
+       门禁检查（2026-10-13 恢复自 git 历史 e14dafb）。
+
+       背景：_shared\check-*.ps1 门禁脚本 2026-10-12 被删除，2026-10-13 从
+       git 历史恢复。原先是靠 _shared\CommonMod.props 里的 Target 挂载的，
+       但本工程已把公共属性内联（见文件头「公共属性已内联」），不再 Import
+       该 props。故这里直接声明两个 Exec Target，把门禁重新接入编译流程。
+
+       两个检查都在编译本工程前跑一次（BeforeTargets=Build），任一失败即中断编译：
+         · check-forbidden.ps1   —— 禁止事项静态拦截（R1~R8，含 0x80131506 相关铁律）
+         · check-suite-version.ps1 —— SuiteVersion 与 AssemblyVersion 一致性
+
+       注意：脚本是纯 ASCII（PS 5.1 按 ANSI 读），路径用 $(MSBuildThisFileDirectory)
+       定位到 _shared\，与 csproj 的相对位置保持契约。
+       ═══════════════════════════════════════════════════════════════════ -->
+  <Target Name="CheckForbiddenPatterns" BeforeTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-forbidden.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+
+  <Target Name="CheckSuiteVersionConsistency" BeforeTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-suite-version.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+
 </Project>
