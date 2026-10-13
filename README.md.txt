@@ -1,4 +1,4 @@
-﻿容器套件 · ContainerSuite
+容器套件 · ContainerSuite
 作者：核桃
 版本：1.7.8
 游戏：Probably Stolen 0.46D
@@ -23,7 +23,6 @@
 - 读档恢复：已升级容器尺寸自动恢复
 - 基础设施扩容：垃圾桶 / 档案箱 / 磁带播放器
 - Mod 避让：内置对 XIAOWO / 蛙哥的兼容开关
-- TOML 自检：启动后检查 cfg 合法性
 
 热键
 LeftAlt + 拖材料  升级容器
@@ -128,6 +127,13 @@ BoxIds / BackpackIds / CageIds / MultiSlotIds / MultiSlotModuleIds …
 - 分页总件数超出单网格容量时，存档会红字警告，明细看 UserData\SaveBagPaging.mergeloss.txt
 - 容器升级的名单与上限只在 [CustomInfrastructure] 段一处维护，不要再去找 containers.txt
   （2026-10-13 起该功能已取消；留着的旧文件不生效，可以删掉）
+
+已知问题：改了 cfg 重启后不生效 / 退出后配置丢失
+多半是 MelonPreferences.cfg 里有非法 TOML（例：值里内层双引号未转义 `A = "{ x = "F8" }"`、
+裸值含逗号 `A = a,b,c`）。MelonLoader 解析失败后整份 cfg 进入 Fallback，此后**所有 mod**
+的保存都会被静默丢弃，玩家在 ModManager 里改的配置退出后全部不生效——而启动日志里只有一行
+ERROR，极易被淹没。排查：用文本编辑器逐段检查该文件，重点是别家 mod 写的段（本套件 2026-10-13
+起不再内置自检探针）。
 
 兼容性
 已避让：XIAOWOTradePerks / WagePerks（蛙哥）

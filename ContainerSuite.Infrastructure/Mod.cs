@@ -119,17 +119,6 @@ public sealed class Mod : MelonMod
                 Log.Error("初始化 DIY 模块失败：" + ex);
             }
             ContainerSuite.Shared.RegMark.Mark("suite.ready", true, "version=" + SuiteVersion.Suite);
-
-            // ═══════════════════════════════════════════════════════════════
-            // 2026-10-10：cfg 保活（原 CfgKeepAlive）已整体删除，
-            // 只保留**只读**的终态 TOML 合法性自检 —— 见 CfgSelfCheck.cs 文件头。
-            //
-            // 自检由 OnUpdate 每帧驱动的 CfgSelfCheck.Tick() 在 init 后延迟 8s
-            // 跑一次（不是在这里立刻跑）：本工作区两个中文段名（[良心商人] /
-            // [DIY捕鼠夹]）由各自 mod 在**自身初始化时**补引号，init 当下查必然
-            // 看到上一会话遗留的裸段名 → 每次假报警。
-            // ═══════════════════════════════════════════════════════════════
-
         }
         catch (Exception ex)
         {
@@ -204,13 +193,6 @@ public sealed class Mod : MelonMod
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.DIY", ex); }
         if (perf) _swDiy.Stop();
         CrashProbe.Exit("DIY");
-
-        // 2026-10-10：cfg 保活已删除；此处只驱动一次性的 TOML 终态自检。
-        //   自带延迟，稳态每帧只做 1 次浮点减，纳秒级，不纳入 perf 计时。
-        CrashProbe.Enter("CfgSelfCheck");
-        try { ContainerSuite.Shared.CfgSelfCheck.Tick(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.CfgSelfCheck", ex); }
-        CrashProbe.Exit("CfgSelfCheck");
 
         CrashProbe.Enter("Perf");
         if (perf) AccumulateTickPerf();
