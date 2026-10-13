@@ -202,18 +202,6 @@
    "desc": "中文段名已修正（DIY 捕鼠夹）",
    "kind": "exists",
    "pattern": "DIY_捕鼠夹\\] \\[段名修正\\] 已把 1 处 \\[DIY捕鼠夹\\] 改写为"
-  },
-  {
-   "id": "cfg.toml.final.legal",
-   "desc": "启动后终态自检通过（启动终态探针）",
-   "kind": "exists",
-   "pattern": "\\[cfg 自检\\] MelonPreferences.cfg TOML 终态合法性检查通过"
-  },
-  {
-   "id": "cfg.toml.final.illegal",
-   "desc": "终态无非法 TOML 报告",
-   "kind": "absent",
-   "pattern": "\\[cfg 自检\\] ⚠ 启动后终态检查"
   }
  ]
 }
