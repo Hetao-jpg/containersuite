@@ -200,7 +200,7 @@ internal static class ContainerExpandPatch
             // A2 注（2026-10-07）：CI 由「30 帧」、DIY 由「90 帧」均改为墙钟。
             // B2 注（2026-10-07）：漏项（item==null）会让本次恢复静默失效 ——
             //   用 [REG] 显式断言，missed>0 即 FAIL，不再靠人翻日志。
-            ContainerSuite.Shared.RegMark.Mark("ci.restore",
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("ci.restore",
                 ciMissed == 0, "expanded=" + ciExpanded + " missed=" + ciMissed);
             ContainerSuite.Shared.WorldReadyGate.MarkReady("CI.RestoreDone");
         }

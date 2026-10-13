@@ -287,7 +287,7 @@ public static partial class DiyUpgradeMod
     internal static void LogOffsetDiag()
     {
         LogOffsetDiagOne(typeof(GameItem), new string[] { "identifier", "id" }, Off.Id);
-        // B-2：候选集与上面两处实际使用的保持一致（只是描述文字，不写缓存、不写 RegMark）。
+        // B-2：候选集与上面两处实际使用的保持一致（只是描述文字，不写缓存、不写 ContainerSuiteLog）。
         LogOffsetDiagOne(typeof(GameItem), new string[] { "state" }, Off.TagSystem);
     }
 

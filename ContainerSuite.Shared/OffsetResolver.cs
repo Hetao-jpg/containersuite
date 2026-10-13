@@ -68,7 +68,7 @@ public static class OffsetResolver
         //   事后断言 / 人工核对 —— 此前只有"解析值与硬编码不一致"才打日志，
         //   "命中且一致"和"未命中回退"两种结果都完全静默（= 查不出偏移挂没挂）。
         //   ★ 只加日志：不改 resolved、不改缓存语义、不改任何调用方行为。
-        RegMark.Bp("offset." + type.Name + "." + fallback,
+        ContainerSuiteLog.Bp("offset." + type.Name + "." + fallback,
             "resolved=" + resolved + " applied=" + (apply ? resolved : fallback) + " how=" + how);
 
         // 只在「解析成功但值与硬编码不一致」时打一条 —— 这才是真信号：

@@ -571,7 +571,7 @@ public static partial class DiyUpgradeMod
                 _log?.Error($"[DIY-JIT] ⚠ 声明式预热清单缺失 {missing.Count} 个叶子：{string.Join("、", missing)}"
                     + " —— 它们会退回「在 trampoline 上首编译」，正是 0x80131506 的成因。"
                     + "请给对应方法补 [JitWarmup]（并确认没有把特性写错类型/漏 static）。");
-                ContainerSuite.Shared.RegMark.Bp("jitwarmup.missing", "missing=" + string.Join(",", missing));
+                ContainerSuite.Shared.ContainerSuiteLog.Bp("jitwarmup.missing", "missing=" + string.Join(",", missing));
             }
 
             var extra = new List<string>();

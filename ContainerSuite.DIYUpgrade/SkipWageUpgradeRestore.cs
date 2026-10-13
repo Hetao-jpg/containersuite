@@ -167,7 +167,7 @@ internal static class SkipWageUpgradeRestore
             MelonLogger.Msg($"Wage 避让：{patched}/{totalWage} 成功" +
                 (failed > 0 ? " ← 有方法没挂上，蛙哥可能仍能抢 DIY 容器；" +
                     "多半是 WagePerks 改了方法名/签名，请更新容器套件" : ""));
-        ContainerSuite.Shared.RegMark.Mark("wage.avoid",
+        ContainerSuite.Shared.ContainerSuiteLog.Mark("wage.avoid",
             totalWage > 0 ? (failed == 0 ? "PASS" : "FAIL") : "NA",
             totalWage > 0 ? (patched + "/" + totalWage) : "WagePerks not installed");
     }

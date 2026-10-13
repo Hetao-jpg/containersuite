@@ -52,10 +52,10 @@ public sealed class Mod : MelonMod
             // ─── CI 自身初始化 ───
             CustomInfrastructureConfig.Init();
             // ★ 2026-10-09 修正（顺序 bug）：诊断开关的 provider 必须在这里就注入。
-            //   背景：RegMark 从"无条件输出"改成了"受 DiagLog 闸门控制"，而
+            //   背景：ContainerSuiteLog 从"无条件输出"改成了"受 DiagLog 闸门控制"，而
             //   DiagEnabled 在 provider 未注入时退回静态值 false —— 若把注入点留在
             //   原来的位置（DIY Init 之后，约本方法第 100 行），那么它之前的
-            //   RegMark.Mark("ci.containers") / RegMark.Mark("sbe.init") 会读到 false
+            //   ContainerSuiteLog.Mark("ci.containers") / ContainerSuiteLog.Mark("sbe.init") 会读到 false
             //   而**被静默丢弃** ⇒ 回归的 reg.ci.containers / reg.sbe.init 断言
             //   即使 DiagLog=true 也拿不到标记，误判为"功能没执行"。
             //   cfg 项此刻已由上面的 Init 建好，provider 是懒执行，随时可注入。
@@ -76,7 +76,7 @@ public sealed class Mod : MelonMod
             Log.Msg($"已加载。生效容器：{summary}");
 
             ReportPatchSummary(harmony);
-            ContainerSuite.Shared.RegMark.Mark("ci.containers", active.Count > 0, "count=" + active.Count);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("ci.containers", active.Count > 0, "count=" + active.Count);
 
             // ─── S3-4：初始化 SBE 模块 ───
             try
@@ -85,7 +85,7 @@ public sealed class Mod : MelonMod
 
                 var sbeHarmony = new HarmonyLib.Harmony("SaveBagExpand.Patch");
                 SaveBagExpand.SaveBagExpandCore.ApplyPatches(sbeHarmony);
-                ContainerSuite.Shared.RegMark.Mark("sbe.init", true, null);
+                ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.init", true, null);
             }
             catch (Exception ex)
             {
@@ -110,15 +110,15 @@ public sealed class Mod : MelonMod
                 //     但 Provider 是懒执行，即使现在 cfg 项未建好也不影响，
                 //     后续 ModManager 修改后下一次读就能拿到新值。
                 // ★ 2026-10-09：provider 的注入点已上移到本方法开头（紧跟
-                //   CustomInfrastructureConfig.Init）—— RegMark 从第 67 行起就依赖它，
+                //   CustomInfrastructureConfig.Init）—— ContainerSuiteLog 从第 67 行起就依赖它，
                 //   在这里才注入会让前面那些 [REG] 标记被静默丢弃。
-                ContainerSuite.Shared.RegMark.Mark("diy.init", true, null);
+                ContainerSuite.Shared.ContainerSuiteLog.Mark("diy.init", true, null);
             }
             catch (Exception ex)
             {
                 Log.Error("初始化 DIY 模块失败：" + ex);
             }
-            ContainerSuite.Shared.RegMark.Mark("suite.ready", true, "version=" + SuiteVersion.Suite);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("suite.ready", true, "version=" + SuiteVersion.Suite);
         }
         catch (Exception ex)
         {
@@ -320,13 +320,13 @@ public sealed class Mod : MelonMod
             // 2026-10-07：阈值 4 → 2 —— CI 原有 4 个挂点，其中 PixelWindow.Show 的
             // 两个重载已摘除（与 DIY 的 WindowShowHook 重复），只剩
             // GameItem.ValidateShapeState + PlayerStore.LoadGame。
-            ContainerSuite.Shared.RegMark.Mark("ci.patch", count >= 2, "count=" + count);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("ci.patch", count >= 2, "count=" + count);
             return count;
         }
         catch (Exception ex)
         {
             Log.Warning("汇总 patch 结果失败：" + ex.Message);
-            ContainerSuite.Shared.RegMark.Mark("ci.patch", false, ex.Message);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("ci.patch", false, ex.Message);
             return -1;
         }
     }

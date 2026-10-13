@@ -609,7 +609,7 @@ public static partial class DiyUpgradeMod
             // 恢复时长绑架。此处仍照常记录 LastReadyAt，供其它判据使用。
             // ═══════════════════════════════════════════════════════════════
             WorldReadyGate.MarkReady("DIY.RestoreReady");
-            ContainerSuite.Shared.RegMark.Bp("diy.restore.ready", "containers=" + allIds.Count);
+            ContainerSuite.Shared.ContainerSuiteLog.Bp("diy.restore.ready", "containers=" + allIds.Count);
 
             int seededCount = 0;
             foreach (string id in allIds)

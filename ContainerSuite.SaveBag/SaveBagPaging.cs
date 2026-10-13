@@ -154,7 +154,7 @@ public static class SaveBagPaging
 
         InitStorages();
         SaveBagExpandCore.Diag($"[SaveBagExpand] 分页已初始化：{_pageCount} 页");
-        ContainerSuite.Shared.RegMark.Mark("sbe.paging", _pageCount > 0, "pages=" + _pageCount);
+        ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.paging", _pageCount > 0, "pages=" + _pageCount);
     }
 
     /// <summary>
@@ -372,7 +372,7 @@ public static class SaveBagPaging
         SaveBagExpandCore.Diag(
             $"[SaveBagExpand] 主仓库分页已绑定（存档槽 {slotId}，{_pageCount} 页；" +
             $"距门禁首次放行 {_boundAtSec:0.00}s，形状{(shapeChanged ? "有调整" : "未变")}）");
-        ContainerSuite.Shared.RegMark.Mark("sbe.bind", true,
+        ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.bind", true,
             "slot=" + slotId + " pages=" + _pageCount + " at=" + _boundAtSec.ToString("0.00") +
             " shapeChanged=" + (shapeChanged ? "1" : "0"));
     }
@@ -563,7 +563,7 @@ public static class SaveBagPaging
             el.UpdateFakeReal(picked);
 
             // 无条件结构化标记：这是"切页后假体确实复原过"的唯一机器可读证据。
-            ContainerSuite.Shared.RegMark.Mark("sbe.tab.reassertGhost", true, "picked=" + picked);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.tab.reassertGhost", true, "picked=" + picked);
             SaveBagExpandCore.Diag("[SaveBagExpand] 拖拽中切页：已复原物品假体（拾取 " + picked + " 件）");
         }
         catch (Exception ex) { CatchLogOnce.Warn("paging.reassertDragGhost", ex); }
@@ -942,7 +942,7 @@ public static class SaveBagPaging
             $"（当前第 {_currentPage + 1}/{_pageCount} 页，距门禁首次放行 " +
             $"{WorldReadyGate.SecondsSinceFirstReady:0.00}s）");
         // 无条件结构化标记（不走 Diag 开关）：这是"读档窗口是否被修好"的唯一机器可读证据。
-        ContainerSuite.Shared.RegMark.Mark("sbe.reconcile", true,
+        ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.reconcile", true,
             "moved=" + moved + " at=" + WorldReadyGate.SecondsSinceFirstReady.ToString("0.00"));
         return moved;
     }
@@ -1581,7 +1581,7 @@ public static class SaveBagPaging
             catch (Exception ex) { SaveBagExpandCore.Log.Warning($"[SBE-JIT] {label} 异常: {ex.Message}"); }
         }
 
-        // Mode A 真实执行的成功步数：Mode B 已删除，这是收尾日志与 RegMark
+        // Mode A 真实执行的成功步数：Mode B 已删除，这是收尾日志与 ContainerSuiteLog
         //   "预热确实做过事"的唯一证据。
         int modeASteps = 0;
         // 每步打点：崩则控制台最后一行 = 凶手步骤
@@ -1670,7 +1670,7 @@ public static class SaveBagPaging
         SaveBagExpandCore.Log.Msg($"[SBE-JIT] 预热完成：modeA={modeASteps} 耗时={warmupSw.ElapsedMilliseconds}ms");
         // ★ Mode A 真实执行步数即"预热确实做过事"的唯一证据，
         //   否则此处会打成 FAIL（checks.json 的 reg.sbe.jit 要求 status=PASS）。
-        ContainerSuite.Shared.RegMark.Mark("sbe.jit", modeASteps > 0,
+        ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.jit", modeASteps > 0,
             $"modeA={modeASteps}");
     }
 

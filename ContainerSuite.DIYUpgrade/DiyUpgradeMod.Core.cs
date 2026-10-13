@@ -409,7 +409,7 @@ public static partial class DiyUpgradeMod
             _log.Msg($"[容器升级] Patch 安装: 成功 {installed} 个"
                     + ((skipped > 0) ? $", 跳过 {skipped} 个(可选功能关闭)" : "")
                     + ((failed > 0) ? $", 失败 {failed} 个(详见上方错误)" : ""));
-            ContainerSuite.Shared.RegMark.Mark("diy.patch", installed >= MinInstalledPatchCount && failed == 0,
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("diy.patch", installed >= MinInstalledPatchCount && failed == 0,
                 "installed=" + installed + " skipped=" + skipped + " failed=" + failed);
         }
     }
@@ -452,7 +452,7 @@ public static partial class DiyUpgradeMod
             {
                 if (_log != null) _log.Msg($"Patch 汇总：{patchedCount} 个方法已挂补丁 ✓");
             }
-            ContainerSuite.Shared.RegMark.Mark("diy.patch.summary", patchedCount >= MinExpectedPatchCount, "count=" + patchedCount);
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("diy.patch.summary", patchedCount >= MinExpectedPatchCount, "count=" + patchedCount);
         }
         catch (Exception ex) { if (_log != null) _log.Warning("汇总 patch 结果失败：" + ex.Message); }
     }

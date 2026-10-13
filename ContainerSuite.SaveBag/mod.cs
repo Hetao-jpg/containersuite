@@ -219,7 +219,7 @@ public static class SaveBagExpandCore
                 }
             }
             Log?.Msg($"SBE 补丁安装: 成功 {installed} 个" + (failed > 0 ? $", 失败 {failed} 个" : ""));
-            ContainerSuite.Shared.RegMark.Mark("sbe.patch", installed > 0 && failed == 0,
+            ContainerSuite.Shared.ContainerSuiteLog.Mark("sbe.patch", installed > 0 && failed == 0,
                 "installed=" + installed + " failed=" + failed);
         }
         catch (Exception ex)

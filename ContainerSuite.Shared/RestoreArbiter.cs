@@ -279,7 +279,7 @@ public static class RestoreArbiter
             ContainerSuiteLog.Warn("[Arbiter] 放弃恢复 " + giveUpId
                 + "（" + MaxAttempts + " 次失败）");
             // B2（2026-10-07）：放弃 = 恢复静默失效的关键状态转换，无条件留痕。
-            RegMark.Bp("arbiter.abandon", "why=maxattempts item=" + giveUpId + " attempts=" + MaxAttempts);
+            ContainerSuiteLog.Bp("arbiter.abandon", "why=maxattempts item=" + giveUpId + " attempts=" + MaxAttempts);
         }
         else
         {
@@ -322,7 +322,7 @@ public static class RestoreArbiter
 
         // B2（2026-10-07）：无 Applier = 恢复请求被静默丢弃的关键原因，无条件留痕。
         //   去重上限同上面的 Warning（最多 NoApplierWarnLimit 条，不会刷屏）。
-        RegMark.Bp("arbiter.abandon", "why=noapplier reason=" + key);
+        ContainerSuiteLog.Bp("arbiter.abandon", "why=noapplier reason=" + key);
     }
 
     private static string JoinApplierKeys()
