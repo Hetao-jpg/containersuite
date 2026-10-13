@@ -2,11 +2,19 @@
 # ContainerSuite one-click pack script.
 #
 # Usage:
-#   .\pack.ps1                  build + pack into dist/ContainerSuite-v{ver}/ + .zip
+#   .\pack.ps1                  build + pack RELEASE into dist/ContainerSuite-v{ver}/ + .zip
+#   .\pack.ps1 -Dev             build + pack DEV (DIAG) into dist/ContainerSuite-dev-v{ver}/ + .zip
 #   .\pack.ps1 -SkipBuild       skip msbuild (reuse current bin/Release DLL)
 #   .\pack.ps1 -NoZip           produce the folder only, skip the .zip
 #   .\pack.ps1 -Version 1.2.3   override the version (must match the doc version
 #                               lines, else packing is rejected)
+#
+# Release vs Dev (2026-10-13):
+#   Release = player build; DIAG diagnostic code is compiled out (not in the DLL).
+#   Dev     = dev/debug build; -p:Diag=true enables #if DIAG probes,
+#             DLL is named CustomInfrastructure-dev.dll (csproj switches
+#             AssemblyName based on the Diag property).
+#   The two DLLs never overwrite each other; the name tells them apart at a glance.
 #
 # Output contract (dist/ContainerSuite-v{ver}/):
 #   - CustomInfrastructure.dll   (the single deliverable DLL)
@@ -30,6 +38,7 @@
 # ============================================================================
 
 param(
+    [switch]$Dev,
     [switch]$SkipBuild,
     [switch]$NoZip,
     [string]$Version = ''
@@ -41,7 +50,19 @@ $ErrorActionPreference = 'Stop'
 $Root      = $PSScriptRoot
 $Workspace = $Root                                   # ContainerSuite\
 $CfgProj   = Join-Path $Workspace 'ContainerSuite.Infrastructure\ContainerSuite.Infrastructure.csproj'
-$BuiltDll  = Join-Path $Workspace 'ContainerSuite.Infrastructure\bin\Release\CustomInfrastructure.dll'
+
+# Release vs Dev decides the DLL filename and dist folder name.
+if ($Dev) {
+    $DllName   = 'CustomInfrastructure-dev.dll'
+    $DistLabel = 'ContainerSuite-dev'
+    $BuildArgs = @('-p:Diag=true')
+} else {
+    $DllName   = 'CustomInfrastructure.dll'
+    $DistLabel = 'ContainerSuite'
+    $BuildArgs = @()
+}
+$BuiltDll  = Join-Path $Workspace ('ContainerSuite.Infrastructure\bin\Release\' + $DllName)
+Write-Host ('PACK: variant = ' + $(if ($Dev) { 'DEV (DIAG)' } else { 'RELEASE' }))
 
 # --- 1. Resolve version ----------------------------------------------------
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -118,8 +139,8 @@ Write-Host 'PACK: shipped-doc validation passed.'
 
 # --- 3. Build --------------------------------------------------------------
 if (-not $SkipBuild) {
-    Write-Host 'PACK: building (Release)...'
-    & dotnet build $CfgProj -c Release -v m
+    Write-Host ('PACK: building (Release' + $(if ($Dev) { ', Diag=true' } else { '' }) + ')...')
+    & dotnet build $CfgProj -c Release -v m @BuildArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host 'PACK: build FAILED.'
         exit 1
@@ -136,7 +157,7 @@ if (-not (Test-Path $BuiltDll)) {
 # safety hooks intercept PowerShell deletes (moving them to a recycle bin) and
 # can fail-closed, aborting the pack. Overwriting in place is sufficient: the
 # shipped file set is fixed at 3 files, so there is nothing stale to clean.
-$DistDir = Join-Path $Workspace ('dist\ContainerSuite-v' + $Version)
+$DistDir = Join-Path $Workspace ('dist\' + $DistLabel + '-v' + $Version)
 New-Item -Path $DistDir -ItemType Directory -Force | Out-Null
 Write-Host ('PACK: dist dir = ' + $DistDir)
 # --- 5. Copy DLL -----------------------------------------------------------

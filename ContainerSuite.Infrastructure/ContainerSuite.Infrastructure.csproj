@@ -58,6 +58,16 @@
     <RootNamespace>CustomInfrastructure</RootNamespace>
   </PropertyGroup>
 
+  <!-- 开发版 / 发布版产物区分（文件名区分，配合 pack.ps1 -Dev）：
+       发布版：dotnet build -c Release          → CustomInfrastructure.dll
+       开发版：dotnet build -c Release -p:Diag=true → CustomInfrastructure-dev.dll
+       DIAG 宏在 ③ 已定义（-p:Diag=true 时）；这里让开发版的 DLL 文件名带 -dev 后缀，
+       保证两个产物不会互相覆盖、一眼可辨。AssemblyName 会影响 MelonInfo 里登记的
+       Mod 名，故仅在 DIAG 构建下追加后缀，Release 保持不变。 -->
+  <PropertyGroup Condition="'$(Diag)' == 'true'">
+    <AssemblyName>CustomInfrastructure-dev</AssemblyName>
+  </PropertyGroup>
+
   <!-- ── 源码：本工程自己的 + 另外 3 个目录的（bin/obj 排除） ── -->
   <ItemGroup>
     <Compile Include="..\ContainerSuite.Shared\**\*.cs"
