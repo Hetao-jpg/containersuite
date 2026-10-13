@@ -1,4 +1,4 @@
-// S2 阶段创建。运行时偏移解析，从 DIYUpgrade 的 Utils 提取。
+// 运行时偏移解析。
 // 设计文档：ContainerSuite S2 §3.6
 //
 // 与 DIYUpgrade 原版的差异：

@@ -1,4 +1,3 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：网格填充底与透明度修复
 using ContainerSuite.Shared;
 using System;

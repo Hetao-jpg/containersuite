@@ -156,7 +156,7 @@ internal static class SaveBagExpandConfig
         cat.SaveToFile();
 
         // ★ 直接编辑 cfg 文件，删除残留旧 key（幂等）。
-        //   P6：内部用 SaveBagExpand.cfgcleaned 标记版本，同版本启动不再重跑。
+        //   内部用 SaveBagExpand.cfgcleaned 标记版本，同版本启动不再重跑。
         try { CleanupCfgFile(); } catch (Exception ex) { CatchLogOnce.Warn("cfg.CleanupCfgFile", ex); }
     }
 

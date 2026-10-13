@@ -295,8 +295,7 @@ internal static class SkipXiaowoBayRestore
     ///   故加载期一律 defer（<see cref="WorldReadyGate.ShouldDefer"/>），并等首次开门后稳定
     ///   <see cref="SweepSettleSeconds"/> 秒再扫。
     ///
-    /// 历史（2026-10-10 09:12 时间线，属**旧实现**「反射调 DestroyHandles」的记录，现实现已不适用）：
-    ///   09:12:56.895 读档完成 → 09:12:57.560 CI-JIT 预热 → 09:12:59.375 清了 7 个手柄 → 崩。
+    /// 历史（旧实现「反射调 DestroyHandles」的 09:12 时间线记录）见 docs/cross-mod-xiaowo.md。
     /// </summary>
     internal static void TickZombieHandles()
     {

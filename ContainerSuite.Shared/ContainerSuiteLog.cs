@@ -1,7 +1,3 @@
-// S3-1 改造：去掉全局 Logger 单例，避免多 Mod 覆盖。
-// Msg/Warn/Error 改为静态调用 MelonLogger 静态方法（无 Mod 归属）；
-// 各模块用自己的 LoggerInstance，日志前缀天然归属自己。
-
 using System;
 using System.Collections.Generic;
 using MelonLoader;
@@ -11,7 +7,7 @@ namespace ContainerSuite.Shared;
 /// <summary>
 /// 三 Mod 共用的日志辅助。
 /// 
-/// S3-1 起不再持有 Logger 实例 —— 各模块用自己的 MelonLogger.Instance。
+/// 不持有 Logger 实例 —— 各模块用自己的 MelonLogger.Instance。
 /// 本类只负责：
 ///   · DiagEnabled 开关（cfg [CustomInfrastructure] 的 DiagLog —— 2026-10-07 起
 ///     三个模块共用这一条总开关；CI / SBE / DIY 的访问器都是它的别名）
@@ -101,14 +97,10 @@ public static class ContainerSuiteLog
         if (!DiagEnabled) return;
         if (string.IsNullOrEmpty(key)) { Diag(msg); return; }
         if (!_diagSeen.Add(key)) return;
-        // ★ C-2（2026-10-12）：删除此处的 CacheLimits.Trim。
-        //   原注释的理由是"整体清空后重复打印少量旧 key 无害"—— 对去重集合不成立：
-        //   一旦整体清空，**已经打过的诊断点会在同一会话里再打一遍**，看起来像
-        //   "这个状态又出现了一次"（去重信息丢失 = 制造假信号）。
-        //   key 由调用方**显式指定**（诊断点本身，不是消息文本），种类有限；
-        //   有界性交给 CacheRegistry 的场景/读档清空（ClearDiagOnce），不依赖这条兜底。
-        //   ★ 新增调用方时请确保 key 是固定诊断点 —— 若把物品 id / 坐标拼进 key，
-        //     键空间就变成单调增长，需要另行加淘汰（参照 DIY 的 EvictOldestLogKeys）。
+        // ★ C-2：此处不做 CacheLimits.Trim —— 对去重集合整体清空会把已打过的诊断点重打一遍
+        //   （去重信息丢失 = 假信号）。有界性交给 CacheRegistry 的场景/读档清空（ClearDiagOnce）；
+        //   ★ 新增调用方须保证 key 是**固定诊断点**（拼进物品 id / 坐标 → 键空间单调增长）。
+        //   完整理由见 docs/silent-failure.md
         try { MelonLogger.Msg(msg); } catch { }
     }
 

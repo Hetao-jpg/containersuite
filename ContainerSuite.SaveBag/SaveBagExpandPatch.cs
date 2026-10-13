@@ -158,8 +158,7 @@ internal static class EmporiumEntryStartPatch
                 SaveBagExpandConfig.HiddenInvWidth.Value,
                 SaveBagExpandConfig.HiddenInvHeight.Value);
 
-            // S8f：客户柜台开关合并入总控 —— 尺寸仍独立配置，但生效条件跟 ExpandEnabled 一致。
-            // 原先独立的 FrontInvExpandEnabled 开关已删除。
+            // 客户柜台开关合并入总控 —— 尺寸仍独立配置，但生效条件跟 ExpandEnabled 一致。
             Resize(__instance.frontInvinvElement, __instance.frontInvWindow, "客户柜台",
                 SaveBagExpandConfig.FrontInvWidth.Value,
                 SaveBagExpandConfig.FrontInvHeight.Value,

@@ -1,11 +1,10 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：入口 / 生命周期 / 补丁安装与汇总
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using ContainerSuite.Shared;   // S2 新增
+using ContainerSuite.Shared;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppInterop.Runtime;
@@ -23,13 +22,9 @@ public static partial class DiyUpgradeMod
 {
     public static void Init(MelonLogger.Instance logger)
     {
-        // S4-2：_log 由 CI 传入（不再从 MelonMod 实例取）
+        // _log 由 CI 传入（不再从 MelonMod 实例取）
         _log = logger;
-        // S5：版本由主入口的统一横幅显示，这里不再各报一个
-
-        // ★ 旧：这里调 SnapshotLegacySection()（原「三段并一段」迁移的第一步）。
-        //   该迁移已按终止线 MinSupportedFrom = 1.7.4 整段删除，快照与搬运都不再需要。
-        //   详见 DiyUpgrade.CfgMigration.cs 文件头的「迁移终止线」。
+        // 版本由主入口的统一横幅显示。
 
         // ★ 2026-10-02：段名从「自定义容器升级」改成「DIYUpgrade」。
         //   ModManager 归属配置项的规则是 CategoryId == DLL 文件名（ManagerState.CategoryBelongsToMod，

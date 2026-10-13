@@ -317,8 +317,7 @@ internal static class WageContainerRegistry
         {
             if (item.state == null) return false;   // 加载期 state 未初始化
             if (!item.IsTag(TagWbStage)) return false;
-            // 复用 Shared 的 TagUtil.SafeTagInt（语义与已删除的私有 GetTagIntSafe 一致：
-            // 读不到 / 异常一律返回 fallback 0，绝不抛）。
+            // 复用 Shared 的 TagUtil.SafeTagInt（读不到 / 异常一律返回 fallback 0，绝不抛）。
             return TagUtil.SafeTagInt(item, TagWbStage, 0) >= WageBoxMaxStage;
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("WageRegistry:MaxStage", ex); return false; }

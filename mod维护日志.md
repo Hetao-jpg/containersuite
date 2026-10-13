@@ -60,6 +60,25 @@ ContainerSuite · mod 维护日志（开发端）
 七、维护日志（倒序）
 ================================================================================
   ───────────────────────────────────────────────────────────────────────────
+  2026-10-13  注释精简 · 批次3：执行 D1~D4 删除 + D5 搬 docs 留指针（只改注释，代码逐字未动）
+  ───────────────────────────────────────────────────────────────────────────
+  · D1 拆解脚本来历行：10 个 DIY 文件全删。D2 Shared 头部「S2 阶段创建 / 从 X 抽取 /
+    S8s 抽取」来源句 + 「命名空间统一为 ContainerSuite.Shared」等合并期沿革句删。
+  · D3 模块迁移/版本横幅沿革句删（mod.cs / Mod.cs / DiyUpgradeMod.Core.cs /
+    AssemblyInfo.cs / ContainerExpander.cs / SaveBagPaging.cs）。
+  · D4 只删纯沿革句（原 FrontInvExpandEnabled 已删除 / P6 标记 / 已删探针）；
+    含「别改坏 / 会静默失效」警告的句子按裁决保留（如 ContainerExpandPatch 的
+    「删而不是留注释」、SkipXiaowo 的「让 XIAOWO 自爆」等）。
+  · D5 5 处更正/自我否定块搬 docs 并留指针 + 关键契约：C-2 去重集合 →
+    docs/silent-failure.md（ContainerSuiteLog / Utils）；T-C2 TTL → docs/diy-restore.md；
+    A-2 留痕 → docs/silent-failure.md；旧实现 09:12 时间线 → docs/cross-mod-xiaowo.md；
+    ResizeDiag 沿革 → docs/diy-resizer.md。ContainerExpandPatch 更正块含 0x80131506，
+    按红线留在源码（内容已在 docs/ci-expander.md）。
+  · 校验：源码 diff 仅注释行（3 处 using 去「// S2 新增」尾注，代码本体不变）；
+    grep -c 0x80131506 源码侧计数不变（共 49 处）。
+  · 待办：批次4 Release+DIAG 双构建 + 门禁 + regress。
+
+  ───────────────────────────────────────────────────────────────────────────
   2026-10-13  注释精简 · 批次2：长注释搬 docs、源码留指针（只改注释，代码逐字未动）
   ───────────────────────────────────────────────────────────────────────────
   · 13 个源文件的长注释块搬到 docs/ 对应文档，源码处留 1~3 行指针：

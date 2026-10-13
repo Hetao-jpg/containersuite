@@ -1,4 +1,4 @@
-// S2 阶段创建。存档槽隔离辅助，从 DIYUpgrade 逐字搬。
+// 存档槽隔离辅助。
 // 设计文档：ContainerSuite S2 §3.5
 //
 // 与 DIYUpgrade 原版的差异：

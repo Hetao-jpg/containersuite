@@ -8,7 +8,7 @@ using UnityEngine;
 namespace SaveBagExpand;
 
 /// <summary>
-/// S3-4：SBE 不再是 MelonMod，改为被 ContainerSuite 主 Mod 调用的静态模块。
+/// SBE 不再是 MelonMod，改为被 ContainerSuite 主 Mod 调用的静态模块。
 /// 生命周期方法由主 Mod 转发：
 ///   OnInitializeMelon → Init(logger)
 ///   OnUpdate          → Tick()
@@ -20,7 +20,7 @@ public static class SaveBagExpandCore
     internal static MelonLogger.Instance Log;
     internal static bool Enabled = true;
 
-    // ★ S5-3（2026-10-02）：每格像素不再硬编码，改为从网格自身反推（抄 DIY 的写法）：
+    // ★ 每格像素不硬编码，从网格自身反推（抄 DIY 的写法）：
     //     cell = grid.widthPixels / grid.inventoryShape.width
     //   16f 只作为"网格还没初始化 / 读不到形状"时的兜底值。
     private const float CellPxFallback = 16f;

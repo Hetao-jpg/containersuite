@@ -1,11 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════
 // ContainerSuite —— 合并版唯一的程序集声明文件。
 //
-// 2026-10-06：原本 4 个工程各有一份 AssemblyInfo.cs（Shared / Infrastructure /
-//   SaveBag / DIYUpgrade），合并成单 DLL 后 4 份会互相冲突 CS0579
-//   （AssemblyVersion / FileVersion / InformationalVersion / Title / Product /
-//    Company 各重复 3 次），所以收敛成这一份。
-//   另外三个 AssemblyInfo.cs 已删除；若再加回来，编译期直接 CS0579。
+// 2026-10-06：4 个工程的 AssemblyInfo.cs 合并成这一份。
+//   另外三个已删除；若再加回来，编译期直接 CS0579（版本 / 标题等特性重复注册）。
 //   本文件是全工作区**唯一**允许写 [assembly: ...] 特性的地方。
 // ═══════════════════════════════════════════════════════════════════════
 //

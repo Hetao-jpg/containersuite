@@ -1,4 +1,3 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：配置项创建 / 中文显示名 / 升级热键解析
 using ContainerSuite.Shared;
 using System;

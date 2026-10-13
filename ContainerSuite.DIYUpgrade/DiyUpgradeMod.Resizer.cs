@@ -1,8 +1,6 @@
-// 由拆解脚本机械切分，内容逐字未改（唯一改动：ContainerWindowResizer 加 partial）。
 // 职责：拖拽状态机 ResizeState + ResizeEdge 枚举
 
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
-// 职责：拖拽缩放窗口（ContainerWindowResizer 整体，待二次拆分）
+// 职责：拖拽缩放窗口（ContainerWindowResizer 整体）
 using ContainerSuite.Shared;
 using System;
 using System.Collections;

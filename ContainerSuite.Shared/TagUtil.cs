@@ -1,4 +1,4 @@
-// F（2026-10-04）：从 CI 的 ContainerExpander 抽取 tag 读写工具。
+// 共享的 tag 读写工具。
 //
 // 背景：CI 和 DIY 各自有一份行为等价的 SetItemTag / SafeTagInt 实现。
 // 本次先抽取到 Shared，先让 CI 改用；DIY 保持不动，待后续单独迁移。

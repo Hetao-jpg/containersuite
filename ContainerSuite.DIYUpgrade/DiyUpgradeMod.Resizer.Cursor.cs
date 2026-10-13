@@ -1,8 +1,4 @@
-// 由拆解脚本机械切分，内容逐字未改（唯一改动：ContainerWindowResizer 加 partial）。
 // 职责：拖拽手柄 ResizeHandle + 光标资源 ResizeCursor
-
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
-// 职责：拖拽缩放窗口（ContainerWindowResizer 整体，待二次拆分）
 using ContainerSuite.Shared;
 using System;
 using System.Collections;
@@ -207,8 +203,6 @@ public static partial class DiyUpgradeMod
         private static PollThrottle _handleCheckGate;
         private static int _activeDragCount = 0;
 
-        // （2026-10-13：_lastDragEdge / LastDragEdgeName 原为 ResizeDiag 记录拖拽方向用，
-        //   随该探针一并删除。）
         // S8r（2026-10-05）：DIY tick 常驻开销 60~80μs → <15μs 的跳过判据与理由：见 docs/diy-resizer.md
         private static Vector2 _lastPointerPos = new Vector2(-1f, -1f);
         private static bool _lastPointerHeld = false;

@@ -1,4 +1,3 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：网格与窗口尺寸计算、限制判定、重绘与网格枚举
 using ContainerSuite.Shared;
 using System;

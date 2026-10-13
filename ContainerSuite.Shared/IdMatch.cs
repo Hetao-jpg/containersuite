@@ -1,4 +1,4 @@
-// S2 阶段创建。容器 ID 匹配工具，从 DIYUpgrade 的 IdUtils 提取。
+// 容器 ID 匹配工具。
 // 设计文档：ContainerSuite S2 §3.4
 //
 // 与 DIYUpgrade 原版的差异：

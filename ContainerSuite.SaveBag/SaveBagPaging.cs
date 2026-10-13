@@ -2,7 +2,7 @@ using HarmonyLib;
 using Il2Cpp;
 using MelonLoader;
 using System;
-using ContainerSuite.Shared;   // S2 新增
+using ContainerSuite.Shared;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -12,7 +12,7 @@ namespace SaveBagExpand;
 /// <summary>
 /// 方向一：主仓库分页。
 /// 主仓库网格保持游戏原版尺寸，物品按「页」拆开存在内存 + UserData 旁路文件
-/// （S8u-4 起不再走 MelonPreferences，见「配置持久化」段取证），
+/// （不走 MelonPreferences，见「配置持久化」段取证），
 /// TAB 键循环切页时交换网格内容。
 /// </summary>
 public static partial class SaveBagPaging
@@ -149,7 +149,7 @@ public static partial class SaveBagPaging
 
     internal static void Initialize(int pageCount)
     {
-        // S8u-4：页 ID 已改走私有旁路文件，不再需要 category 参数。
+        // 页 ID 走私有旁路文件，不需要 category 参数。
         _pageCount = Math.Clamp(pageCount, 1, 10);
 
         InitStorages();
@@ -227,7 +227,7 @@ public static partial class SaveBagPaging
 
                 if (_boundSlotId >= 0 && _pageIds.Count > 0)
                 {
-                    // S8u-4：不再 CreateEntry（MelonPreferences 在本会话已被
+                    // 不 CreateEntry（MelonPreferences 在本会话已被
                     // 第三方 mod 竞争打死，见「配置持久化」段）——用内存里的
                     // 真实分布重算后直写旁路文件。
                     RefreshPageIds();
@@ -378,7 +378,7 @@ public static partial class SaveBagPaging
     }
 
     // ────────── 存档槽隔离 ──────────
-    // S8u-4：原 EnsureEntries（MelonPreferences CreateEntry 按槽建键）已删除。
+    // 原 EnsureEntries（MelonPreferences CreateEntry 按槽建键）已删除。
     // 取证：ML 在每次启动 +10~23s 被第三方 mod 写竞争打成 WasError，此后
     // 整个会话所有 MelonPreferences 落盘静默失效 —— Slot*_Page2Ids 历史上
     // 从未真正写进过盘（11 个历史槽全为 ""）。页 ID 改走 SaveBagPaging.ids。

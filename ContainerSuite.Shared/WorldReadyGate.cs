@@ -1,15 +1,6 @@
-// S2 阶段创建。世界就绪门禁，从 DIYUpgrade 搬并扩展。
-// 设计文档：ContainerSuite S2 §3.7
+// 世界就绪门禁（加载期应 defer 读/写游戏状态的补丁）。
 //
-// 与 DIYUpgrade 原版的差异：
-//   · 命名空间统一为 ContainerSuite.Shared
-//   · 日志走 ContainerSuiteLog，不再直接调 MelonLogger
-//   · CatchLogOnce 走 Shared 版本
-//
-// S8e（2026-10-02）：EnqueueRestore / RegisterOnReady 因零调用方被删，
-// 随带清理 _pendingRestore / _pendingRestoreSeen / _onReadyCallbacks 三个
-// 永远为空的字段 + FlushPending / DoRestore 两个永远不执行的方法。
-// 当前 MarkReady：置 _ready = true + 记录 LastReadyAt 时间戳（S8u-2）。
+// MarkReady：置 _ready = true + 记录 LastReadyAt 时间戳。
 
 using System;
 using System.Collections.Generic;

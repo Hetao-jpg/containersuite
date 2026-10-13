@@ -1,11 +1,10 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：静态字段、各类缓存、诊断开关
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using ContainerSuite.Shared;   // S2 新增
+using ContainerSuite.Shared;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppInterop.Runtime;
@@ -69,8 +68,6 @@ public static partial class DiyUpgradeMod
         get { try { return _groupDragEnabled == null || _groupDragEnabled.Value; } catch { return true; } }
     }
     // ── DIAG 专属的实验开关（Release 下不注册、不留字段）─────────────────
-    // 2026-10-13：R1 探针（_r1Probe）与暂存取证探针（_resizeDiag）已随各自实现删除，
-    //   详见 DiyUpgradeMod.Core.cs 里同批次的删除说明。这里只保留尚在验证期的 T5 实验项。
 #if DIAG
     // T5（2026-10-12，借鉴蛙哥的调用点、只做**实验**）：升级收尾是否补调
     // GameItem.SyncModifiedState()。默认关 —— 该 API 的语义未定论（只知道蛙哥在批量升级

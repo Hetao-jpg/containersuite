@@ -3,7 +3,7 @@ using MelonLoader;
 namespace ContainerSuite.Shared;
 
 /// <summary>
-/// 2026-10-06 单 DLL 合并（B2）配套工具。
+/// 单 DLL 合并（B2）配套工具。
 ///
 /// 合并前三个模块各占一个 MelonPreferences 段：
 ///   [CustomInfrastructure] / [SaveBagExpand] / [DIYUpgrade]

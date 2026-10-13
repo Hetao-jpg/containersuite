@@ -1,4 +1,3 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：全部 Harmony 补丁类
 //
 // 2026-09-29 改动：
@@ -522,9 +521,8 @@ public static partial class DiyUpgradeMod
             int metaBefore = 0;
             try { metaBefore = _metaCache.Count; } catch { }
             try { CacheRegistry.ClearForLoadGame(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:loadgame-clear-caches", ex); }
-            // ★ A-2 留痕（无条件，不走 Diag）：这是「uid 跨档污染」这个前提的**唯一证据来源**。
-            //   若长期恒为 0（即日志从不出现这一行），说明该前提在本环境不成立 —— 那就可以
-            //   据此把本改动整体回退掉，而不是靠"感觉没出问题"。
+            // ★ A-2 留痕（无条件，不走 Diag）：这是「uid 跨档污染」前提的**唯一证据来源**；
+            //   长期恒为 0 即可据此回退本改动。完整说明见 docs/silent-failure.md
             if (metaBefore > 0)
                 ContainerSuiteLog.Msg("[容器升级] 读档清缓存：_metaCache " + metaBefore
                     + " 条 → 0（不处理会让同 uid 容器读到上一存档的升级次数）");

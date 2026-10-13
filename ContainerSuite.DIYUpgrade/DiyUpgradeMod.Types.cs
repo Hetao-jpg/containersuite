@@ -1,9 +1,4 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：小型数据类型（Off / Cat / TargetSlot / GridDef / PrepareCacheEntry）
-//
-// S2 改造说明：
-//   · 加 using ContainerSuite.Shared（虽然本文件不直接使用 Shared 类型，但保持一致性）
-//   · 修复 Off.TagSystem 偏移：440（0x1B8 = modifiedState）→ 432（0x1B0 = state）
 
 using ContainerSuite.Shared;
 using System;

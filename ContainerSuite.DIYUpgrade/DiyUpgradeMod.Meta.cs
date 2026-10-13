@@ -1,4 +1,3 @@
-// 由拆解脚本从 自定义集装箱fix/DiyUpgradeMod.cs 机械切分，内容逐字未改。
 // 职责：元数据 / 物品 tag 读写 / 读档恢复
 using ContainerSuite.Shared;
 using System;
@@ -256,17 +255,8 @@ public static partial class DiyUpgradeMod
             }
         }
         catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        // T-C2 阶段二（2026-10-13）：原「3 秒 TTL」节流（_lastReapplyFromMetaTime）已删除。
-        //   ★ 真正原因（2026-10-13 复核）：该 TTL 判据 `if (!force && …ElapsedMs<3000) return;`
-        //     依赖 force==false，但全库 ReapplyFromMeta 只有 2 个调用点
-        //     （Core.cs 的 RestoreArbiter.RegisterApplier 委托；Restore.cs 的读档预热 Step），
-        //     两者都传 force:true ⇒ 该分支从未被进入，TTL 早已是死逻辑。
-        //   （更正：commit 63b3a61 / 31c3a5e 曾称「阶段一实机观测次数为 0」——
-        //     复核确认观测代码从未真正部署（游戏的 -dev 构建不含 ObserveTtlRejectVsMemo），
-        //     故该说法不成立；真正判据为上一条「调用点全 force:true」。）
-        //   删除后节流职责由 RestoreArbiter（队列 + 冷却帧，全进程）与 _restoreMemo
-        //   （状态签名判据，见 RestoreShapeCore）承担；force 参数保留（签名不变，
-        //   Arbiter 调用点零改动），现已无事可绕，仅作历史语义占位。
+        // ★ T-C2：原「3 秒 TTL」判据依赖 force==false，而全库 2 处调用点都传 force:true ⇒ 早已是死逻辑。
+        //   删除后节流交给 RestoreArbiter + _restoreMemo；force 参数保留（签名不变）。详见 docs/diy-restore.md
         CrashProbe.Enter("Meta.Resizer.Attach");
         try { ContainerWindowResizer.Attach(item); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         CrashProbe.Exit("Meta.Resizer.Attach");

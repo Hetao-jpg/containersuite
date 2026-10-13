@@ -442,5 +442,4 @@ internal static class ContainerExpander
 
 
 // ============ Tag ============
-// F（2026-10-04）：SetItemTag / SafeTagInt 已抽取到 ContainerSuite.Shared.TagUtil。
-// 本文件直接调 TagUtil.*，不再本地实现。
+// Tag 读写走 ContainerSuite.Shared.TagUtil。

@@ -1,4 +1,4 @@
-// S2 阶段创建。容器尺寸恢复仲裁器，从 DIYUpgrade 搬并解耦。
+// 容器尺寸恢复仲裁器。
 // 设计文档：ContainerSuite S2 §3.8
 //
 // 与 DIYUpgrade 原版的差异：

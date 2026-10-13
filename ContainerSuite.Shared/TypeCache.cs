@@ -1,4 +1,4 @@
-// S2 阶段创建。反射类型查找缓存，从 DIYUpgrade 的 FindTypeCached 提取。
+// 反射类型查找缓存。
 // 设计文档：ContainerSuite S2 §3.3
 //
 // 与 DIYUpgrade 原版的差异：

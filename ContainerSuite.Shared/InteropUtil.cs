@@ -1,4 +1,4 @@
-// S8s（2026-10-05）：从 SBE / DIY 两边重复的小工具抽取到 Shared。
+// 三 Mod 共用的小工具。
 //
 // 抽取范围（3 项，都是零风险的小函数）：
 //   · TrySilent(Action) —— 吞异常 + 转发 CatchLogOnce（按 where 去重）

@@ -39,13 +39,8 @@ public sealed class Mod : MelonMod
     public override void OnInitializeMelon()
     {
         Log = LoggerInstance;
-        // S5：统一显示套件版本 + 一行组件版本（组件自己不再各报一个版本号）
+        // 统一显示套件版本 + 一行组件版本（组件不再各报一个版本号）
         LoggerInstance.Msg(SuiteVersion.Banner);
-
-        // ★ 2026-10-10：原先这里要抢在 CI / SBE 的 Init（它们都会 SaveToFile）之前
-        //   抓旧段快照（[SaveBagExpand]/[DIYUpgrade]/[自定义容器升级]），供「三段并一段」
-        //   迁移用。该迁移已按终止线（SuiteVersion.MinSupportedFrom = 1.7.4）整段删除，
-        //   早于 1.7.4 的旧格式不再迁移，故这一步不再需要。
 
         try
         {
