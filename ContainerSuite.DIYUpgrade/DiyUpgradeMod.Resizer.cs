@@ -420,24 +420,10 @@ public static partial class DiyUpgradeMod
             {
                 if (_activeEdge == ResizeEdge.None) return false;
 
-                // ── 临时诊断：收尾**前**（IsDragging=true）采一次 ──
-                // P1-3：随 ResizeDiag 实现移入 #if DIAG。
-#if DIAG
-                try { DiyUpgradeMod.ResizeDiagDump(Item, "DRAGGING", _activeEdge.ToString()); } catch { }
-#endif
-
-                _lastDragEdge = _activeEdge;   // 方向留档（_activeEdge 下面会被清空）
                 _activeEdge = ResizeEdge.None;
                 if (_activeDragCount > 0) _activeDragCount--;
                 PersistShapeOnFinish();
                 RebuildVisualsOnFinish();
-
-                // ── 临时诊断：收尾**后**（IsDragging=false，RefreshAllGridsOf 已跑完）采一次 ──
-                // P1-3：随 ResizeDiag 实现移入 #if DIAG。
-#if DIAG
-                try { DiyUpgradeMod.ResizeDiagDump(Item, "FINISH", _lastDragEdge.ToString()); } catch { }
-#endif
-
                 SchedulePostDragRefresh();
                 ResizeCursor.Reset();
                 return true;

@@ -218,11 +218,8 @@ public static partial class DiyUpgradeMod
         private static PollThrottle _handleCheckGate;
         private static int _activeDragCount = 0;
 
-        // 【2026-10-10 临时诊断】最近一次拖拽用的边（判定方向性用）。
-        //   FinishDrag 会把 _activeEdge 清成 None，而这个副作用正是"从上压 vs 从下压"
-        //   唯一的区分依据，故单独留一份。定性后连同 ResizeDiag 一起删除。
-        private static ResizeEdge _lastDragEdge = ResizeEdge.None;
-        internal static string LastDragEdgeName => _lastDragEdge.ToString();
+        // （2026-10-13：_lastDragEdge / LastDragEdgeName 原为 ResizeDiag 记录拖拽方向用，
+        //   随该探针一并删除。）
         // ═══════════════════════════════════════════════════════════════
         // S8r（2026-10-05）性能优化：DIY tick 常驻开销从 60~80μs 降到 <15μs。
         //

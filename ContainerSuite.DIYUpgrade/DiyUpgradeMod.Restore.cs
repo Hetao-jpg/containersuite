@@ -193,26 +193,12 @@ public static partial class DiyUpgradeMod
                 && memo.Changed == 0 && memo.Ok
                 && string.Equals(memo.Sig, sigBefore, StringComparison.Ordinal))
             {
-                changed = 0;
-                // P1-3：R1 探针只在 DIAG 构建存在。
-#if DIAG
-                try
-                {
-                    if (_r1Probe != null && _r1Probe.Value)
-                        R1ProbeLog($"=== R1Probe MEMO-SKIP item={(item?.identifier ?? "?")} sig={sigBefore} ===");
-                }
-                catch { }
-#endif
+                // （2026-10-13：R1 探针的 MEMO-SKIP 记录随探针一并删除。）
                 return true;
             }
         }
 
         CrashProbe.Enter("Core.ApplyShapes");
-        // P1-3：R1 探针只在 DIAG 构建存在。
-#if DIAG
-        if (_r1Probe != null && _r1Probe.Value)
-            R1ProbeLog($"=== R1Probe LOAD {DateTime.Now:yyyy-MM-dd HH:mm:ss} item={(item?.identifier ?? "?")} ===");
-#endif
         changed = RestoreApplyShapes(item, invs, targets);
         CrashProbe.Exit("Core.ApplyShapes");
         CrashProbe.Enter("Core.RememberPrimary");
@@ -307,87 +293,24 @@ public static partial class DiyUpgradeMod
         return list;
     }
 
-    /// <summary>应用形状，返回真正改动过的槽位数。R1 探针开启时记录每个容器的恢复前/后尺寸。</summary>
+    /// <summary>应用形状，返回真正改动过的槽位数。</summary>
     private static int RestoreApplyShapes(GameItem item, List<GameGridInventory> invs, List<(int Index, int W, int H)> targets)
     {
         int changed = 0;
-        // P1-3：探针相关局部变量与调用只在 DIAG 构建存在（避免 Release 下未使用变量告警）。
-#if DIAG
-        bool probe = _r1Probe != null && _r1Probe.Value;
-        string id = (item != null && item.identifier != null) ? item.identifier : "?";
-#endif
         foreach (var t in targets)
         {
             GameGridInventory inv = invs[t.Index];
             if (inv?.inventoryShape == null) continue;
             int beforeW = inv.inventoryShape.width, beforeH = inv.inventoryShape.height;
-            if (beforeW == t.W && beforeH == t.H)
-            {
-#if DIAG
-                if (probe) R1ProbeLog($"SKIP id={id} idx={t.Index} w={beforeW} h={beforeH} (already target)");
-#endif
-                continue;
-            }
+            if (beforeW == t.W && beforeH == t.H) continue;
 
             SetShapeKeepTransparency(inv, t.W, t.H);
             try { inv.ForceRecomputeDynamicBackground(); }
             catch (Exception ex) { CatchLogOnce.Warn(ex); }
-#if DIAG
-            int afterW = inv.inventoryShape.width, afterH = inv.inventoryShape.height;
-#endif
             changed++;
-#if DIAG
-            if (probe) R1ProbeLog($"CHANGED id={id} idx={t.Index} before={beforeW}x{beforeH} after={afterW}x{afterH} target={t.W}x{t.H}");
-#endif
         }
-#if DIAG
-        if (probe) R1ProbeLog($"SUMMARY id={id} changed={changed} totalTargets={targets.Count}");
-#endif
         return changed;
     }
-
-    // ── R1 探针：会话存活标记 + 写盘容错 ──
-    // 旧实现只在"读档真的恢复 DIY 容器"时才落盘，导致开了探针却没有 DIY 容器时
-    //   文件根本不出现，用户无法判断探针是否生效。新增：
-    //   ① R1ProbeSessionStart：每会话首次 Tick 写一行"ACTIVE"，保证开探针必有文件；
-    //   ② R1ProbeLog 加杀毒兜底路径（.b）与冷却重试，避免文件被锁时静默失效
-    //     （本机 360/Defender/卡巴常锁新文件，CrashProbe 已踩过）。
-    // P1-3：R1 探针实现整体移入 #if DIAG，Release 产物不含（也无 "R1Probe" 字符串）。
-#if DIAG
-    private static bool _r1SessionLogged;
-    private static bool _r1UseAltPath;
-    private static DateTime _r1RetryAfter = DateTime.MinValue;
-
-    /// <summary>每会话首次调用时写一行"探针存活"标记，确保开探针必有文件（即使本会话 0 个 DIY 容器）。</summary>
-    internal static void R1ProbeSessionStart()
-    {
-        if (_r1Probe == null || !_r1Probe.Value) return;
-        if (_r1SessionLogged) return;
-        _r1SessionLogged = true;
-        R1ProbeLog($"=== R1Probe ACTIVE {DateTime.Now:yyyy-MM-dd HH:mm:ss} (session start; restores logged during load) ===");
-    }
-
-    /// <summary>R1 探针写盘：每次读档逐容器记录。路径 UserData/ContainerSuite.r1probe.txt；主路径被锁时切 .b。</summary>
-    private static void R1ProbeLog(string line)
-    {
-        try
-        {
-            if (DateTime.UtcNow < _r1RetryAfter) return;   // 冷却期内静默跳过（不放弃，冷却后自动恢复）
-            string basePath = System.IO.Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory, "ContainerSuite.r1probe.txt");
-            string path = _r1UseAltPath ? basePath + ".b" : basePath;
-            try
-            {
-                System.IO.File.AppendAllText(path, line + "\n");
-            }
-            catch
-            {
-                if (!_r1UseAltPath) { _r1UseAltPath = true; System.IO.File.AppendAllText(basePath + ".b", line + "\n"); }
-                else throw;
-            }
-        }
-        catch { _r1RetryAfter = DateTime.UtcNow.AddSeconds(1); }   // 失败冷却 1 秒（杀毒/瞬时锁会消失）
-    }
-#endif
 
     private static void RestoreRememberPrimary(GameItem item, List<GameGridInventory> invs)
     {

@@ -68,12 +68,10 @@ public static partial class DiyUpgradeMod
     {
         get { try { return _groupDragEnabled == null || _groupDragEnabled.Value; } catch { return true; } }
     }
-    /// <summary>R1 实测探针：读档恢复时记录每个已升级容器的尺寸是否被改动。默认关，零噪音。</summary>
-    /// <remarks>P1-3：探针仅在 DIAG 构建存在，故字段一并条件编译。</remarks>
+    // ── DIAG 专属的实验开关（Release 下不注册、不留字段）─────────────────
+    // 2026-10-13：R1 探针（_r1Probe）与暂存取证探针（_resizeDiag）已随各自实现删除，
+    //   详见 DiyUpgradeMod.Core.cs 里同批次的删除说明。这里只保留尚在验证期的 T5 实验项。
 #if DIAG
-    private static MelonPreferences_Entry<bool> _r1Probe;
-    // 2026-10-10 临时：拖拽缩放网格残留取证开关（见 DiyUpgradeMod.ResizeDiag.cs）。定性后删除。
-    private static MelonPreferences_Entry<bool> _resizeDiag;
     // T5（2026-10-12，借鉴蛙哥的调用点、只做**实验**）：升级收尾是否补调
     // GameItem.SyncModifiedState()。默认关 —— 该 API 的语义未定论（只知道蛙哥在批量升级
     // 收尾与骰子吸收后调它，而本套件全树零调用），所以先做成可开关的观测，不直接进正式路径。

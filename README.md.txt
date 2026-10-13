@@ -17,9 +17,9 @@
 - 主仓库分页：按 TAB 切页（**拖着物品时也能切**：拿起 → TAB → 松手，物品直接落到新页）
 - 滚轮滚动：鼠标悬停容器上滚轮浏览
 - 容器升级：按住 LeftAlt 拖金属锭到容器上
-- 升级名单/尺寸可配：哪些物品能升级、每个容器最大能多大，都在 UserData\ContainerSuite\containers.txt（详见下文）
+- 升级名单/尺寸可配：哪些物品能升级、每个容器最大能多大，都能改（详见下文「配置」）
 - 拖边改尺寸：拖窗口边缘调整大小（需先升级过）
-- 地面窗口：可改大小（7F）/ 鼠标拖动（7G）
+- 地面窗口：可改大小（2F）/ 鼠标拖动（2G）
 - 读档恢复：已升级容器尺寸自动恢复
 - 基础设施扩容：垃圾桶 / 档案箱 / 磁带播放器
 - Mod 避让：内置对 XIAOWO / 蛙哥的兼容开关
@@ -59,43 +59,56 @@ TAB               主仓库切页（拖着物品时也能按）
 
 常用：
 0_EnableMod              总开关（开）
-7_ExpandEnabled          仓库扩容（开）
-8_SaveBagPagingEnabled   主仓库分页（开）
-8A_SaveBagPageCount      分页页数（2）
-9_ScrollEnabled          滚轮（开）
-22_EnableDragResize      拖边改尺寸（开）
-23_RestoreOnLoad         读档恢复（开）
-7F_AfterhourWidth/Height 地面宽高（12×9）
-7G_GroundDragEnabled     地面拖动（开）
-21_UpgradeHotkey         升级键（LeftAlt）
+2_ExpandEnabled          仓库扩容（开）
+3_SaveBagPagingEnabled   主仓库分页（开）
+3A_SaveBagPageCount      分页页数（2）
+4_ScrollEnabled          滚轮（开）
+1E_EnableDragResize      拖边改尺寸（开）
+1F_RestoreOnLoad         读档恢复（开）
+2F_AfterhourWidth/Height 地面宽高（12×9）
+2G_GroundDragEnabled     地面拖动（开）
+1D_UpgradeHotkey         升级键（LeftAlt）
 z1_DiagLog               诊断日志（关）
 
 避让开关（装 XIAOWO / 蛙哥时）：
-3A_SkipXiaoBay   XIAOWO 货舱（true = 本 mod 管）
-3B_SkipWageBox   蛙哥妙妙箱（true = 本 mod 管）
-3C_SkipVoidBead  虚空珠（true = 归蛙哥；false = 本 mod 接管）
+6A_SkipXiaoBay   XIAOWO 货舱（true = 本 mod 管）
+6B_SkipWageBox   蛙哥妙妙箱（true = 本 mod 管）
+6C_SkipVoidBead  虚空珠（true = 归蛙哥；false = 本 mod 接管）
 
 改完保存重启生效（避让开关同帧生效）。
 
-容器升级的白名单与尺寸上限
-在 UserData\ContainerSuite\containers.txt（首次启动自动生成，文件里自带完整说明）。
+容器升级的名单与上限（三层，由粗到细）
+全部在同一个文件里：UserData/MelonPreferences.cfg 的 [CustomInfrastructure] 段。
+★ 没有第二个配置文件 —— 2026-10-13 起取消了 UserData\ContainerSuite\containers.txt，
+  改这里就是改全部，不用纠结"到底哪个生效"。
 
-- [whitelist] 哪些物品算"可升级容器"（按类别，逗号分隔 id）
-- [limits]    每个容器 id 单独的宽×高上限
+第一层 7x_ 分类上限（最常用，面板里能改）
+7A_Box / 7B_Backpack / 7C_Cage / 7D_MultiSlot / 7E_MultiSlotModule
+7F_ModContainer / 7G_WageBox / 7H_WageBackpack
+每类 3~4 条：Enable（这一类允许升级吗）/ MaxW（最大宽）/ MaxH（最大高）
+              / AlignSlots（多槽容器各槽是否同尺寸）
 
-★ 文件里的「对照表」已经把**目前生效的每个容器**按 `id = 宽x高` 列好了，并且带中文名，
-  例如 `storage_bay = 50x30  储藏区`（右边数字就是它现在最多能升到的尺寸）。
-  想给某个容器单独设上限：把那一行**照抄到文件最底下** → 去掉行首的 `#` → 改数字 →
-  存盘即可（也可以只写在对照表后面，位置不影响）。
-★ 没单独写的容器，用上面 [whitelist] 里它那个类别的默认上限。
-  ⚠ 改得太小、装不下容器里现有的东西时，这次改动不会生效，日志里会有一条提示。
-★ [whitelist] 里声明过的类别就**以文件为准**，MelonPreferences.cfg 里对应的 *Ids
-  不再生效，不用两边同时改。想恢复某一类的出厂名单，把那一**整行**删掉
-  （不是留空 —— 留空表示这类容器全部不能升级）。
-★ 这个文件**存盘后 2 秒内自动生效，不用重启**。
-★ 说明文字与「对照表」由套件自动维护（跟进新版本、以及你改过的 cfg 上限）：
-  只会覆盖这些说明，**你的名单和上限一行不动**；改动前的原件会留一份
-  containers.txt.bak。所以别去手改对照表，你的设置写在它下面。
+第二层 <类别>Ids 升级名单（手改 cfg）
+BoxIds / BackpackIds / CageIds / MultiSlotIds / MultiSlotModuleIds …
+· 逗号分隔的物品 id。想加一个容器：把它的 id 加到对应那一行末尾，前面补逗号。
+· 想去掉一个：把它的 id 从那一行删掉。⚠ 留空 = 这一类全部不能升级。
+· 每条里面出现过的类别，都已由代码自动补齐新容器（只加不删，日志会说补了什么）。
+
+第三层 8A_PerIdSizeLimits 单个容器上限（最细，手改 cfg）
+写成一行：8A_PerIdSizeLimits = "storage_bay=30x20, evidence_box=24x24"
+· 一个 `容器id=宽x高`，多个用逗号隔开；数字 1~100。
+· 写了就**完全覆盖**它那一类的 7x_ 上限（可以改大，也可以改小）。
+· 没写的容器照样用第一层。
+· ⚠ 改得太小、装不下容器里现有的东西时，这次改动不生效，日志里会有一条点名提示。
+· ⚠ 它是字符串项，ModManager 面板里**看不到**（面板只显示开关/数字/热键），只能手改 cfg。
+
+怎么知道我配没配上：启动后看游戏日志（MelonLoader/Latest.log），会有一行
+「[容器升级] 单独设了上限的容器共 N 件：storage_bay=30x20（储藏区）…」
+一条都没配就是「没有为单个容器单独设上限 → 全部使用「容器升级·分类」里的上限」。
+
+改完生效时机
+· 面板（ModManager）里改：点「应用配置」后同帧生效，不用重启。
+· 直接编辑 cfg：保存后重启游戏生效（面板方式推荐）。
 
 重要限制
 主仓库分页第 2 页及以后，游戏原版检测不到：
@@ -103,7 +116,7 @@ z1_DiagLog               诊断日志（关）
 - 治安官查不出赃物/违禁品
 - 博士可能重复购买
 
-规避：需要被识别的物品放第 1 页，或关闭分页 8_SaveBagPagingEnabled = false。
+规避：需要被识别的物品放第 1 页，或关闭分页 3_SaveBagPagingEnabled = false。
 这不是丢档，是原版检测范围限制。
 
 注意事项
@@ -113,8 +126,8 @@ z1_DiagLog               诊断日志（关）
 - 虚空珠移交本 mod 不可逆
 - 充能器超过 4 格只显示前 4 颗电池贴图，容量不受影响
 - 分页总件数超出单网格容量时，存档会红字警告，明细看 UserData\SaveBagPaging.mergeloss.txt
-- containers.txt 里的说明文字和「对照表」由套件自动维护（会覆盖你改过的说明）；
-  你自己要设的上限写在对照表**下面**，那里不会被覆盖
+- 容器升级的名单与上限只在 [CustomInfrastructure] 段一处维护，不要再去找 containers.txt
+  （2026-10-13 起该功能已取消；留着的旧文件不生效，可以删掉）
 
 兼容性
 已避让：XIAOWOTradePerks / WagePerks（蛙哥）

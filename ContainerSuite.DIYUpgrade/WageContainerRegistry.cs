@@ -102,11 +102,13 @@ internal static class WageContainerRegistry
     public static bool ShouldCreateWageEntries(string categoryId)
     {
         if (IsWageModPresent()) return true;
-        // 2026-10-07 键名重排：旧键名 WageBoxEnable 改成了 5B_WageBoxEnable。
-        //   两个都要查 —— 用户此刻可能还没走迁移（cfg 里仍是旧键名），
-        //   漏查旧名会让"装了蛙哥 mod 又卸掉"的玩家丢掉整个妙妙箱配置段。
-        return DiyUpgradeMod.CfgSectionHasKey(categoryId, "WageBoxEnable")
-            || DiyUpgradeMod.CfgSectionHasKey(categoryId, "5B_WageBoxEnable");
+        // 键名历经三代，三个名字都要查 —— 用户此刻很可能还没走迁移
+        //   （cfg 里仍是上一代的键名），漏查旧名会让"装了蛙哥 mod 又卸掉"的玩家
+        //   直接丢掉整个妙妙箱配置段（没有报错的那种丢）。
+        //   ★ 这些是**历史名**，故意留字面量：它们本来就不该出现在 CfgKeys 里。
+        return DiyUpgradeMod.CfgSectionHasKey(categoryId, "WageBoxEnable")            // 第 1 代
+            || DiyUpgradeMod.CfgSectionHasKey(categoryId, "5B_WageBoxEnable")         // 第 2 代
+            || DiyUpgradeMod.CfgSectionHasKey(categoryId, CfgKeys.WageBox.Enable);    // 当前
     }
 
     // 会话内结果稳定（Mods 目录不会在运行中变化），缓存一次，避免每次配置枚举都扫盘。
@@ -144,17 +146,17 @@ internal static class WageContainerRegistry
         // 2026-10-08：默认值改从 DiyUpgradeMod.DefaultIdLists 取（单一事实源），
         //   否则这三条 ID 串与 EnsureDefaultIds 的补齐逻辑各写一遍、必然漂移。
         _wageBox = DiyUpgradeMod.CreateGridDef(
-            cat, "WageBox", "蛙哥妙妙箱",
-            DiyUpgradeMod.DefaultIdsOf("WageBox"), 1, 52, 30, null, "蛙哥妙妙箱（WageMod）", true, "5B_");
+            cat, CfgKeys.WageBox, "蛙哥妙妙箱",
+            DiyUpgradeMod.DefaultIdsOf("WageBox"), 1, 52, 30, null, "蛙哥妙妙箱（WageMod）", true);
 
         _wageBackpack = DiyUpgradeMod.CreateGridDef(
-            cat, "WageBackpack", "虚空珠储物袋",
-            DiyUpgradeMod.DefaultIdsOf("WageBackpack"), 1, 34, 10, null, "虚空珠储物袋（WageMod）", true, "5C_");
+            cat, CfgKeys.WageBackpack, "虚空珠储物袋",
+            DiyUpgradeMod.DefaultIdsOf("WageBackpack"), 1, 34, 10, null, "虚空珠储物袋（WageMod）", true);
 
         _modContainer = DiyUpgradeMod.CreateGridDef(
-            cat, "ModContainer", "Mod容器",
+            cat, CfgKeys.ModContainer, "Mod容器",
             DiyUpgradeMod.DefaultIdsOf("ModContainer"), 1, 20, 20, null,
-            "WageMod 机器容器（养蛊机 / AI 生成器）", true, "5A_");
+            "WageMod 机器容器（养蛊机 / AI 生成器）", true);
     }
 
     // ============ 识别（全部走 NormalizeId）============

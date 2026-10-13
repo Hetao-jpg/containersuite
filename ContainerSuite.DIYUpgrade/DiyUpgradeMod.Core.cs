@@ -41,12 +41,12 @@ public static partial class DiyUpgradeMod
         //   必须复用 CI 已创建的同一个 category 实例（否则同名段注册两次、保存互相覆盖）。
         MelonPreferences_Category category = ContainerSuite.Shared.MelonPrefsUtil.GetOrCreate(
             ContainerSuite.Shared.MelonPrefsUtil.SuiteCategoryId, "自定义基础设施大小");
-        _materialJunk = category.CreateEntry<bool>("1A_MaterialJunk", false, (string)null, "升级材料：使用垃圾", false, false, (ValueValidator)null, (string)null);
-        _materialScrapMetal = category.CreateEntry<bool>("1B_MaterialScrapMetal", false, (string)null, "升级材料：使用废金属", false, false, (ValueValidator)null, (string)null);
-        _materialMetalIngot = category.CreateEntry<bool>("1C_MaterialMetalIngot", true, (string)null, "升级材料：使用金属锭", false, false, (ValueValidator)null, (string)null);
-        _upgradeKey = category.CreateEntry<string>("21_UpgradeHotkey", "LeftAlt", (string)null, "升级修饰键", false, false, (ValueValidator)null, (string)null);
-        _enableDragResize = category.CreateEntry<bool>("22_EnableDragResize", true, (string)null, "是否启用拖拽调整窗口大小", false, false, (ValueValidator)null, (string)null);
-        _cageHpPerCell = category.CreateEntry<int>("4C_CageHpPerCell", 20, (string)null, "老鼠笼/动物笼 每格血量加成", false, false, (ValueValidator)null, (string)null);
+        _materialJunk = category.CreateEntry<bool>(CfgKeys.MaterialJunk, false, (string)null, "升级材料：使用垃圾", false, false, (ValueValidator)null, (string)null);
+        _materialScrapMetal = category.CreateEntry<bool>(CfgKeys.MaterialScrapMetal, false, (string)null, "升级材料：使用废金属", false, false, (ValueValidator)null, (string)null);
+        _materialMetalIngot = category.CreateEntry<bool>(CfgKeys.MaterialMetalIngot, true, (string)null, "升级材料：使用金属锭", false, false, (ValueValidator)null, (string)null);
+        _upgradeKey = category.CreateEntry<string>(CfgKeys.UpgradeHotkey, "LeftAlt", (string)null, "升级修饰键", false, false, (ValueValidator)null, (string)null);
+        _enableDragResize = category.CreateEntry<bool>(CfgKeys.EnableDragResize, true, (string)null, "是否启用拖拽调整窗口大小", false, false, (ValueValidator)null, (string)null);
+        _cageHpPerCell = category.CreateEntry<int>(CfgKeys.CageHpPerCell, 20, (string)null, "老鼠笼/动物笼 每格血量加成", false, false, (ValueValidator)null, (string)null);
         // 2026-10-06 合并（B2）：三段并成一段后键名必须互不冲突，只有 DiagLog 撞名
         //   （CI / SBE / DIY 各一个）。CI 保留 DiagLog、SBE 改 SaveBag_DiagLog，
         //   本模块改 DIY_DiagLog。迁移时旧段的 DiagLog 会被重映射到这个新键。
@@ -55,27 +55,29 @@ public static partial class DiyUpgradeMod
         //   所有 `_diagLog.Value` 读取点一行未改；旧键 DIY_DiagLog 由
         //   MigrateDiagKeys 做 OR 迁移 + 三处清理（见下）。
         _diagLog = CustomInfrastructure.CustomInfrastructureConfig.DiagLog;
-        _restoreOnLoad = category.CreateEntry<bool>("23_RestoreOnLoad", true, (string)null, "读档后恢复已升级容器的尺寸（若读档崩溃请改成 false）", false, false, (ValueValidator)null, (string)null);
+        _restoreOnLoad = category.CreateEntry<bool>(CfgKeys.RestoreOnLoad, true, (string)null, "读档后恢复已升级容器的尺寸（若读档崩溃请改成 false）", false, false, (ValueValidator)null, (string)null);
         // ── 阶段1（2026-10-11）：批量组拖升级开关，默认开 ──────────────────
         //   补丁常驻，本开关只短路判据（不 Unpatch —— IL2CPP 上动态重装 detour
         //   是崩溃诱因，见 S8k 避让开关注释）。键名 26_ 延续 2x 序。
-        _groupDragEnabled = category.CreateEntry<bool>("26_EnableGroupDrag", true, (string)null, "批量框选升级：按住升级键框选多堆材料拖到容器上，连续升级（只对同一容器生效）", false, false, (ValueValidator)null, (string)null);
+        _groupDragEnabled = category.CreateEntry<bool>(CfgKeys.EnableGroupDrag, true, (string)null, "批量框选升级：按住升级键框选多堆材料拖到容器上，连续升级（只对同一容器生效）", false, false, (ValueValidator)null, (string)null);
         // P1-3：R1 探针项连实现一起移入 #if DIAG，Release 不再创建该键。
+        //
+        //   ★ 2026-10-13 删除：R1 探针（`24_R1Probe` + Restore.cs 的 R1ProbeLog 全套）
+        //     和拖拽暂存取证探针（`25_ResizeDiag` + DiyUpgradeMod.ResizeDiag.cs 整文件）
+        //     的取证目标都已完成：
+        //       · ResizeDiag 的假设已被 GridFx.HideOutOfBoundsNodes 的实测数据推翻并修正
+        //         （见 GridFx.cs 的「2026-10-10 实测修正」注释块）；
+        //       · R1 要回答的"游戏是否持久化升级后尺寸"早已由 _metaCache + tag 持久化解答
+        //         （答案：不持久化，本套件靠 DIY_UPGRADE_*_TAG 自己记忆）。
+        //     两者都是每会话往 UserData 写文本的实验脚手架，留着只会污染 cfg 与代码。
+        //     需要时可从 git 历史找回（commit 4af13c6 之前）。
+        // P1-3：同步修饰状态实验开关（T5），保留。
 #if DIAG
-        _r1Probe = category.CreateEntry<bool>("24_R1Probe", false, (string)null, "[诊断] R1探针·读档恢复：记录读档时每个已升级容器的尺寸是否被改动（用于判定存档是否持久化升级尺寸）。默认关。", false, false, (ValueValidator)null, (string)null);
-#endif
-        // 【2026-10-10 临时诊断】拖拽缩放「从上压缩 → 网格残留」取证开关。
-        //   默认**开**（取证期间需要无条件留痕，不进 Diag 闸门 —— 项目教训：
-        //   默认静默的日志会被误读成"没执行"）。定性后连同 DiyUpgradeMod.ResizeDiag.cs 一起删除。
-        //   P1-3：连同实现一起移入 #if DIAG，Release 不再创建该键。
-#if DIAG
-        _resizeDiag = category.CreateEntry<bool>("25_ResizeDiag", true, (string)null, "[诊断·临时] 拖拽缩放网格残留取证：记录每次拖拽收尾时网格节点的 y 分布与填充底健康判定。默认开，定位完成后会移除。", false, false, (ValueValidator)null, (string)null);
-        // T5（2026-10-12）：SyncModifiedState 实验开关。默认**关**。
         //   为什么做成开关而不是直接加：GameItem.SyncModifiedState() 的语义未经核实
         //   （只从蛙哥源码看到它在"批量升级收尾 / 骰子吸收后"调用；本套件此前零调用）。
         //   打开后：每次成功升级的收尾会补调一次，并在异常时无条件留痕 ——
         //   用于回答"我们是不是漏了这一步同步"。定性后再决定转正或删除。
-        _syncStateProbe = category.CreateEntry<bool>("27_SyncModifiedStateProbe", false, (string)null, "[诊断·实验] 升级收尾补调 GameItem.SyncModifiedState()：验证本套件是否漏了这一步游戏侧同步。默认关。", false, false, (ValueValidator)null, (string)null);
+        _syncStateProbe = category.CreateEntry<bool>(CfgKeys.SyncModifiedStateProbe, false, (string)null, "[诊断·实验] 升级收尾补调 GameItem.SyncModifiedState()：验证本套件是否漏了这一步游戏侧同步。默认关。", false, false, (ValueValidator)null, (string)null);
 #endif
         // ── S8k：避让热开关（2026-10-02）────────────────────────────────────
         // 语义：「关」= 把尺寸主权交还给对方 mod；默认「开」= 全权优先。
@@ -84,15 +86,15 @@ public static partial class DiyUpgradeMod
         // Internal CLR error 0x80131506。
         // ★ 虚空珠（S8k 时刻意不给开关）在 S8l 改为一个**语义相反**的「移交门」，
         //   见下面的 3C_SkipVoidBead。原因与语义详见 State.cs 字段注释。
-        _skipXiaowoBay = category.CreateEntry<bool>("3A_SkipXiaoBay", true, (string)null, "避让·精工扩舱（关掉则 6 个货舱的尺寸主权交还 XIAOWO）", false, false, (ValueValidator)null, (string)null);
-        _skipWageBox = category.CreateEntry<bool>("3B_SkipWageBox", true, (string)null, "避让·蛙哥妙妙箱（关掉则满级妙妙箱的尺寸主权交还蛙哥）", false, false, (ValueValidator)null, (string)null);
+        _skipXiaowoBay = category.CreateEntry<bool>(CfgKeys.SkipXiaoBay, true, (string)null, "避让·精工扩舱（关掉则 6 个货舱的尺寸主权交还 XIAOWO）", false, false, (ValueValidator)null, (string)null);
+        _skipWageBox = category.CreateEntry<bool>(CfgKeys.SkipWageBox, true, (string)null, "避让·蛙哥妙妙箱（关掉则满级妙妙箱的尺寸主权交还蛙哥）", false, false, (ValueValidator)null, (string)null);
         // ── S8l：虚空珠移交门（默认 true = 避让开 = 蛙哥全权，原机制可用）────
         // 语义与上面两个**相反**：这里"开"= 蛙哥全权。玩家按住升级键拖材料
         // 即自动永久移交；关掉本项 = 断掉移交可能，无条件归 DIY（S8j 旧行为）。
         // 键名沿用历史语义（看着像"跳过虚空珠"，实为"移交门"）。
         // 2026-10-07 键名重排：只加域号前缀变成 3C_SkipVoidBead，名字本身不动；
         //   语义以描述文案为准。
-        _skipVoidBead = category.CreateEntry<bool>("3C_SkipVoidBead", true, (string)null, "避让·蛙哥虚空珠。⚠ 语义与其他 Skip* 项相反：true=蛙哥主权（保原版逐格解锁；按住升级键拖材料到虚空珠=永久移交 DIY），false=无条件归 DIY（排查冲突才用）", false, false, (ValueValidator)null, (string)null);
+        _skipVoidBead = category.CreateEntry<bool>(CfgKeys.SkipVoidBead, true, (string)null, "避让·蛙哥虚空珠。⚠ 语义与其他 Skip* 项相反：true=蛙哥主权（保原版逐格解锁；按住升级键拖材料到虚空珠=永久移交 DIY），false=无条件归 DIY（排查冲突才用）", false, false, (ValueValidator)null, (string)null);
         // 【2026-10-10】僵尸手柄清扫开关。★ **唯一权威默认值写在这里** —— 其余文件只引用本处、
         //   不得各写一份数字（曾经 3 处各写一份且互相矛盾，见 容器优化方案.md P0-1）。
         //   默认 **false（不清扫）**：09:17 实测「门禁 + 2s 消抖都生效、世界就绪后 2.5 秒执行
@@ -100,32 +102,37 @@ public static partial class DiyUpgradeMod
         //   17:40 虽把清扫改为「熄火」（SetActive(false)，不再反射调 XIAOWO 的 DestroyHandles），
         //   但该改动**尚未经新一次实机 A/B 证明不崩**，故在拿到新证据前保持 fail-safe：不清扫。
         //   排查/复验时置 true：开=崩、关=不崩 即为坐实崩点的最小实验。
-        _sweepZombieHandles = category.CreateEntry<bool>("3D_SweepZombieHandles", false, (string)null, "清理 XIAOWO 残留拖拽手柄（熄火式：SetActive(false)）。默认关：旧崩溃未复验，置 true 前请先实机确认不崩", false, false, (ValueValidator)null, (string)null);
+        _sweepZombieHandles = category.CreateEntry<bool>(CfgKeys.SweepZombieHandles, false, (string)null, "清理 XIAOWO 残留拖拽手柄（熄火式：SetActive(false)）。默认关：旧崩溃未复验，置 true 前请先实机确认不崩", false, false, (ValueValidator)null, (string)null);
         // 2026-10-07：原「每类别每槽」升级增量提升为全局两级（详见 DiyUpgradeMod.State.cs 字段注释）。
         //   必须先于任何 CreateGridDef 创建 —— CreateGridDef 内部会把各槽的 IncW/IncH 指向这两个共享条目。
-        _incW = category.CreateEntry<int>("5D_IncW", 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
-        _incH = category.CreateEntry<int>("5D_IncH", 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
-        _modIncW = category.CreateEntry<int>("5E_ModIncW", 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
-        _modIncH = category.CreateEntry<int>("5E_ModIncH", 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
+        _incW = category.CreateEntry<int>(CfgKeys.IncW, 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
+        _incH = category.CreateEntry<int>(CfgKeys.IncH, 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
+        _modIncW = category.CreateEntry<int>(CfgKeys.ModIncW, 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
+        _modIncH = category.CreateEntry<int>(CfgKeys.ModIncH, 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
         // ★ 2026-10-08：5 个 *Ids 的默认值改从 DefaultIdsOf(...) 取（单一事实源在
         //   DiyUpgrade.CfgMigration.DefaultIdLists）。
         //   为什么不把字面量留在这里：CreateEntry 的默认值**只在条目首次创建时生效**，
         //   老玩家 cfg 里已存着旧串 —— 只改这里的字面量对他们零效果（白名单认不出新容器，
         //   功能静默失效）。因此另配一次性补齐 EnsureDefaultIds，见下面 Init 的调用点。
-        _box = CreateGridDef(category, "Box", "箱子类容器", DefaultIdsOf("Box"), 1, 50, 30, null, "箱子类容器物品ID列表(逗号分隔)。", false, "4A_");
-        _backpack = CreateGridDef(category, "Backpack", "背包类容器", DefaultIdsOf("Backpack"), 1, 20, 20, null, "背包类容器物品ID列表(逗号分隔)。", false, "4B_");
-        _cage = CreateGridDef(category, "Cage", "老鼠笼/动物笼", DefaultIdsOf("Cage"), 1, 20, 20, null, "老鼠笼/动物笼物品ID列表(逗号分隔)。", false, "4C_");
+        _box = CreateGridDef(category, CfgKeys.Box, "箱子类容器", DefaultIdsOf("Box"), 1, 50, 30, null, "箱子类容器物品ID列表(逗号分隔)。");
+        _backpack = CreateGridDef(category, CfgKeys.Backpack, "背包类容器", DefaultIdsOf("Backpack"), 1, 20, 20, null, "背包类容器物品ID列表(逗号分隔)。");
+        _cage = CreateGridDef(category, CfgKeys.Cage, "老鼠笼/动物笼", DefaultIdsOf("Cage"), 1, 20, 20, null, "老鼠笼/动物笼物品ID列表(逗号分隔)。");
         // 2026-10-07：每槽开关合并到容器 Enable 后，「容器启用 = 启用所有格」⇒ slotCount 维持 4。
-        _multiSlot = CreateGridDef(category, "MultiSlot", "多槽容器", DefaultIdsOf("MultiSlot"), 4, 20, 20, null, "多槽容器物品ID列表(逗号分隔)。", false, "4D_");
-        _multiSlotModule = CreateGridDef(category, "MultiSlotModule", "机器模组槽", DefaultIdsOf("MultiSlotModule"), 4, 10, 10, new string[4] { "模组", "输入", "输出", "待定" }, "机器模组槽物品ID列表(逗号分隔)。", false, "4E_");
+        _multiSlot = CreateGridDef(category, CfgKeys.MultiSlot, "多槽容器", DefaultIdsOf("MultiSlot"), 4, 20, 20, null, "多槽容器物品ID列表(逗号分隔)。");
+        _multiSlotModule = CreateGridDef(category, CfgKeys.MultiSlotModule, "机器模组槽", DefaultIdsOf("MultiSlotModule"), 4, 10, 10, new string[4] { "模组", "输入", "输出", "待定" }, "机器模组槽物品ID列表(逗号分隔)。");
         // 没装蛙哥 mod 就不创建那 24 项（曾经装过则继续创建，避免把用户调过的值删掉）
         if (WageContainerRegistry.ShouldCreateWageEntries(category.Identifier))
             WageContainerRegistry.RegisterWageDefinitions(category);
         else
             _log?.Msg("[容器升级] 未检测到蛙哥相关 mod，跳过 WageBox / WageBackpack / ModContainer 配置项");
-        // 2026-10-07 键名重排：把旧键名（BoxEnable 等 77 项）的值搬到新键名（4A_BoxEnable 等）。
+        // S2（2026-10-13 改为 cfg 内的最后一条）：每容器 id 独立尺寸上限。
+        //   ★ 刻意放在**所有 GridDef 之后** —— 它在逻辑上是"比分类更细的一层"，
+        //     注册顺序决定了它写进 cfg 时也排在末尾（面板里同理），符合由总到分。
+        RegisterPerIdSizeLimits(category);
+        // 键名迁移（两代叠加，见 CfgMigration.Rename.KeyRenames）：把旧键名
+        //   （BoxEnable 等历史名 / 上一代的编号名）的值搬到 CfgKeys 里的当前键名。
         //   ★ 必须排在 MigrateIncKeys 之前 —— 它先把「全局 IncW/IncH/ModIncW/ModIncH」
-        //     搬到 5D_/5E_ 新键，随后 MigrateIncKeys 的「每槽→全局」合并只会"只升不降"，
+        //     搬到 IncW/IncH/ModIncW/ModIncH 的新键，随后 MigrateIncKeys 的「每槽→全局」合并只会"只升不降"，
         //     不会把已经正确的全局值压回去。
         //   （原「三段并一段」ApplyLegacySnapshot 已按终止线 MinSupportedFrom=1.7.4 删除，
         //     早于 1.7.4 的旧段格式不再迁移，见 DiyUpgrade.CfgMigration.cs 文件头。）
@@ -133,10 +140,6 @@ public static partial class DiyUpgradeMod
         MigrateIncKeys(category);             // 2026-10-07：把旧「每槽」升级增量合并到全局 IncW/IncH / ModIncW/ModIncH
         MigrateDiagKeys(category);            // 2026-10-07：三个模块的诊断开关合并为一个总开关（OR 迁移 + 清旧键）
         // 2026-10-08：把代码默认新增的物品ID追加进各 *Ids（只追加，不动玩家手改的值）。
-        // S2（2026-10-12）：先加载 UserData 配置文件 —— 它决定"哪些类别的白名单以文件为准"，
-        //   紧随其后的 EnsureDefaultIds 需要按这个信息决定「补 cfg」还是「补文件」，
-        //   再后面的 RefreshIdLists 才能取到生效后的白名单。
-        LoadContainerConfigFile(createIfMissing: true);
         EnsureDefaultIds(category);
         category.SaveToFile(true);
         RefreshIdLists();
@@ -149,6 +152,7 @@ public static partial class DiyUpgradeMod
         ((MelonEventBase<LemonAction<string, string>>)(object)_upgradeKey.OnEntryValueChanged).Subscribe((LemonAction<string, string>)delegate { RefreshUpgradeKey(); }, 0, false);
         ApplyConfigLabels();
         WarnAboutUnlabeledEntries(category);   // 自检：漏标中文名会在面板里露出英文键名
+        LogPerIdLimitsSummary();               // 每容器上限到底配成了什么样（无条件输出）
 
         // ═══════════════════════════════════════════════════════════════════
         // 2026-09-29：Harmony 实例列表化，避免 ReportPatchSummary 只统计主
@@ -266,13 +270,7 @@ public static partial class DiyUpgradeMod
 
     public static void Tick()
     {
-        // R1 探针存活标记（每会话一次）：开探针必有文件，避免"开了却看不到"的困惑。
-        // 2026-10-10 临时：拖拽残留取证探针存活标记（同上，开开关必有文件）。
-        // P1-3：随两个探针实现一起移入 #if DIAG；Release 无此调用。
-#if DIAG
-        R1ProbeSessionStart();
-        ResizeDiagSessionStart();
-#endif
+        // （2026-10-13：原「R1 探针 / ResizeDiag 存活标记」两块随两个探针一并删除。）
 
         // 【2026-10-09 读档崩溃定位】启动期（主菜单、门禁判断之前）一次性预热
         //   读档恢复链的 JIT —— 与 SBE 的 WarmupJit 同理，必须早于任何读档，
@@ -306,8 +304,6 @@ public static partial class DiyUpgradeMod
         //   未武装时方法内第一行就返回，常态零开销；内部全 try/catch，异常不外溢。
         ReconcileGroupDragArm();
 
-        // S2（2026-10-12）：配置文件热重载（2 秒节流；未加载 / 文件未改动时立即返回）。
-        TickContainerConfigFile();
         // S8m：原此处每帧调 SkipWageUpgradeRestore.TickDiagnostics()（F11）+
         //       SkipXiaowoBayRestore.TickDiagnostics()（F12），已随诊断台账一并移除
         //       （S8l 实机验证通过，台账属排障期脚手架）。恢复方法见两个文件内的注释块。

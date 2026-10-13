@@ -57,47 +57,47 @@ internal static class CustomInfrastructureConfig
             ContainerSuite.Shared.MelonPrefsUtil.SuiteCategoryId, "自定义基础设施大小");
 
         TrashcanEnable = Category.CreateEntry(
-            "6A_Trashcan_Enable", true,
+            CfgKeys.TrashcanEnable, true,
             "[基建] 垃圾桶·启用",
             "是否扩容垃圾桶。false=保持原版尺寸。");
 
         TrashcanWidth = Category.CreateEntry(
-            "6A_Trashcan_Width", 12,
+            CfgKeys.TrashcanWidth, 12,
             $"[基建] 垃圾桶·宽 ({MinSize}-{MaxSize})",
             $"垃圾桶网格的目标列数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
 
         TrashcanHeight = Category.CreateEntry(
-            "6A_Trashcan_Height", 12,
+            CfgKeys.TrashcanHeight, 12,
             $"[基建] 垃圾桶·高 ({MinSize}-{MaxSize})",
             $"垃圾桶网格的目标行数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
 
         DossierEnable = Category.CreateEntry(
-            "6B_Dossier_Enable", true,
+            CfgKeys.DossierEnable, true,
             "[基建] 档案箱·启用",
             "是否扩容档案箱。false=保持原版尺寸。");
 
         DossierWidth = Category.CreateEntry(
-            "6B_Dossier_Width", 12,
+            CfgKeys.DossierWidth, 12,
             $"[基建] 档案箱·宽 ({MinSize}-{MaxSize})",
             $"档案箱网格的目标列数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
 
         DossierHeight = Category.CreateEntry(
-            "6B_Dossier_Height", 12,
+            CfgKeys.DossierHeight, 12,
             $"[基建] 档案箱·高 ({MinSize}-{MaxSize})",
             $"档案箱网格的目标行数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
 
         CassettePlayerEnable = Category.CreateEntry(
-            "6C_CassettePlayer_Enable", true,
+            CfgKeys.CassettePlayerEnable, true,
             "[基建] 磁带·启用",
             "是否扩容磁带播放器。false=保持原版尺寸。");
 
         CassettePlayerWidth = Category.CreateEntry(
-            "6C_CassettePlayer_Width", 8,
+            CfgKeys.CassettePlayerWidth, 8,
             $"[基建] 磁带·宽 ({MinSize}-{MaxSize})",
             $"磁带播放器两个槽各自的目标列数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
 
         CassettePlayerHeight = Category.CreateEntry(
-            "6C_CassettePlayer_Height", 8,
+            CfgKeys.CassettePlayerHeight, 8,
             $"[基建] 磁带·高 ({MinSize}-{MaxSize})",
             $"磁带播放器两个槽各自的目标行数（{MinSize}-{MaxSize}，超出会被钳制）。只扩大不缩小。");
         // ═══════════════════════════════════════════════════════════════
@@ -117,7 +117,7 @@ internal static class CustomInfrastructureConfig
         //     里就是 CI.Init → SBE.Init → DIY.Init 的顺序，成立。
         // ═══════════════════════════════════════════════════════════════
         DiagLog = Category.CreateEntry(
-    "z1_DiagLog", false,
+    CfgKeys.DiagLog, false,
     "[诊断] 日志(排查时开)",
     "true = 输出【全部模块】的诊断日志（基础设施容器扩展 / 主仓库分页 / 容器升级 / 读档仲裁）。"
     + "一个开关管三家，面板改完立即生效，无需重启。排查问题时才开，正常玩保持 false。");
@@ -125,7 +125,7 @@ internal static class CustomInfrastructureConfig
         // 【2026-10-10 ★★★ 读档闪退定位】CI 读档链「真实容器」JIT 预热。
         //   默认 false = 关（见字段注释的完整推理）。
         CIReadLoadWarmup = Category.CreateEntry(
-    "z2_CIReadLoadWarmup", false,
+    CfgKeys.CIReadLoadWarmup, false,
     "[诊断] CI 读档链真实容器预热(⚠仅排查)",
     "true = 读档后对 3 个真实容器重跑一遍扩展（修改网格形状 + 重建窗口 UI），"
     + "以此把读档链热路径的 JIT 提前到浅栈。⚠ 默认 false：实测开启后读档必崩 "
@@ -136,7 +136,7 @@ internal static class CustomInfrastructureConfig
         //   用途：判断崩溃诱因是否在"恢复链的实际执行"（Attach/网格/UI）——
         //   z3=true 后不崩 ⇒ 诱因在恢复执行；仍崩 ⇒ 诱因在恢复之外（预热本身/其它 mod/游戏）。
         DisableLoadRestoreA = Category.CreateEntry(
-    "z3_DisableLoadRestore", false,
+    CfgKeys.DisableLoadRestore, false,
     "[诊断] 关读档恢复(⚠仅排查)",
     "true = 读档后不做容器尺寸恢复（只保留 JIT 预热）。仅用于读档闪退 A/B 定位，正常玩保持 false。");
 

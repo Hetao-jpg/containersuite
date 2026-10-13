@@ -9,13 +9,17 @@
 //   比对段名与 DLL 文件名，拆段/改段名会让整段配置从面板里**消失**（静默故障）。
 //   ⇒ 想让"同类项相邻 + 开关块与数值块共用同一套域序"，只能给键名加域号前缀。
 //
-// 【改了哪些】
-//   77 个「面板可见」的键名加域号前缀（0_ / 1A_ / 4A_ / 7A_ / z1_ …）；
-//   另删掉 8 个「每槽开关」（见 RemovedKeys）。净剩 69 个可见条目。
+// 【改了哪些】（两代叠加，最终表的 142 条把两代都收了）
+//   ① 第 1 代（2026-10-07，标记 renamed20261007）：77 个面板可见键加域号前缀
+//      （0_ / 1A_ / 21_ / 4A_ / 7A_ / z1_ …），另删 8 个「每槽开关」⇒ 净剩 69 项。
+//   ② 第 2 代（2026-10-13，标记 renamed20261013）：把编号重排为**由总到分**，
+//      详见 <see cref="ContainerSuite.Shared.CfgKeys"/> 文件头的方案表。
+//      动机是原来那一套里"诊断开关插在功能开关中间、避让开关排在最常用项之前、
+//      分类尺寸被切割到两个波段"，玩家按用途找配置项很难找。
 //   ★ 8 个 `*Ids`（string）**刻意不改名**：它们不进面板（string 且不以 Hotkey 结尾，
 //     三个注册表都不收），却是玩家手改的物品ID列表 —— 改名只有"迁移漏掉就静默
 //     丢失自定义ID"的风险，没有任何面板收益。
-//   ★ 热键 UpgradeHotkey → 21_UpgradeHotkey：仍以 "Hotkey" 结尾，
+//   ★ 热键 UpgradeHotkey → 1D_UpgradeHotkey：仍以 "Hotkey" 结尾，
 //     照样被 HotkeyRegistry 收进热键块，不影响识别。
 //
 // 【为什么删 cfg 里的旧键行不够】
@@ -40,87 +44,175 @@ namespace DIYUpgrade;
 public static partial class DiyUpgradeMod
 {
     /// <summary>
-    /// 旧键名 → 新键名（域号前缀）。**单一事实源** —— 新增/改名配置项时同步这里。
-    /// 只含「在面板里仍存在、只是改了名」的键（69 项）；8 个 <c>*Ids</c> 不在此表（刻意不改名），
-    /// 8 个「每槽开关」已删除、见 <see cref="RemovedKeys"/>。
+    /// 旧键名 → 新键名。**单一事实源** —— 新增/改名配置项时必须同步这里。
+    /// <para>
+    /// ★ 收录的是**历史上出现过的全部键名**（含两代旧名）+ 上一代的现名，统一指向当前名。
+    ///   这样无论是「一路上来的老用户」还是「只差一代的用户」，都能一次搬到位，
+    ///   不会出现"旧名字在新表里查不到 ⇒ 一项都没搬动 ⇒ 用户值静默丢失"。
+    /// </para>
+    /// <para>
+    /// ★ 8 个 <c>*Ids</c> 刻意不改名（在表里查得到才怪）—— 它们是玩家手改的物品清单，
+    ///   改名只有"迁移漏掉就静默丢自定义ID"的风险，没有任何面板收益。
+    ///   8 个「每槽开关」已删除，见 <see cref="RemovedKeys"/>。
+    /// </para>
+    /// <para>
+    /// ★ 新名一侧请以 <see cref="ContainerSuite.Shared.CfgKeys"/> 的常量为准（这里仍写字面量，
+    ///   因为历史旧名本来就没有常量）。2026-10-13 由脚本生成，142 条。
+    /// </para>
     /// </summary>
     internal static readonly Dictionary<string, string> KeyRenames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        // ── 热键块（1）──
-        { "UpgradeHotkey", "21_UpgradeHotkey" },
-        // ── 开关块（35）──
+        // ── 0_ 套件总开关 ──
         { "EnableMod", "0_EnableMod" },
+        // ── 1_ 容器升级·全局（材料 → 操作 → 增量） ──
         { "0A_MaterialJunk", "1A_MaterialJunk" },
         { "0B_MaterialScrapMetal", "1B_MaterialScrapMetal" },
         { "0C_MaterialMetalIngot", "1C_MaterialMetalIngot" },
-        { "2_EnableDragResize", "22_EnableDragResize" },
-        { "RestoreOnLoad", "23_RestoreOnLoad" },
-        { "SkipXiaoBay", "3A_SkipXiaoBay" },
-        { "SkipWageBox", "3B_SkipWageBox" },
-        { "SkipVoidBead", "3C_SkipVoidBead" },
-        { "BoxEnable", "4A_BoxEnable" },
-        { "BackpackEnable", "4B_BackpackEnable" },
-        { "CageEnable", "4C_CageEnable" },
-        { "MultiSlotEnable", "4D_MultiSlotEnable" },
-        { "MultiSlotAlignSlots", "4D_MultiSlotAlignSlots" },
-        // ★ 2026-10-07：MultiSlotT0..T3Enable 已**删除**（合并到容器级 Enable），
-        //   不在本表；清理见 RemovedKeys。
-        { "MultiSlotModuleEnable", "4E_MultiSlotModuleEnable" },
-        { "MultiSlotModuleAlignSlots", "4E_MultiSlotModuleAlignSlots" },
-        // ★ 同上：MultiSlotModuleT0..T3Enable 已删除。清理见 RemovedKeys。
-        { "ModContainerEnable", "5A_ModContainerEnable" },
-        { "WageBoxEnable", "5B_WageBoxEnable" },
-        { "WageBackpackEnable", "5C_WageBackpackEnable" },
-        { "Trashcan_Enable", "6A_Trashcan_Enable" },
-        { "Dossier_Enable", "6B_Dossier_Enable" },
-        { "CassettePlayer_Enable", "6C_CassettePlayer_Enable" },
-        { "ExpandEnabled", "7_ExpandEnabled" },
-        { "SaveBagPagingEnabled", "8_SaveBagPagingEnabled" },
-        { "ScrollEnabled", "9_ScrollEnabled" },
+        { "UpgradeHotkey", "1D_UpgradeHotkey" },
+        { "21_UpgradeHotkey", "1D_UpgradeHotkey" },
+        { "2_EnableDragResize", "1E_EnableDragResize" },
+        { "22_EnableDragResize", "1E_EnableDragResize" },
+        { "RestoreOnLoad", "1F_RestoreOnLoad" },
+        { "23_RestoreOnLoad", "1F_RestoreOnLoad" },
+        { "26_EnableGroupDrag", "1G_EnableGroupDrag" },
+        { "CageHpPerCell", "1H_CageHpPerCell" },
+        { "4C_CageHpPerCell", "1H_CageHpPerCell" },
+        { "IncH", "1I_IncH" },
+        { "5D_IncH", "1I_IncH" },
+        { "IncW", "1I_IncW" },
+        { "5D_IncW", "1I_IncW" },
+        { "ModIncH", "1J_ModIncH" },
+        { "5E_ModIncH", "1J_ModIncH" },
+        { "ModIncW", "1J_ModIncW" },
+        { "5E_ModIncW", "1J_ModIncW" },
+        // ── 2_ 仓库扩容·总开关与各仓库宽高 ──
+        { "BackInvHeight", "2A_BackInvHeight" },
+        { "7A_BackInvHeight", "2A_BackInvHeight" },
+        { "BackInvWidth", "2A_BackInvWidth" },
+        { "7A_BackInvWidth", "2A_BackInvWidth" },
+        { "FrontInvHeight", "2B_FrontInvHeight" },
+        { "7B_FrontInvHeight", "2B_FrontInvHeight" },
+        { "FrontInvWidth", "2B_FrontInvWidth" },
+        { "7B_FrontInvWidth", "2B_FrontInvWidth" },
+        { "HiddenInvHeight", "2C_HiddenInvHeight" },
+        { "7C_HiddenInvHeight", "2C_HiddenInvHeight" },
+        { "HiddenInvWidth", "2C_HiddenInvWidth" },
+        { "7C_HiddenInvWidth", "2C_HiddenInvWidth" },
+        { "SaveBagHeight", "2D_SaveBagHeight" },
+        { "7D_SaveBagHeight", "2D_SaveBagHeight" },
+        { "SaveBagWidth", "2D_SaveBagWidth" },
+        { "7D_SaveBagWidth", "2D_SaveBagWidth" },
+        { "ShowcaseInvHeight", "2E_ShowcaseInvHeight" },
+        { "7E_ShowcaseInvHeight", "2E_ShowcaseInvHeight" },
+        { "ShowcaseInvWidth", "2E_ShowcaseInvWidth" },
+        { "7E_ShowcaseInvWidth", "2E_ShowcaseInvWidth" },
+        { "7F_AfterhourHeight", "2F_AfterhourHeight" },
+        { "7F_AfterhourWidth", "2F_AfterhourWidth" },
+        { "7G_GroundDragEnabled", "2G_GroundDragEnabled" },
+        { "7G_GroundOffsetX", "2G_GroundOffsetX" },
+        { "7G_GroundOffsetY", "2G_GroundOffsetY" },
+        { "ExpandEnabled", "2_ExpandEnabled" },
+        { "7_ExpandEnabled", "2_ExpandEnabled" },
+        // ── 3_ 主仓库分页 ──
+        { "SaveBagPageCount", "3A_SaveBagPageCount" },
+        { "8A_SaveBagPageCount", "3A_SaveBagPageCount" },
+        { "SaveBagPagingHintDuration", "3B_SaveBagPagingHintDuration" },
+        { "8B_SaveBagPagingHintDuration", "3B_SaveBagPagingHintDuration" },
+        { "SaveBagPagingEnabled", "3_SaveBagPagingEnabled" },
+        { "8_SaveBagPagingEnabled", "3_SaveBagPagingEnabled" },
+        // ── 4_ 主仓库滚动 ──
+        { "ScrollUpRows", "4A_ScrollUpRows" },
+        { "9A_ScrollUpRows", "4A_ScrollUpRows" },
+        { "ScrollVisibleRows", "4B_ScrollVisibleRows" },
+        { "9B_ScrollVisibleRows", "4B_ScrollVisibleRows" },
+        { "ScrollEnabled", "4_ScrollEnabled" },
+        { "9_ScrollEnabled", "4_ScrollEnabled" },
+        // ── 5_ 基础设施容器 ──
+        { "Trashcan_Enable", "5A_Trashcan_Enable" },
+        { "6A_Trashcan_Enable", "5A_Trashcan_Enable" },
+        { "Trashcan_Height", "5A_Trashcan_Height" },
+        { "6A_Trashcan_Height", "5A_Trashcan_Height" },
+        { "Trashcan_Width", "5A_Trashcan_Width" },
+        { "6A_Trashcan_Width", "5A_Trashcan_Width" },
+        { "Dossier_Enable", "5B_Dossier_Enable" },
+        { "6B_Dossier_Enable", "5B_Dossier_Enable" },
+        { "Dossier_Height", "5B_Dossier_Height" },
+        { "6B_Dossier_Height", "5B_Dossier_Height" },
+        { "Dossier_Width", "5B_Dossier_Width" },
+        { "6B_Dossier_Width", "5B_Dossier_Width" },
+        { "CassettePlayer_Enable", "5C_CassettePlayer_Enable" },
+        { "6C_CassettePlayer_Enable", "5C_CassettePlayer_Enable" },
+        { "CassettePlayer_Height", "5C_CassettePlayer_Height" },
+        { "6C_CassettePlayer_Height", "5C_CassettePlayer_Height" },
+        { "CassettePlayer_Width", "5C_CassettePlayer_Width" },
+        { "6C_CassettePlayer_Width", "5C_CassettePlayer_Width" },
+        // ── 6_ 跨 mod 避让 ──
+        { "SkipXiaoBay", "6A_SkipXiaoBay" },
+        { "3A_SkipXiaoBay", "6A_SkipXiaoBay" },
+        { "SkipWageBox", "6B_SkipWageBox" },
+        { "3B_SkipWageBox", "6B_SkipWageBox" },
+        { "SkipVoidBead", "6C_SkipVoidBead" },
+        { "3C_SkipVoidBead", "6C_SkipVoidBead" },
+        { "3D_SweepZombieHandles", "6D_SweepZombieHandles" },
+        // ── 7_ 容器升级·分类上限 ──
+        { "BoxEnable", "7A_BoxEnable" },
+        { "4A_BoxEnable", "7A_BoxEnable" },
+        { "BoxMaxH", "7A_BoxMaxH" },
+        { "4A_BoxMaxH", "7A_BoxMaxH" },
+        { "BoxMaxW", "7A_BoxMaxW" },
+        { "4A_BoxMaxW", "7A_BoxMaxW" },
+        { "BackpackEnable", "7B_BackpackEnable" },
+        { "4B_BackpackEnable", "7B_BackpackEnable" },
+        { "BackpackMaxH", "7B_BackpackMaxH" },
+        { "4B_BackpackMaxH", "7B_BackpackMaxH" },
+        { "BackpackMaxW", "7B_BackpackMaxW" },
+        { "4B_BackpackMaxW", "7B_BackpackMaxW" },
+        { "CageEnable", "7C_CageEnable" },
+        { "4C_CageEnable", "7C_CageEnable" },
+        { "CageMaxH", "7C_CageMaxH" },
+        { "4C_CageMaxH", "7C_CageMaxH" },
+        { "CageMaxW", "7C_CageMaxW" },
+        { "4C_CageMaxW", "7C_CageMaxW" },
+        { "MultiSlotAlignSlots", "7D_MultiSlotAlignSlots" },
+        { "4D_MultiSlotAlignSlots", "7D_MultiSlotAlignSlots" },
+        { "MultiSlotEnable", "7D_MultiSlotEnable" },
+        { "4D_MultiSlotEnable", "7D_MultiSlotEnable" },
+        { "MultiSlotMaxH", "7D_MultiSlotMaxH" },
+        { "4D_MultiSlotMaxH", "7D_MultiSlotMaxH" },
+        { "MultiSlotMaxW", "7D_MultiSlotMaxW" },
+        { "4D_MultiSlotMaxW", "7D_MultiSlotMaxW" },
+        { "MultiSlotModuleAlignSlots", "7E_MultiSlotModuleAlignSlots" },
+        { "4E_MultiSlotModuleAlignSlots", "7E_MultiSlotModuleAlignSlots" },
+        { "MultiSlotModuleEnable", "7E_MultiSlotModuleEnable" },
+        { "4E_MultiSlotModuleEnable", "7E_MultiSlotModuleEnable" },
+        { "MultiSlotModuleMaxH", "7E_MultiSlotModuleMaxH" },
+        { "4E_MultiSlotModuleMaxH", "7E_MultiSlotModuleMaxH" },
+        { "MultiSlotModuleMaxW", "7E_MultiSlotModuleMaxW" },
+        { "4E_MultiSlotModuleMaxW", "7E_MultiSlotModuleMaxW" },
+        { "ModContainerEnable", "7F_ModContainerEnable" },
+        { "5A_ModContainerEnable", "7F_ModContainerEnable" },
+        { "ModContainerMaxH", "7F_ModContainerMaxH" },
+        { "5A_ModContainerMaxH", "7F_ModContainerMaxH" },
+        { "ModContainerMaxW", "7F_ModContainerMaxW" },
+        { "5A_ModContainerMaxW", "7F_ModContainerMaxW" },
+        { "WageBoxEnable", "7G_WageBoxEnable" },
+        { "5B_WageBoxEnable", "7G_WageBoxEnable" },
+        { "WageBoxMaxH", "7G_WageBoxMaxH" },
+        { "5B_WageBoxMaxH", "7G_WageBoxMaxH" },
+        { "WageBoxMaxW", "7G_WageBoxMaxW" },
+        { "5B_WageBoxMaxW", "7G_WageBoxMaxW" },
+        { "WageBackpackEnable", "7H_WageBackpackEnable" },
+        { "5C_WageBackpackEnable", "7H_WageBackpackEnable" },
+        { "WageBackpackMaxH", "7H_WageBackpackMaxH" },
+        { "5C_WageBackpackMaxH", "7H_WageBackpackMaxH" },
+        { "WageBackpackMaxW", "7H_WageBackpackMaxW" },
+        { "5C_WageBackpackMaxW", "7H_WageBackpackMaxW" },
+        // ── z_ 诊断与实验 ──
         { "DiagLog", "z1_DiagLog" },
         { "ShowGrid", "z2_ShowGrid" },
-        // ── 数值块（41）──
-        { "BackInvHeight", "7A_BackInvHeight" },
-        { "BackInvWidth", "7A_BackInvWidth" },
-        { "FrontInvHeight", "7B_FrontInvHeight" },
-        { "FrontInvWidth", "7B_FrontInvWidth" },
-        { "HiddenInvHeight", "7C_HiddenInvHeight" },
-        { "HiddenInvWidth", "7C_HiddenInvWidth" },
-        { "SaveBagHeight", "7D_SaveBagHeight" },
-        { "SaveBagWidth", "7D_SaveBagWidth" },
-        { "ShowcaseInvHeight", "7E_ShowcaseInvHeight" },
-        { "ShowcaseInvWidth", "7E_ShowcaseInvWidth" },
-        { "BackpackMaxH", "4B_BackpackMaxH" },
-        { "BackpackMaxW", "4B_BackpackMaxW" },
-        { "BoxMaxH", "4A_BoxMaxH" },
-        { "BoxMaxW", "4A_BoxMaxW" },
-        { "CageHpPerCell", "4C_CageHpPerCell" },
-        { "CageMaxH", "4C_CageMaxH" },
-        { "CageMaxW", "4C_CageMaxW" },
-        { "MultiSlotMaxH", "4D_MultiSlotMaxH" },
-        { "MultiSlotMaxW", "4D_MultiSlotMaxW" },
-        { "MultiSlotModuleMaxH", "4E_MultiSlotModuleMaxH" },
-        { "MultiSlotModuleMaxW", "4E_MultiSlotModuleMaxW" },
-        { "ModContainerMaxH", "5A_ModContainerMaxH" },
-        { "ModContainerMaxW", "5A_ModContainerMaxW" },
-        { "WageBoxMaxH", "5B_WageBoxMaxH" },
-        { "WageBoxMaxW", "5B_WageBoxMaxW" },
-        { "WageBackpackMaxH", "5C_WageBackpackMaxH" },
-        { "WageBackpackMaxW", "5C_WageBackpackMaxW" },
-        { "IncH", "5D_IncH" },
-        { "IncW", "5D_IncW" },
-        { "ModIncH", "5E_ModIncH" },
-        { "ModIncW", "5E_ModIncW" },
-        { "Trashcan_Height", "6A_Trashcan_Height" },
-        { "Trashcan_Width", "6A_Trashcan_Width" },
-        { "Dossier_Height", "6B_Dossier_Height" },
-        { "Dossier_Width", "6B_Dossier_Width" },
-        { "CassettePlayer_Height", "6C_CassettePlayer_Height" },
-        { "CassettePlayer_Width", "6C_CassettePlayer_Width" },
-        { "SaveBagPageCount", "8A_SaveBagPageCount" },
-        { "SaveBagPagingHintDuration", "8B_SaveBagPagingHintDuration" },
-        { "ScrollUpRows", "9A_ScrollUpRows" },
-        { "ScrollVisibleRows", "9B_ScrollVisibleRows" },
+        { "z2_CIReadLoadWarmup", "z3_CIReadLoadWarmup" },
+        { "z3_DisableLoadRestore", "z4_DisableLoadRestore" },
+        { "27_SyncModifiedStateProbe", "z9_SyncModifiedStateProbe" },
     };
 
     /// <summary>
@@ -171,7 +263,7 @@ public static partial class DiyUpgradeMod
 
     private static string RenameMarkerPath()
     {
-        try { return Path.Combine(MelonEnvironment.UserDataDirectory, "ContainerSuite.renamed20261007"); }
+        try { return Path.Combine(MelonEnvironment.UserDataDirectory, "ContainerSuite.renamed20261013"); }
         catch { return null; }
     }
 

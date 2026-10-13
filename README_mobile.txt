@@ -59,41 +59,48 @@ MelonPreferences.cfg 的
 
 常用：
 0_EnableMod 总开关（开）
-7_ExpandEnabled 扩容（开）
-8_SaveBagPagingEnabled 分页（开）
-8A_SaveBagPageCount 页数（2）
-9_ScrollEnabled 滚轮（开）
-22_EnableDragResize 拖边改尺寸（开）
-23_RestoreOnLoad 读档恢复（开）
-21_UpgradeHotkey 升级键（LeftAlt）
+2_ExpandEnabled 扩容（开）
+3_SaveBagPagingEnabled 分页（开）
+3A_SaveBagPageCount 页数（2）
+4_ScrollEnabled 滚轮（开）
+1E_EnableDragResize 拖边改尺寸（开）
+1F_RestoreOnLoad 读档恢复（开）
+1D_UpgradeHotkey 升级键（LeftAlt）
 z1_DiagLog 诊断日志（关）
 
 避让：
-3A_SkipXiaoBay XIAOWO（true）
-3B_SkipWageBox 蛙哥箱（true）
-3C_SkipVoidBead 虚空珠（true=蛙哥）
+6A_SkipXiaoBay XIAOWO（true）
+6B_SkipWageBox 蛙哥箱（true）
+6C_SkipVoidBead 虚空珠（true=蛙哥）
 
 ▎容器升级的名单与上限
-在 UserData\ContainerSuite\
-containers.txt（首次启动自动生成，
-文件里自带完整说明）。
-文件里有一张「对照表」，把现在
-生效的每个容器按 id = 宽x高 列好，
-还带中文名，例如
-  storage_bay = 50x30 储藏区
-给某个容器单独设上限：
-把那行照抄到文件最底下 →
-去掉行首的 # → 改数字 → 存盘。
-存盘 2 秒内生效，不用重启。
-[whitelist] 管"哪类能升级"；
-[limits] 管"每个最大多大"。
-恢复某一类的出厂名单：把那一整行
-删掉（不是留空，留空=这类都不能升）。
-说明和对照表由套件自动维护，
-你的名单和上限一行不动；
-旧的留一份 containers.txt.bak。
-你的设置写在对照表下面，
-那里不会被覆盖。
+都在同一个 [CustomInfrastructure]
+段里（没有第二个配置文件）。
+
+① 7x_ 分类上限（面板可改）
+7A_箱 7B_背包 7C_笼
+7D_多槽 7E_模组槽
+7F_Mod容器 7G_妙妙箱 7H_虚空珠
+每类：Enable / MaxW / MaxH
+
+② <类别>Ids 名单（手改）
+逗号分隔的物品 id。
+加一个：id 加到行尾前补逗号。
+删一个：把 id 从那行删掉。
+⚠ 留空 = 这类都不能升级。
+
+③ 8A_PerIdSizeLimits 单件上限
+（最细，手改 cfg）
+8A_PerIdSizeLimits =
+ "storage_bay=30x20,evidence_box=24x24"
+· 写了就完全覆盖它的分类上限
+· 没写的用分类上限，1~100
+· ⚠ 面板里看不到（字符串项）
+· ⚠ 改太小装不下现有物品时
+  不生效，日志会点名提示
+
+配没配上：看启动日志那行
+「单独设了上限的容器共 N 件：…」
 
 ▎重要限制
 分页第 2 页原版检测不到：
@@ -110,8 +117,9 @@ containers.txt（首次启动自动生成，
 · 先备份存档
 · 虚空珠移交不可逆
 · 充能器只显示前 4 颗电池
-· containers.txt 的说明与对照表
-  会被自动更新，设置写在它下面
+· 名单与上限只在
+  [CustomInfrastructure] 一处维护
+  （已取消 containers.txt）
 
 ▎兼容
 已避让：XIAOWO / 蛙哥

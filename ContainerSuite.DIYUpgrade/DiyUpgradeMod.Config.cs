@@ -59,8 +59,8 @@ public static partial class DiyUpgradeMod
             SetLabel<bool>(_groupDragEnabled, "[升级] 批量框选升级", "按住升级键框选多堆材料、拖到容器上松手，连续升级该容器（一堆材料一级）。只对同一个容器生效；蛙哥未满级的妙妙箱、未移交的虚空珠仍由蛙哥处理。");
             // P1-3：R1 探针项只在 DIAG 构建存在，标签随之条件编译。
 #if DIAG
-            SetLabel<bool>(_r1Probe, "[诊断] R1探针·读档恢复", "记录读档恢复时每个已升级容器的尺寸是否被改动。用于判定游戏是否持久化升级后的尺寸（R1 实测）。默认关，开启后每次读档会写 UserData/ContainerSuite.r1probe.txt。");
             // T5：SyncModifiedState 实验项（仅 DIAG 构建存在）。
+            // （2026-10-13：R1 探针 / ResizeDiag 两个标签随各自探针删除。）
             SetLabel<bool>(_syncStateProbe, "[诊断] 实验·收尾同步", "升级收尾补调一次 GameItem.SyncModifiedState()，用于验证本套件是否漏了这一步游戏侧同步。默认关；只在排查\"升级后状态没跟上\"类问题时开。");
 #endif
             // ── S8k 避让热开关 ────────────────────────────────────────────
@@ -88,6 +88,9 @@ public static partial class DiyUpgradeMod
             SetLabel<int>(_incH, "[升级] 原版·每次+高", "所有原版容器每次升级增加的行数。与宽度增量相互独立。");
             SetLabel<int>(_modIncW, "[升级] Mod容器·每次+宽", "所有 Mod 容器（蛙哥妙妙箱/虚空珠/养蛊机/AI生成器）每次升级增加的列数。");
             SetLabel<int>(_modIncH, "[升级] Mod容器·每次+高", "所有 Mod 容器每次升级增加的行数。");
+            // 2026-10-13：每容器 id 独立上限（最细的一层，排在最后）。
+            //   它是字符串项 ⇒ 面板里看不到，这里给标签只是为了让 cfg 注释与日志文案统一。
+            SetLabel<string>(_perIdSizeLimits, "[升级] 单个容器·宽高上限（手改cfg）", DefaultPerIdSizeLimitsComment);
         }
         catch (Exception ex) { if (_log != null) _log.Error("[容器升级] 套用配置标签异常: " + ex.Message); }
     }
@@ -141,31 +144,27 @@ public static partial class DiyUpgradeMod
         try { ((MelonPreferences_Entry)entry).DisplayName = displayName; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         try { ((MelonPreferences_Entry)entry).Description = description; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
     }
-    /// <param name="sortPrefix">
-    /// 2026-10-07 键名重排：ModManager 面板顺序 = cfg 键名字典序，所以只在**面板可见**的
-    /// 那几个键上加「域号前缀」（如 "4A_"），让同类项在面板里按功能域聚拢。
-    /// <para>
-    /// ★ 刻意**不加**在 <c>{prefix}Ids</c> 上 —— 物品ID列表是玩家手改的字符串，
-    /// 不进面板（string 且不以 Hotkey 结尾 → 三个注册表都不收）。给它改名只有
-    /// "迁移漏掉就静默丢失用户自定义ID"的风险、没有任何面板收益 ⇒ 键名保持不变。
-    /// </para>
+    /// <param name="keys">
+    /// 这一类的 5 个键名（<see cref="CfgKeys.Box"/> 等）。键名的**唯一事实源**在
+    /// <see cref="CfgKeys"/>，这里不拼字符串、不再传 sortPrefix —— 以前这里是
+    /// <c>sp + prefix + "Enable"</c> 的拼接，「键名」和「排序前缀」两个概念混在一个
+    /// 参数里，改一处容易漏一处（2026-10-13 收敛）。
     /// </param>
-    internal static GridDef CreateGridDef(MelonPreferences_Category cat, string prefix, string label, string defaultIds, int slotCount, int defaultMaxW = 20, int defaultMaxH = 20, string[] slotNames = null, string idsComment = null, bool isMod = false, string sortPrefix = "")
+    internal static GridDef CreateGridDef(MelonPreferences_Category cat, ContainerSuite.Shared.CfgKeys.GridKeys keys, string label, string defaultIds, int slotCount, int defaultMaxW = 20, int defaultMaxH = 20, string[] slotNames = null, string idsComment = null, bool isMod = false)
     {
-        string sp = sortPrefix ?? "";
         GridDef gridDef = new GridDef
         {
-            Enable = cat.CreateEntry<bool>(sp + prefix + "Enable", true, (string)null, "是否允许升级" + label, false, false, (ValueValidator)null, (string)null),
-            // ★ Ids 不加 sortPrefix（见方法注释）。
-            Ids = cat.CreateEntry<string>(prefix + "Ids", defaultIds, (string)null, idsComment ?? (label + "物品ID列表(逗号分隔)"), false, false, (ValueValidator)null, (string)null),
-            MaxW = cat.CreateEntry<int>(sp + prefix + "MaxW", defaultMaxW, (string)null, label + "：所有槽共享的最大宽度", false, false, (ValueValidator)null, (string)null),
-            MaxH = cat.CreateEntry<int>(sp + prefix + "MaxH", defaultMaxH, (string)null, label + "：所有槽共享的最大高度", false, false, (ValueValidator)null, (string)null),
+            Enable = cat.CreateEntry<bool>(keys.Enable, true, (string)null, "是否允许升级" + label, false, false, (ValueValidator)null, (string)null),
+            // ★ Ids 是裸名（不带排序前缀）：它是玩家手改的物品清单，改名只有静默丢值的风险。
+            Ids = cat.CreateEntry<string>(keys.Ids, defaultIds, (string)null, idsComment ?? (label + "物品ID列表(逗号分隔)"), false, false, (ValueValidator)null, (string)null),
+            MaxW = cat.CreateEntry<int>(keys.MaxW, defaultMaxW, (string)null, label + "：所有槽共享的最大宽度", false, false, (ValueValidator)null, (string)null),
+            MaxH = cat.CreateEntry<int>(keys.MaxH, defaultMaxH, (string)null, label + "：所有槽共享的最大高度", false, false, (ValueValidator)null, (string)null),
             SlotNames = slotNames
         };
         // 多槽容器（冰箱/熔炉）：「所有槽位尺寸跟随第一个槽」开关。默认开。
         if (slotCount > 1)
         {
-            gridDef.AlignSlots = cat.CreateEntry<bool>(sp + prefix + "AlignSlots", true, (string)null,
+            gridDef.AlignSlots = cat.CreateEntry<bool>(keys.AlignSlots, true, (string)null,
                 label + "：所有槽位尺寸跟随第一个槽（关=各槽独立）", false, false, (ValueValidator)null, (string)null);
         }
         // ═══════════════════════════════════════════════════════════════════════
@@ -199,15 +198,21 @@ public static partial class DiyUpgradeMod
         gridDef.Slots = slots;
         return gridDef;
     }
+    /// <summary>
+    /// 把 cfg 的 5 条 <c>*Ids</c> 原文解析成 id 数组，填进各 <see cref="GridDef.IdList"/>。
+    /// <para>
+    /// ★ 白名单的唯一权威就是 cfg —— 2026-10-13 起取消了 UserData\ContainerSuite\containers.txt
+    ///   那套外挂文件（它曾让"改了 cfg 却没用"变成常态歧义）。现在是**单一事实源**。
+    /// ★ 5 条 <c>*Ids</c> 都挂了 OnEntryValueChanged ⇒ cfg 一改这里立刻重解析，不用重启。
+    /// </para>
+    /// </summary>
     private static void RefreshIdLists()
     {
-        // S2（2026-10-12）：每类白名单先过一遍「文件 or cfg」的仲裁 ——
-        //   文件里声明过的类别以文件为准（见 DiyUpgradeMod.FileConfig.cs 头注）。
-        _box.IdList = SplitIds(EffectiveWhitelistRaw("box", _box.Ids.Value));
-        _backpack.IdList = SplitIds(EffectiveWhitelistRaw("backpack", _backpack.Ids.Value));
-        _cage.IdList = SplitIds(EffectiveWhitelistRaw("cage", _cage.Ids.Value));
-        _multiSlot.IdList = SplitIds(EffectiveWhitelistRaw("multislot", _multiSlot.Ids.Value));
-        _multiSlotModule.IdList = SplitIds(EffectiveWhitelistRaw("multislotmodule", _multiSlotModule.Ids.Value));
+        _box.IdList = SplitIds(_box.Ids.Value);
+        _backpack.IdList = SplitIds(_backpack.Ids.Value);
+        _cage.IdList = SplitIds(_cage.Ids.Value);
+        _multiSlot.IdList = SplitIds(_multiSlot.Ids.Value);
+        _multiSlotModule.IdList = SplitIds(_multiSlotModule.Ids.Value);
         try { _resizableCache.Clear(); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
     }
     private static string[] SplitIds(string raw)

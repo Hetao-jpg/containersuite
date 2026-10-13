@@ -192,8 +192,8 @@ public static partial class DiyUpgradeMod
         if (cfgMaxW <= 0) cfgMaxW = HardMaxDim;
         if (cfgMaxH <= 0) cfgMaxH = HardMaxDim;
 
-        // S2（2026-10-12）：每容器 id 独立上限（UserData 配置文件 [limits] 段）。
-        //   ★ 语义：写进 [limits] 的 id **完全覆盖**类别上限（可增可减）；没写的仍用类别上限。
+        // 每容器 id 独立上限（cfg 的 8A_PerIdSizeLimits，见 DiyUpgradeMod.PerIdLimits.cs）。
+        //   ★ 语义：写进去的 id **完全覆盖**分类上限（可增可减）；没写的仍用分类上限。
         //   这里只是"把天花板换掉"，后面 spent/peak 的夹取逻辑一行不动 ——
         //   "升级进度决定实际可用尺寸"的既有语义不受影响。
         if (TryGetPerIdLimit(item, out int idMaxW, out int idMaxH))

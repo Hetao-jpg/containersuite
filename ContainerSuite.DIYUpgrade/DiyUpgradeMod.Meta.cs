@@ -311,11 +311,6 @@ public static partial class DiyUpgradeMod
                 if (componentsInChild != null) componentsInChild.SetAllDirty();
         }
         catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-
-        // ── 临时诊断：延迟刷新**之后**采最后一次（此时 Window.Validate 已跑过）──
-        // P1-3：随 ResizeDiag 实现移入 #if DIAG。
-#if DIAG
-        try { ResizeDiagDump(item, "POST", ContainerWindowResizer.LastDragEdgeName); } catch { }
-#endif
+        // （2026-10-13：ResizeDiag 的 "POST" 采样点随探针一并删除。）
     }
 }

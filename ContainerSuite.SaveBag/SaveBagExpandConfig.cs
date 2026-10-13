@@ -73,29 +73,29 @@ internal static class SaveBagExpandConfig
         const string hiddenDesc = "（默认值 4x4；游戏原版 2x2）";
 
         // ── 全局 ──
-        EnableMod = cat.CreateEntry<bool>("0_EnableMod", true,
+        EnableMod = cat.CreateEntry<bool>(CfgKeys.EnableMod, true,
             "[全局] 总开关",
             "true = 启用本 Mod；false = 完全禁用。");
 
         // ── 滚动 ──
-        ScrollEnabled = cat.CreateEntry<bool>("9_ScrollEnabled", true,
+        ScrollEnabled = cat.CreateEntry<bool>(CfgKeys.ScrollEnabled, true,
     "[滚动] 滚轮启用",
     "true = 鼠标指到容器上时可用滚轮上下滚动内容；false = 关闭。默认 true。");
-        ScrollVisibleRows = cat.CreateEntry<int>("9B_ScrollVisibleRows", 0,
+        ScrollVisibleRows = cat.CreateEntry<int>(CfgKeys.ScrollVisibleRows, 0,
             "[滚动] 向下行数 (0-50)",
             "滚轮向下最多能滚几行，可设 0-50。");
-        ScrollUpRows = cat.CreateEntry<int>("9A_ScrollUpRows", 10,
+        ScrollUpRows = cat.CreateEntry<int>(CfgKeys.ScrollUpRows, 10,
             "[滚动] 向上行数 (0-50)",
             "滚轮向上最多能滚几行，可设 0-50。0 = 不允许向上滚。");
 
         // ── 主仓库·分页 ──
-        SaveBagPagingEnabled = cat.CreateEntry<bool>("8_SaveBagPagingEnabled", true,
+        SaveBagPagingEnabled = cat.CreateEntry<bool>(CfgKeys.SaveBagPagingEnabled, true,
     "[分页] 启用",
     "true = 主仓库保持游戏原版 24x10 网格，通过分页提供多倍存储空间。默认 true。");
-        SaveBagPageCount = cat.CreateEntry<int>("8A_SaveBagPageCount", 2,
+        SaveBagPageCount = cat.CreateEntry<int>(CfgKeys.SaveBagPageCount, 2,
             "[分页] 总页数 (1-10)",
             "主仓库的总页数，范围 1-10。每页 24x10 = 240 格。");
-        SaveBagPagingHintDuration = cat.CreateEntry<float>("8B_SaveBagPagingHintDuration", 1.0f,
+        SaveBagPagingHintDuration = cat.CreateEntry<float>(CfgKeys.SaveBagPagingHintDuration, 1.0f,
             "[分页] 提示时长 (0-5 秒)",
             "TAB 切页成功后，屏幕提示显示多少秒。默认 1.0，范围 0.1 ~ 5.0。0 = 不显示。");
         // 2026-10-06 合并（B2）：三段并成一段后，三个模块的键名必须互不冲突，
@@ -115,51 +115,51 @@ internal static class SaveBagExpandConfig
 
 
         // ── 显化网格 ──
-        SaveBagShowGrid = cat.CreateEntry<bool>("z2_ShowGrid", false,
+        SaveBagShowGrid = cat.CreateEntry<bool>(CfgKeys.ShowGrid, false,
             "[诊断] 网格强制不透明",
             "true = 强制把所有网格填充底画成不透明（黑色格子）。默认 false。");
 
         // ── 仓库·扩容 ──
-        ExpandEnabled = cat.CreateEntry<bool>("7_ExpandEnabled", true,
+        ExpandEnabled = cat.CreateEntry<bool>(CfgKeys.ExpandEnabled, true,
     "[扩容] 启用",
     "true = 应用下方所有容器的自定义尺寸；false = 所有容器按游戏原版尺寸。");
-        SaveBagWidth = cat.CreateEntry<int>("7D_SaveBagWidth", 24, "[扩容] 主仓库·宽", sizeDesc);
-        SaveBagHeight = cat.CreateEntry<int>("7D_SaveBagHeight", 10, "[扩容] 主仓库·高", sizeDesc);
-        ShowcaseInvWidth = cat.CreateEntry<int>("7E_ShowcaseInvWidth", 9, "[扩容] 展示柜·宽", sizeDesc);
-        ShowcaseInvHeight = cat.CreateEntry<int>("7E_ShowcaseInvHeight", 7, "[扩容] 展示柜·高", sizeDesc);
-        HiddenInvWidth = cat.CreateEntry<int>("7C_HiddenInvWidth", 4, "[扩容] 海报暗格·宽", hiddenDesc);
-        HiddenInvHeight = cat.CreateEntry<int>("7C_HiddenInvHeight", 4, "[扩容] 海报暗格·高", hiddenDesc);
-        BackInvWidth = cat.CreateEntry<int>("7A_BackInvWidth", 18, "[扩容] 柜台·宽", sizeDesc);
-        BackInvHeight = cat.CreateEntry<int>("7A_BackInvHeight", 4, "[扩容] 柜台·高", sizeDesc);
+        SaveBagWidth = cat.CreateEntry<int>(CfgKeys.SaveBagWidth, 24, "[扩容] 主仓库·宽", sizeDesc);
+        SaveBagHeight = cat.CreateEntry<int>(CfgKeys.SaveBagHeight, 10, "[扩容] 主仓库·高", sizeDesc);
+        ShowcaseInvWidth = cat.CreateEntry<int>(CfgKeys.ShowcaseInvWidth, 9, "[扩容] 展示柜·宽", sizeDesc);
+        ShowcaseInvHeight = cat.CreateEntry<int>(CfgKeys.ShowcaseInvHeight, 7, "[扩容] 展示柜·高", sizeDesc);
+        HiddenInvWidth = cat.CreateEntry<int>(CfgKeys.HiddenInvWidth, 4, "[扩容] 海报暗格·宽", hiddenDesc);
+        HiddenInvHeight = cat.CreateEntry<int>(CfgKeys.HiddenInvHeight, 4, "[扩容] 海报暗格·高", hiddenDesc);
+        BackInvWidth = cat.CreateEntry<int>(CfgKeys.BackInvWidth, 18, "[扩容] 柜台·宽", sizeDesc);
+        BackInvHeight = cat.CreateEntry<int>(CfgKeys.BackInvHeight, 4, "[扩容] 柜台·高", sizeDesc);
 
         // ── 客户柜台（S8f：开关合并入【仓库·扩容】总控，尺寸仍独立配置） ──
         //   ⚠️ 原 FrontInvExpandEnabled 独立开关已删除。老的 cfg 里如果还留着
         //      这个 key，MelonPreferences 会忽略（未注册 = 不激活），无害。
-        FrontInvWidth = cat.CreateEntry<int>("7B_FrontInvWidth", 18, "[扩容] 客户柜台·宽", sizeDesc);
-        FrontInvHeight = cat.CreateEntry<int>("7B_FrontInvHeight", 4, "[扩容] 客户柜台·高", sizeDesc);
+        FrontInvWidth = cat.CreateEntry<int>(CfgKeys.FrontInvWidth, 18, "[扩容] 客户柜台·宽", sizeDesc);
+        FrontInvHeight = cat.CreateEntry<int>(CfgKeys.FrontInvHeight, 4, "[扩容] 客户柜台·高", sizeDesc);
 
         // ── 地面/拾荒窗口（2026-10-09 新增）──
         //   ★ 默认值 = 游戏原版 12×9（与「默认值 = 当前游戏原版尺寸」约定一致）。
         //     改了这两个值 = 真正改尺寸；保持原版值 = 行为等价于未装本功能。
-        AfterhourWidth = cat.CreateEntry<int>("7F_AfterhourWidth", 12, "[扩容] 地面·宽",
+        AfterhourWidth = cat.CreateEntry<int>(CfgKeys.AfterhourWidth, 12, "[扩容] 地面·宽",
             "「垃圾场拾荒」场景里「地面」窗口的列数（★ 游戏原版 = 12）。" +
             "（默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）");
-        AfterhourHeight = cat.CreateEntry<int>("7F_AfterhourHeight", 9, "[扩容] 地面·高",
+        AfterhourHeight = cat.CreateEntry<int>(CfgKeys.AfterhourHeight, 9, "[扩容] 地面·高",
             "「垃圾场拾荒」场景里「地面」窗口的行数（★ 游戏原版 = 9）。" +
             "（默认值 = 当前游戏原版尺寸；[扩容] 启用为 true 时才会应用）");
 
         // ── 地面/拾荒窗口·鼠标拖动（7G 域，2026-10-09 新增）──
-        GroundDragEnabled = cat.CreateEntry<bool>("7G_GroundDragEnabled", true,
+        GroundDragEnabled = cat.CreateEntry<bool>(CfgKeys.GroundDragEnabled, true,
             "[地面] 允许鼠标拖动",
             "true = 可以用鼠标按住「地面」窗口的**标题栏**拖动它（与拖动窗口的通用习惯一致）。" +
             "false = 地面窗口固定不动。★ 拖动窗口时若正按着鼠标拖物品，本功能会自动跳过，不抢物品拖拽。");
 
-        GroundOffsetX = cat.CreateEntry<int>("7G_GroundOffsetX", 0,
+        GroundOffsetX = cat.CreateEntry<int>(CfgKeys.GroundOffsetX, 0,
             "[地面] 拖动位置·X（自动写入）",
             "「地面」窗口相对游戏原版停靠位的水平偏移（anchoredPosition 像素，正=右）。" +
             "★ 由拖动自动写入，一般不用手改；改为 0 可复位到原版位置。窗口会先被钳制在屏幕内。");
 
-        GroundOffsetY = cat.CreateEntry<int>("7G_GroundOffsetY", 0,
+        GroundOffsetY = cat.CreateEntry<int>(CfgKeys.GroundOffsetY, 0,
             "[地面] 拖动位置·Y（自动写入）",
             "「地面」窗口相对游戏原版停靠位的垂直偏移（anchoredPosition 像素，正=上）。" +
             "★ 由拖动自动写入，一般不用手改；改为 0 可复位到原版位置。窗口会先被钳制在屏幕内。");
