@@ -18,6 +18,9 @@ _S9*/
 *.bak
 *.bak-*
 
+# ---- 回归输出（regress.ps1 生成的报告/JSON，不入库）----
+_regress/out/
+
 # ---- 系统杂项 ----
 Thumbs.db
 .DS_Store
