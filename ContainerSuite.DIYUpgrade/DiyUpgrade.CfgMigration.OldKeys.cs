@@ -1,12 +1,5 @@
-// ══════════════════════════════════════════════════════════════════════════
-// CFG 迁移 —— 旧键合并（主题：把旧版本的重复/分散键收敛到统一键，并清掉旧键）
-//
-//   ① MigrateIncKeys  —— 升级增量「每类别每槽」→ 全局两级（IncW/IncH、ModIncW/ModIncH）
-//   ② MigrateDiagKeys —— 诊断日志开关「三个 → 一个」（统一到总开关 DiagLog）
-//
-// 共用工具（CfgPath/FindEntry/ApplyRawValue/NewKeyOf/ReadSectionValues）见基座文件
-// DiyUpgrade.CfgMigration.cs。
-// ══════════════════════════════════════════════════════════════════════════
+// CFG 迁移 —— 旧键合并：① 升级增量「每类别每槽」→ 全局两级；② 诊断日志开关「三个 → 一个」。
+// 共用工具见基座文件 DiyUpgrade.CfgMigration.cs；理由见 docs/cfg-migration.md
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,21 +11,8 @@ namespace DIYUpgrade;
 
 public static partial class DiyUpgradeMod
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // ① 升级增量「每类别每槽」→ 全局两级（IncW/IncH 原版，ModIncW/ModIncH Mod）。
-    //
-    // ★ 为什么不只靠段改名迁移：旧版这些键就躺在合并段 [CustomInfrastructure] 里
-    //   （CreateGridDef 一直往这个段里写 BoxT0IncW…ModContainerT0IncH），
-    //   段级迁移抓不到它们。若不搬：MelonPreferences 按内存已注册条目重写全文件时
-    //   会把这些未注册的旧键直接抹掉（或留作无害的孤儿键），用户调过的值静默归 1
-    //   —— 正是核桃最恨的"静默失效"。
-    //
-    // ★ 取最大值而非 last-wins：多个旧槽的 Inc 映射到同一个新键，抽到某个槽的默认 1
-    //   会反而把用户调大的值压回去；取 max 保证"不比原来小"。
-    //
-    // 兜底：旧键即使没被 SaveToFile 删干净，也只是无害的孤儿键（新版本不读），
-    //   且本函数每次启动都重读并重新 apply（幂等），不会反复刷盘。
-    // ═══════════════════════════════════════════════════════════════════════
+    // ① 升级增量「每类别每槽」→ 全局两级（为什么必须搬 / 取 max 而非 last-wins）：
+    //   见 docs/cfg-migration.md
     internal static void MigrateIncKeys(MelonPreferences_Category cat)
     {
         if (cat == null) return;
@@ -196,26 +176,8 @@ public static partial class DiyUpgradeMod
         catch (Exception ex) { CatchLogOnce.Warn(ex); }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // ② 诊断日志开关「三个 → 一个」
-    //
-    // 合并前：CI `DiagLog` / SBE `SaveBag_DiagLog` / DIY `DIY_DiagLog`，
-    //   面板里三项同名「输出诊断日志」，玩家分不清。合并后只剩 CI 的 `DiagLog`
-    //   （键名重排后 = z1_DiagLog）。
-    //
-    // ★ 为什么必须"读一遍再清"：用户可能只开了 SBE 那个（`SaveBag_DiagLog = true`），
-    //   CI 的一直是 false。如果只是删键，他的诊断输出会**静默消失** ——
-    //   正是本项目最忌讳的"没有报错的功能失效"。
-    //   所以取 **OR**：任一旧键为 true → 总开关置 true。（反方向无害：
-    //   把三个都关着的用户保持关着。）
-    //
-    // ★ 两个来源都要看：
-    //   ① 合并段 [CustomInfrastructure] 里残留的 SaveBag_DiagLog / DIY_DiagLog
-    //      —— 10-06~10-07 之间用过一段的用户；
-    //   ② 磁盘 cfg 文件本身（与 ① 同源，ReadSectionValues 直读）。
-    //
-    // 幂等：清干净后下次启动两处都读不到 → any=false → 只做一次空扫描就返回。
-    // ═══════════════════════════════════════════════════════════════════════
+    // ② 诊断日志开关「三个 → 一个」（必须"读一遍再清"取 OR，否则用户诊断输出静默消失）：
+    //   见 docs/cfg-migration.md
 
     /// <summary>诊断开关合并前用过的两个键（都在合并段里）。</summary>
     private static readonly string[] _legacyDiagKeys = { "SaveBag_DiagLog", "DIY_DiagLog" };

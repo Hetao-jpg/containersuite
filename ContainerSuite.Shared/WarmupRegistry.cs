@@ -30,10 +30,8 @@ internal static class WarmupRegistry
 {
     private static readonly List<MethodInfo> _targets = new List<MethodInfo>();
 
-    // 【2026-10-10 P2-2】声明清单：记录 ScanAndRegister 实际扫到的 [JitWarmup]（"类型名.方法名"）。
-    //   用途：供 DIY 侧做**覆盖率断言** —— MustWarmLeaves ⊆ 本清单。声明式改造后，
-    //   "某个叶子被漏打特性" 是唯一的失效模式，而它不会有任何编译期症状；
-    //   这里把扫到的东西记成机器可读的账，缺项即报错 + [REG.BP] 留痕。
+    // 声明清单：记录 ScanAndRegister 实际扫到的 [JitWarmup]，供 DIY 侧做覆盖率断言
+    // （MustWarmLeaves ⊆ 本清单，缺项即报错 + [REG.BP]）。理由：见 docs/jit-warmup.md
     private static readonly List<string> _declared = new List<string>();
 
     /// <summary>本次启动扫描到的 [JitWarmup] 声明清单（"类型名.方法名"，已去重）。</summary>
@@ -158,19 +156,13 @@ internal static class WarmupRegistry
 
     /// <summary>
     /// 用安全哑参把每个登记的方法各 invoke 一次，强制其在当前（浅）栈完成 JIT 编译。
-    /// <para>
-    /// 哑参规则与 <c>WarmupAllPatchMethods</c> 一致：值类型造默认实例、引用类型传 null、
-    /// byref 传其元素类型的默认值。<c>WindowShowHook.ShowPostfix</c> 之类的
-    /// **有副作用方法**由调用方在登记前自行排除，本类不替调用方判断。
-    /// </para>
+    /// 有副作用的方法由调用方在登记前自行排除，本类不替调用方判断。哑参规则与理由：见 docs/jit-warmup.md
     /// </summary>
     /// <returns>成功 invoke 的方法数（含 invoke 抛异常但已达成编译的）。</returns>
     internal static int WarmupAll()
     {
         int n = 0;
-        // 2026-10-10 P2：记录实际预热到的方法名。
-        //   声明式扫描后"清单里到底有谁"不再能从源码一眼看出 ——
-        //   本套件吃过「静默失效」的亏，这里留一条可核对的账（受 Diag 闸门控制）。
+        // 记录实际预热到的方法名（声明式扫描后清单不再是源码可见，留一条可核对的账，受 Diag 闸门控制）。
         var names = new System.Text.StringBuilder();
         try
         {
@@ -219,12 +211,8 @@ internal static class WarmupRegistry
 }
 
 /// <summary>
-/// 【2026-10-10 P2】声明式 JIT 预热标记：打在方法上 = 声明"启动期请用哑参把我编译掉"。
-/// <para>
-/// 由 <see cref="WarmupRegistry.ScanAndRegister"/> 在启动期扫描收集。
-/// 完整契约（static / null 安全 / 必须是叶子）见 WarmupRegistry 中
-/// 「声明式预热标记」段落的注释 —— 违反"叶子"约束会直接触发 CLR fatal。
-/// </para>
+/// 声明式 JIT 预热标记：打在方法上 = 声明"启动期请用哑参把我编译掉"，由 <see cref="WarmupRegistry.ScanAndRegister"/> 启动期扫描收集。
+/// 完整契约（static / null 安全 / 必须是叶子）见 WarmupRegistry 的「声明式预热标记」段。详见 docs/jit-warmup.md
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
 internal sealed class JitWarmupAttribute : Attribute

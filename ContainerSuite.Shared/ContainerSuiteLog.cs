@@ -125,24 +125,9 @@ public static class ContainerSuiteLog
         _diagSeen.Clear();
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // [REG] 结构化回归标记（原 RegMark 类，2026-10-13 并入本类）。
-    // 一行一个实例，供 _regress\regress.ps1 机器解析；人也能直接读。
-    //   [REG]    id=<ascii> status=PASS|FAIL|NA detail=<任意文本>
-    //   [REG.BP] name=<ascii> detail=<任意文本>       ← 断点：关键状态转换处留痕
-    //
-    // 设计原则（与 MEMORY 一致）：
-    //   · id / name 一律 ASCII（避开编码坑），中文只进 detail。
-    //   · 只加日志，不改任何逻辑、不改任何判据、不改任何写权限。
-    //
-    // ★ 2026-10-09 修订：改为**受 DiagLog 总闸控制**（原先无条件输出）。
-    //   理由：[REG]/[REG.BP] 本质是诊断输出，默认常驻会把 Latest.log 撑成几十倍长度，
-    //     而"启动成功 / 告警 / 错误"才是玩家需要长期看到的东西。
-    //   连带影响：回归工具链必须开 DiagLog 才能拿到断言凭据 ——
-    //     regress.ps1 已在 -Launch 前自动把 cfg 的 z1_DiagLog 置 true（结束后还原），
-    //     checks.json 里依赖本标记的 22 条断言据此正常工作。
-    //   ★ 格式 [REG] / [REG.BP] 一字不可改（checks.json 22 条断言机器解析依赖）。
-    // ═══════════════════════════════════════════════════════════════════
+    // [REG] / [REG.BP] 结构化回归标记（供 _regress\regress.ps1 机器解析）。
+    // ★ 格式 [REG] / [REG.BP] 一字不可改（checks.json 22 条断言依赖）；受 DiagLog 总闸控制
+    //   （回归前 regress.ps1 会自动把 z1_DiagLog 置 true）。设计原则与理由：见 docs/silent-failure.md
 
     /// <summary>断言：ok=true → PASS，否则 FAIL。</summary>
     public static void Mark(string id, bool ok, string detail = null)

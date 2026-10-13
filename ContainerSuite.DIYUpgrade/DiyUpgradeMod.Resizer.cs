@@ -26,12 +26,8 @@ public static partial class DiyUpgradeMod
 {
     internal static partial class ContainerWindowResizer
     {
-        // 2026-10-10：手柄数量改为命名常量（原散写 7）。
-        // ★ 新增第 8 个 Top 边手柄：小窝（XIAOWO）的手柄组有 8 个、含独立 Top 边条，
-        //   我们原来只有 7 个（缺 Top）—— 玩家"从上压"抓到的是小窝的 Top 手柄，
-        //   走小窝的缩放链路，本 mod 的网格清理（HideOutOfBoundsNodes / 收尾强制重建）
-        //   全都不在链上 ⇒ 从上压必然残留。补齐 Top 手柄让该方向回到本 mod 链路。
-        //   几何与 XIAOWO 的 Top 手柄一致（横贯顶边、宽 -32 给两角让位）。
+        // 手柄数量（8 = 与 XIAOWO 手柄组对齐，含独立 Top 边条；补齐 Top 才让"从上压"回到本 mod 链路）。
+        // 为什么：见 docs/diy-resizer.md
         internal const int ExpectedHandleCount = 8;
 
         [Flags]

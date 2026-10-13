@@ -1,35 +1,6 @@
-// ══════════════════════════════════════════════════════════════════════════
-// CFG 迁移 —— 基座（迁移链说明 + 各套迁移共用的读写工具）
-//
-// 【这个文件现在做什么】
-//   只放 4 套迁移**共用**的工具；各套迁移按主题拆到同目录 3 个 partial 文件：
-//     · DiyUpgrade.CfgMigration.OldKeys.cs    旧键合并（升级增量 + 诊断开关）
-//     · DiyUpgrade.CfgMigration.Rename.cs     键名重排（域号前缀）+ 已删键清理
-//     · DiyUpgrade.CfgMigration.DefaultIds.cs 物品ID白名单补齐
-//
-// 【迁移终止线：MinSupportedFrom = 1.7.4】（常量见 SuiteVersion.MinSupportedFrom）
-//   ★ 早于 1.7.4 的旧格式（4 个 DLL / 三段 cfg：[自定义容器升级] / [DIYUpgrade] /
-//     [SaveBagExpand]）**整段不再迁移**。原先的「三段并一段」迁移（1.7.3，标记文件
-//     ContainerSuite.merged20261006）连同它的全部快照 / MapLegacyKey /
-//     DropLegacyCategoriesFromMelon 逻辑已整体删除。
-//     跨过这条线的老用户直接按新键名默认值启动 —— 只丢"历史上改过的值"，不丢存档、
-//     不影响功能（面板与各容器都照常工作），这是刻意接受的取舍。
-//
-// 【迁移链顺序】（DiyUpgradeMod.Init 里逐条调用，顺序不可换）
-//     MigrateRenamedKeys → MigrateIncKeys → MigrateDiagKeys → EnsureDefaultIds
-//   · MigrateRenamedKeys 必须最先：先把「全局 IncW/IncH」搬到 5D_/5E_ 新键，
-//     随后 MigrateIncKeys 的「每槽→全局」合并只会"只升不降"，不会把值压回去。
-//
-// 【为什么收尾要"三处摘"而不是只删 cfg 文件】
-//   MelonPreferences 每次 SaveToFile 都会把它内存里的文档整份写回磁盘；
-//   只删文件里的行/段，下一次保存就被写回来（2026-10-06 实测 17ms 即被写回）。
-//   所以每套迁移都同时摘：① 内存 cat.Entries ② DefaultFile 文档 ③ 磁盘 cfg 行。
-//   （技法与 ModManager\PreferencesStore.RemoveCategoryFromMelonDocument 一致。）
-//
-// 【静默失效防线（全项目共守）】
-//   cfg 里明明有旧键、却一项都没搬动 → Error 级报警且**保留旧键、不写标记**
-//   （下次启动重试）。绝不为了 cfg 好看而丢用户的值。
-// ══════════════════════════════════════════════════════════════════════════
+// CFG 迁移 —— 基座（迁移链说明 + 各套迁移共用的读写工具）。
+// 这里只放 4 套迁移共用的工具；各套迁移按主题拆在同目录 3 个 partial 文件。
+// 背景 / 迁移链顺序 / 终止线 1.7.4 / "三处摘" / 静默失效防线：见 docs/cfg-migration.md
 using System;
 using System.Collections.Generic;
 using System.IO;

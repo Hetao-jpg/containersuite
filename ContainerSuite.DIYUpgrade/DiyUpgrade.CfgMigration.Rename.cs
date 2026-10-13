@@ -1,36 +1,5 @@
-// ══════════════════════════════════════════════════════════════════════════
-// CFG 迁移 —— 键名重排（主题：面板键名加域号前缀 77→69，并清掉已删键）
-//
-// 【为什么只能改键名】
-//   ModManager 面板顺序 = (段名, 键名) 的字典序，三个注册表都是
-//     OrderBy(CategoryId, OrdinalIgnoreCase).ThenBy(EntryId, OrdinalIgnoreCase)
-//   （BoolPreferenceRegistry.cs:16 / FloatPreferenceRegistry.cs:16 / HotkeyRegistry.cs:18）。
-//   段名动不了 —— ManagerState.CategoryBelongsToMod 用 Normalize()（只留字母数字转小写）
-//   比对段名与 DLL 文件名，拆段/改段名会让整段配置从面板里**消失**（静默故障）。
-//   ⇒ 想让"同类项相邻 + 开关块与数值块共用同一套域序"，只能给键名加域号前缀。
-//
-// 【改了哪些】（两代叠加，最终表的 142 条把两代都收了）
-//   ① 第 1 代（2026-10-07，标记 renamed20261007）：77 个面板可见键加域号前缀
-//      （0_ / 1A_ / 21_ / 4A_ / 7A_ / z1_ …），另删 8 个「每槽开关」⇒ 净剩 69 项。
-//   ② 第 2 代（2026-10-13，标记 renamed20261013）：把编号重排为**由总到分**，
-//      详见 <see cref="ContainerSuite.Shared.CfgKeys"/> 文件头的方案表。
-//      动机是原来那一套里"诊断开关插在功能开关中间、避让开关排在最常用项之前、
-//      分类尺寸被切割到两个波段"，玩家按用途找配置项很难找。
-//   ★ 8 个 `*Ids`（string）**刻意不改名**：它们不进面板（string 且不以 Hotkey 结尾，
-//     三个注册表都不收），却是玩家手改的物品ID列表 —— 改名只有"迁移漏掉就静默
-//     丢失自定义ID"的风险，没有任何面板收益。
-//   ★ 热键 UpgradeHotkey → 1D_UpgradeHotkey：仍以 "Hotkey" 结尾，
-//     照样被 HotkeyRegistry 收进热键块，不影响识别。
-//
-// 【为什么删 cfg 里的旧键行不够】
-//   MelonPreferences.DefaultFile 文档里的旧条目会在下一次 SaveToFile 被原样写回
-//   （2026-10-06 实测 17ms）。⇒ 与既有迁移同一套「三处摘」：
-//   内存 Entries + DefaultFile 文档 + 磁盘行。
-//
-// 【静默失效防线】
-//   cfg 里明明有旧键、却一项都没搬动 → 报警且**保留旧键不删**、不写标记
-//   （下次启动重试）。绝不为了 cfg 好看而丢用户的值。
-// ══════════════════════════════════════════════════════════════════════════
+// CFG 迁移 —— 键名重排（面板键名加域号前缀，并清掉已删键）。
+// 为什么只能改键名（段名动不得）/ 改了哪些 / 静默失效防线：见 docs/cfg-migration.md
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -45,27 +14,8 @@ public static partial class DiyUpgradeMod
 {
     /// <summary>
     /// 旧键名 → 新键名。**单一事实源** —— 新增/改名配置项时必须同步这里。
-    /// <para>
-    /// ★ 收录的是**历史上出现过的全部键名**（含两代旧名）+ 上一代的现名，统一指向当前名。
-    ///   这样无论是「一路上来的老用户」还是「只差一代的用户」，都能一次搬到位，
-    ///   不会出现"旧名字在新表里查不到 ⇒ 一项都没搬动 ⇒ 用户值静默丢失"。
-    /// </para>
-    /// <para>
-    /// ★ 8 个 <c>*Ids</c> 刻意不改名（在表里查得到才怪）—— 它们是玩家手改的物品清单，
-    ///   改名只有"迁移漏掉就静默丢自定义ID"的风险，没有任何面板收益。
-    ///   8 个「每槽开关」已删除，见 <see cref="RemovedKeys"/>。
-    /// </para>
-    /// <para>
-    /// ★ 新名一侧请以 <see cref="ContainerSuite.Shared.CfgKeys"/> 的常量为准（这里仍写字面量，
-    ///   因为历史旧名本来就没有常量）。
-    /// </para>
-    /// <para>
-    /// ★ 2026-10-13：已移除 56 条「第 0 代裸名」映射（EnableMod / UpgradeHotkey / BoxEnable /
-    ///   ShowGrid / DiagLog …），本表由 142 条减至 86 条。依据：迁移终止线为 1.7.4
-    ///   （SuiteVersion.MinSupportedFrom），且产品确认 2026-10-06~10-07 的
-    ///   「单段 [CustomInfrastructure] + 裸键名」窗口未对玩家公开发布 ⇒ 这些映射永不可能命中。
-    ///   ⚠ 代价：单段 cfg 里残留的裸孤儿键不再由本表参与「三处摘」，改由 RemovedKeys 清单承担。
-    /// </para>
+    /// 收录历史上出现过的全部键名（含两代旧名）+ 上一代现名，统一指向当前名；新名一侧以
+    /// <see cref="ContainerSuite.Shared.CfgKeys"/> 常量为准。详见 docs/cfg-migration.md。
     /// </summary>
     internal static readonly Dictionary<string, string> KeyRenames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -168,23 +118,8 @@ public static partial class DiyUpgradeMod
 
     /// <summary>
     /// **已删除**的配置键（在 cfg 里要清掉、不搬值、不存在于新版本）。
-    /// <para>
-    /// ① 2026-10-07："每槽独立开关"这一批 —— 核桃要求「多槽 槽0-槽3」「模组槽 模组-待定」
-    /// 合并到容器级 Enable（容器启用 = 启用所有格）。8 个键 × 两种命名（改名前 / 改名后）
-    /// = 16 个，都要能清掉：直接跨版本升级的用户 cfg 里是旧名，已升过 v1.7.4 的是新名。
-    /// </para>
-    /// <para>
-    /// ② 2026-10-10："诊断期"用过的开关 —— z4_DisableCfgKeepAlive（cfg 保活整体删除）、
-    /// z2_JitPrecompileProbe（项目已明令禁止其全量 PrepareMethod 逻辑）。它们不再是任何构建的
-    /// 注册键，却以"活段内孤儿键"的形式留在 [CustomInfrastructure] 里：MelonLoader 的 document
-    /// 是启动时整份 ParseFile 的快照，Save 会连孤儿键及其说明注释一并写回。故须在此显式清理 ——
-    /// 文档层 RemoveEntryFromDocument 会把 TomlValue（注释挂在它身上）整块摘掉。
-    /// </para>
-    /// <para>
-    /// ③ R1Probe / ResizeDiag 探针：只在 <c>-p:Diag=true</c> 构建里注册（见 DiyUpgradeMod.Core.cs
-    /// 的 <c>#if DIAG</c>）。Release 产物不注册 ⇒ 也是孤儿键，需清理；但 DIAG 构建下它们是活键，
-    /// **不能**清（否则每次启动都会把玩家的探针开关重置回默认），故用 <c>#if !DIAG</c> 包住。
-    /// </para>
+    /// 三类：每槽独立开关（8×2 命名）、诊断期遗留开关、仅 DIAG 构建注册的探针（Release 下为孤儿键）。
+    /// 详见 docs/cfg-migration.md。
     /// </summary>
     private static readonly HashSet<string> RemovedKeys = new HashSet<string>(StringComparer.Ordinal)
     {

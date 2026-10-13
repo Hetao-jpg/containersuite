@@ -318,27 +318,7 @@ public static partial class DiyUpgradeMod
         if (maxR < minR) maxR = minR;
         return true;
     }
-    // ═══════════════════════════════════════════════════════════════════
-    //  S8n（2026-10-02）：上限与 XIAOWO 对齐 —— **已于 2026-10-04 废弃**
-    // ═══════════════════════════════════════════════════════════════════
-    //  原设计：把 DIY 的拖拽上限夹到 XIAOWO 的当前解锁形状，避免两个 mod
-    //          各自 clamp 到自己的上限、拖到边界时互相打架（手感抖动）。
-    //
-    //  废弃原因：
-    //    · XIAOWO 的拖拽手柄已被本 mod 避让拦掉：
-    //        Prefix_Attach 阻止新建手柄
-    //        SweepZombieHandles 清理历史残留
-    //      同一个容器上只剩 DIY 一套手柄，不会打架 → 对齐不再必要。
-    //    · 保留对齐会造成两个反向 bug：
-    //        ① 恢复路径（读档 / Show）经过 TryGetGridShapeLimits 时被夹，
-    //           已升级到 10x11 的 smuggler_bay 被夹回 XIAOWO 满级 10x10；
-    //        ② 拖拽路径加了 "不缩小已有尺寸" 保护后，一旦形状到了 XIAOWO
-    //           上限（如 10x10），上限被夹死，之后拖拽永远出不去。
-    //
-    //  现状：ClampToXiaowoCeiling 函数、三个反射字段、调用点全部删除。
-    //        DIY 拖拽上限只受自己的 cfg（BoxMaxW/MaxH 等）约束。
-    //        如将来发现 S8n 的抖动真的回来了，可参考 git 历史还原。
-    // ═══════════════════════════════════════════════════════════════════
+    // S8n（2026-10-02）上限与 XIAOWO 对齐，已于 2026-10-04 废弃；原因见 docs/diy-resizer.md
     internal static bool TryResizeGridWindow(GameItem item, int reqC, int reqR, bool remember, out int actualWidth, out int actualHeight)
     {
         actualWidth = 0; actualHeight = 0;

@@ -20,18 +20,9 @@ public static class SuiteVersion
     public const string Suite = "1.7.8";                  // ← 1.7.7 改（修拖拽缩放网格残留/乱格 + 清 XIAOWO 残留手柄 + 补顶边 Top 手柄）
 
     /// <summary>
-    /// CFG 迁移的**最低支持来源版本**（迁移终止线）。
-    /// <para>
-    /// 约定：只保证把「≥ 本版本」的配置自动迁移到当前格式；早于本版本的旧格式
-    /// （4 个 DLL / 三段 cfg：<c>[自定义容器升级]</c> / <c>[DIYUpgrade]</c> /
-    /// <c>[SaveBagExpand]</c>）**不再迁移** —— 老用户跨过这条线直接按新键名默认值启动
-    /// （只丢"历史改过的值"，不丢存档、不影响功能，可接受）。
-    /// </para>
-    /// <para>
-    /// 为什么是 1.7.4：该版本做了 cfg 键名重排（域号前缀），之后所有面板可见键都是新键名；
-    /// 早于它的「三段并一段」合并（1.7.3）逻辑已整段删除，见
-    /// <c>DiyUpgrade.CfgMigration.cs</c> 文件头的「迁移终止线」说明。
-    /// </para>
+    /// CFG 迁移的**最低支持来源版本**（迁移终止线）：只把「≥ 本版本」的配置自动迁移到当前格式，
+    /// 早于它的旧格式（4 DLL / 三段 cfg）**不再迁移**（只丢历史改过的值，不丢存档、不影响功能）。
+    /// 为什么是 1.7.4（键名重排版本）见 docs/cfg-migration.md。
     /// </summary>
     public const string MinSupportedFrom = "1.7.4";
 

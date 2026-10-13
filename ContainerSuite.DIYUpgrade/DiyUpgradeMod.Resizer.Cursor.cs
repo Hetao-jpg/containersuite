@@ -209,26 +209,7 @@ public static partial class DiyUpgradeMod
 
         // （2026-10-13：_lastDragEdge / LastDragEdgeName 原为 ResizeDiag 记录拖拽方向用，
         //   随该探针一并删除。）
-        // ═══════════════════════════════════════════════════════════════
-        // S8r（2026-10-05）性能优化：DIY tick 常驻开销从 60~80μs 降到 <15μs。
-        //
-        // 背景：TD-09 性能基线显示，玩家静止不动时 DIY tick 依然消耗
-        //       60~80μs / 帧（占 60fps 帧预算 0.4~0.5%），主因是每帧对
-        //       所有可见 ResizeState 跑 raycast + overlay 同步。
-        //
-        // 判据：位置 / 左键 / 焦点 三者都没变 && 无正在进行拖拽 && 上一帧无 hover。
-        //       任一条不成立 → 走完整 tick（正常逻辑）。
-        //       全部成立 → 跳过整帧，但每 ForceTickEvery 帧强制跑一次完整 tick。
-        //
-        // 为什么每 6 帧要强制跑：ResizeState.Tick 里的 TryRestoreOnceOnVisible
-        //       需要 _visibleSince 被记录（窗口可见后 0.05s 才触发恢复）。
-        //       若鼠标永远不动、窗口永远"刚可见但还没记录过时间"，恢复就永不触发。
-        //       每 6 帧兜底一次（≈0.1s @ 60fps），恢复延迟最多 0.1s，玩家无感。
-        //
-        // 为什么要求「上一帧无 hover」：鼠标静置期间窗口可能被外部关闭/隐藏，
-        //       若直接跳过，光标会停留在 hover 态（视觉残留）。要求上一帧无 hover
-        //       让「鼠标第一次移出手柄」这一帧一定被计算到。
-        // ═══════════════════════════════════════════════════════════════
+        // S8r（2026-10-05）：DIY tick 常驻开销 60~80μs → <15μs 的跳过判据与理由：见 docs/diy-resizer.md
         private static Vector2 _lastPointerPos = new Vector2(-1f, -1f);
         private static bool _lastPointerHeld = false;
         private static bool _lastFocused = true;
@@ -278,21 +259,7 @@ public static partial class DiyUpgradeMod
 
         internal static void Tick()
         {
-            // ═══════════════════════════════════════════════════════════════════════
-            // 2026-09-29：门禁关闭时（读档 / 场景切换加载期）完全跳过拖拽手柄 tick。
-            //
-            // 三个原因：
-            //   1. 加载期 State 里的 Window 引用可能已失效（场景卸载），对它做
-            //      IsVisible() / RectTransformUtility 判定会触发无效 native 访问。
-            //   2. ResizeState.Tick 内的 TryRestoreRememberedGridShape 会与
-            //      XIAOWO / Wage 的窗口恢复链竞争同一个 GameGridInventory.SetShape，
-            //      这正是 WorldReadyGate 要避免的。
-            //   3. 加载期玩家不可能拖拽，全部 interop 调用都是浪费。
-            //
-            // 由 OnSceneWasLoaded 里的 WorldReadyGate.Invalidate() 关门，
-            // 由 LoadGameRestorePatch.DelayedRestore 的 WorldReadyGate.MarkReady() 开门。
-            // 门禁打开后下一帧，本方法自然恢复全部逻辑。
-            // ═══════════════════════════════════════════════════════════════════════
+            // 加载期（读档 / 场景切换）门禁关闭时完全跳过拖拽手柄 tick（三个原因）：见 docs/diy-resizer.md
             if (WorldReadyGate.ShouldDefer)
             {
                 try { ResizeCursor.Reset(); } catch (System.Exception ex) { CatchLogOnce.Warn("Resizer:tick-gate-reset", ex); }

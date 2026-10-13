@@ -60,12 +60,8 @@ internal static class SaveBagExpandConfig
 
     internal static void Init()
     {
-        // 2026-10-06 合并（B2）：段名 SaveBagExpand → CustomInfrastructure。
-        //   ModManager 归属规则只看 DLL 文件名（ManagerState.CategoryBelongsToMod），
-        //   单 DLL 之后文件名恒为 CustomInfrastructure，段名不跟着改的话
-        //   本模块 19 个配置项会全部从面板里消失。
-        //   旧段 [SaveBagExpand] 的值由 DiyUpgrade.CfgMigration 一次性搬过来，不丢配置。
-        //   必须复用 CI 已创建的那个 category 实例（否则同名段注册两次、保存互相覆盖）。
+        // 段名已合并为 [CustomInfrastructure]：必须复用 CI 已创建的那个 category 实例
+        //   （否则同名段注册两次、保存互相覆盖）。为什么 / 旧段迁移见 docs/cfg-migration.md
         MelonPreferences_Category cat = ContainerSuite.Shared.MelonPrefsUtil.GetOrCreate(
             ContainerSuite.Shared.MelonPrefsUtil.SuiteCategoryId, "自定义基础设施大小");
 
@@ -98,19 +94,9 @@ internal static class SaveBagExpandConfig
         SaveBagPagingHintDuration = cat.CreateEntry<float>(CfgKeys.SaveBagPagingHintDuration, 1.0f,
             "[分页] 提示时长 (0-5 秒)",
             "TAB 切页成功后，屏幕提示显示多少秒。默认 1.0，范围 0.1 ~ 5.0。0 = 不显示。");
-        // 2026-10-06 合并（B2）：三段并成一段后，三个模块的键名必须互不冲突，
-        //   只有 DiagLog 撞名（CI / SBE / DIY 各有一个）。当时把本模块改名成
-        //   SaveBag_DiagLog、DIY 改成 DIY_DiagLog。
-        //
-        // ★ 2026-10-07 再改：三个开关**合并成一个总开关**（面板里三项同名，
-        //   玩家根本分不清该开哪个）。现在本字段是 CI 那条 `DiagLog` 的**别名**
-        //   —— 同一个 MelonPreferences_Entry 实例，不再是本模块自己的条目。
-        //   所以：
-        //     · 所有 `SaveBagExpandConfig.DiagLog?.Value` 读取点一行未改；
-        //     · 旧键 SaveBag_DiagLog / DIY_DiagLog 由 DiyUpgrade.CfgMigration
-        //       的 MigrateDiagKeys 做 OR 迁移 + 三处清理（见那里）。
-        //   ★ 时序前提：CI.Init 早于 SBE.Init（Mod.OnInitializeMelon 的顺序），
-        //     所以这里取到的一定是已创建好的 entry。
+        // 三模块诊断开关已合并为 CI 的总开关 DiagLog（本字段是它的**别名**，同一 Entry 实例）。
+        //   ★ 时序前提：CI.Init 早于 SBE.Init（Mod.OnInitializeMelon 顺序），这里取到的必是已创建好的 entry。
+        //   旧键 OR 迁移 + 三处清理见 DiyUpgrade.CfgMigration；背景见 docs/cfg-migration.md
         DiagLog = CustomInfrastructure.CustomInfrastructureConfig.DiagLog;
 
 
