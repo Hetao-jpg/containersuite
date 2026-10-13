@@ -1,0 +1,593 @@
+ContainerSuite 瘦身方案（AI 执行版）
+文件用途：给后续接手的 AI（或另一个会话）读的可执行重构计划。
+不要把它当"建议书"——每张任务卡都是"照做即可"的粒度。
+建议落盘位置：_shared/refactor-plan-20261013.md
+方案版本：1.0（2026-10-13）｜基于代码版本：Suite 1.7.8
+
+0. 读前必读（AI 上下文）
+0.1 项目是什么
+CustomInfrastructure（内部代号 ContainerSuite）是《Probably Stolen Demo》的一个 MelonLoader IL2CPP Mod。
+2026-10-06 由 4 个 DLL 合并成 1 个，源码仍留在 4 个目录，由 ContainerSuite.Infrastructure.csproj 用 <Compile Include> 拉进来编译。
+
+text
+ContainerSuite.Shared/        ← 地基，无独立功能
+ContainerSuite.Infrastructure/← CI：垃圾桶/档案箱/磁带机 扩容
+ContainerSuite.SaveBag/       ← SBE：主仓库分页/滚动/扩容/地面窗口拖动
+ContainerSuite.DIYUpgrade/    ← DIY：容器升级/批量升级/拖边改尺寸/跨mod避让
+玩家可感知的功能只有 9 类，代码 ≈ 16,400 行（含注释）。本方案目标：在不减功能的前提下砍掉 ~20%。
+
+0.2 铁律（违反即事故，本方案所有任务卡都不得触碰）
+这 10 条是全库血泪，执行任何任务前先过一遍：
+
+#	铁律	违反后果
+L1	节流/时间比较必须用 PollThrottle（单调钟），禁用 DateTime.UtcNow 差值	系统时钟回拨 → 闸门卡死、缓存恒命中，全程无声
+L2	缓存上限必须用 CacheLimits.Trim(x, CacheLimits.Large/Medium/Small)，禁止裸写 if (Count > N) Clear()	语义漂移；去重集合被整体清空 = 制造假信号
+L3	新增「可重建缓存」字段（名以 Cache/Seen 结尾）必须登记 CacheRegistry	check-forbidden.ps1 的 R6 编译期报错
+L4	禁止手写 rectTransform.sizeDelta 绕过画布缩放	破坏 GetWorldCorners 判定（已坑两次）
+L5	禁止动态 Unpatch/重装 Harmony detour	IL2CPP 上重生成 detour → CLR fatal 0x80131506
+L6	加载期（WorldReadyGate.ShouldDefer == true）禁止做网格/窗口级操作	SetShape/Expel/Validate 在深栈首 JIT → 0x80131506
+L7	补丁方法体必须小；大逻辑下沉到未被 Hook 的私有方法	被挂钩方法 JIT 时与 MonoMod CompileMethodHook 冲突 → 0x80131506
+L8	cfg 键名只从 CfgKeys 取，禁止再写字面量	改名漏一处 → 静默丢配置
+L9	异常必须留痕（CatchLogOnce / LogOnce / [REG]）；默认静默会被误读为"没执行"	静默失效是本项目最忌讳的故障形态
+L10	日志"默认静默"只适用于诊断；玩家可见的结果类提示（升级被拒 / 合并丢失 / 恢复失败）必须走无条件 Warning/Error	玩家改了配置没反应却查不到原因
+0.3 禁区（本方案绝对不碰）
+WarmupRegistry + [JitWarmup] 的主体机制（MustWarmLeaves 覆盖率断言是好的）
+
+PollThrottle 本身
+
+跨帧持有 IL2CPP 对象的「指针 + uniqueId 双验」（B-3'）
+
+[assembly: HarmonyDontPatchAll]
+
+CacheRegistry 的登记机制
+
+RestoreArbiter 的单写者语义
+
+GridFx.FillHealthyByRow / FillHealthyByCount 两套判据并存（注释明确说各有实机验证，是故意的）
+
+0.4 术语
+三处摘：清旧 cfg 键要同时摘 ① 内存 cat.Entries ② MelonPreferences.DefaultFile 文档 ③ 磁盘行
+
+CLR fatal：0x80131506，托管 catch 抓不到的进程级崩溃，本项目头号敌人
+
+预热：启动期在浅栈用 null 哑参 invoke 方法，强制其 JIT 完成
+
+R6 门禁：_shared\check-forbidden.ps1 的第 6 条规则
+
+1. 目标与总验收
+1.1 量化目标
+指标	现状	目标	说明
+源码行数（不含注释）	≈10,000	≤8,200	减 ~18%
+源码行数（含注释）	≈16,400	≤13,000	注释可搬迁
+顶层文件数	53	≤48	少量合并
+玩家可感知功能	9 类	9 类	一行不减
+1.2 总验收（每个批次做完都必须过）
+powershell
+# ① 编译
+dotnet build -c Release ContainerSuite.Infrastructure.csproj
+
+# ② 门禁（R1~R6 全部 PASS）
+pwsh _shared\check-forbidden.ps1
+
+# ③ 版本一致性
+pwsh _shared\check-suite-version.ps1
+
+# ④ 回归（需游戏环境；若不可用则跳过，但要在 PR 说明里注明）
+pwsh _regress\regress.ps1 -Launch
+# 期望：所有 [REG] status=PASS，无 FAIL
+任何一项不通过 → 该批次回滚（见 §5）。
+
+2. 任务卡
+图例：🟢 低风险直接做｜🟡 需判断｜🔴 结构性，需分批
+依赖：→ 表示"必须先完成"
+
+🟢 T-A1：简化拖拽光标纹理
+优先级：中｜预估省：~150 行｜风险：低（视觉可回归）｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgradeMod.Resizer.Cursor.cs
+
+现状：ResizeCursor.Create(Kind) 用 Bresenham 画线 + 画圆，手绘 5 种纹理（H / V / 两个对角 / 禁止），配 DrawLine（~30 行）+ DrawCircle（~20 行）。
+
+动作（三选一，按推荐顺序）：
+
+方案 A（推荐）：保留 4 种方向纹理，删除 DrawCircle，Forbidden 改为「矩形边框 + 对角叉」用 DrawLine 画（省 ~20 行）。视觉差异：禁止光标从"红圈"变"红框"，玩家无感。
+
+方案 B：Create 全部返回 null；Set(kind) / SetForbidden() / Reset() 统一调 Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto) 回退系统光标；把"可拖拽"提示交给手柄的可视化（手柄 Image.color 从 (1,1,1,0.001) 提到 (1,1,1,0.15)）。省 ~150 行，但需产品决策（视觉变化明显）。
+
+方案 C：抽 DrawArrow(tex, int dx, int dy) 参数化 4 个方向（省 ~60 行），Forbidden 保留。
+
+禁止：
+
+不要改 ExpectedHandleCount = 8（8 个手柄是避让 XIAOWO 的关键）。
+
+不要动 Set() 里的 _appliedCursor 缓存逻辑。
+
+验收：
+
+拖拽窗口边缘，4 个方向 + 4 个角的光标方向正确（目视）。
+
+Cursor.Reset() 后回系统箭头。
+
+🟢 T-A2：把 CfgSelfCheck 移出主 DLL
+优先级：高｜预估省：~230 行｜风险：低｜依赖：无
+
+涉及：ContainerSuite.Shared/CfgSelfCheck.cs（整文件）+ ContainerSuite.Infrastructure/Mod.cs
+
+现状：CfgSelfCheck.Tick() 每帧被 Mod.OnUpdate 调用，8 秒后跑一次 TomlSanityCheck()，扫描全游戏共用的 MelonPreferences.cfg 是否 TOML 合法。
+
+问题：这不是容器套件的职责。它只报警不修复，且扫全文件（含别家 mod 的段）。
+
+动作（二选一）：
+
+方案 A（推荐）：整个文件删除。
+
+删 ContainerSuite.Shared/CfgSelfCheck.cs。
+Mod.OnUpdate 里删掉这三行：
+csharp
+CrashProbe.Enter("CfgSelfCheck");
+try { ContainerSuite.Shared.CfgSelfCheck.Tick(); } catch (...) { ... }
+CrashProbe.Exit("CfgSelfCheck");
+grep -r "CfgSelfCheck" . 确认无残留引用。
+方案 B（保守）：保留文件，但 Tick() 首行加 if (!ContainerSuiteLog.DiagEnabled) { _checkDone = true; return; }——只在玩家开诊断时跑。省运行时开销，不省行数。
+
+禁止：不要把 TomlSanityCheck 的"Fallback 会静默毁所有 mod"告警删掉——那是它唯一的价值。若选方案 A，把该结论写进 README 的"已知问题"一节。
+
+验收：grep -r "CfgSelfCheck" 为空（方案 A）。
+
+🟢 T-A3：合并 RegMark 进 ContainerSuiteLog
+优先级：中｜预估省：~60 行｜风险：低｜依赖：无
+
+涉及：ContainerSuite.Shared/RegMark.cs（删）+ ContainerSuite.Shared/ContainerSuiteLog.cs（加）
+
+现状：RegMark.Mark / RegMark.Bp 都受 ContainerSuiteLog.DiagEnabled 门控，输出走 ContainerSuiteLog.Msg——天然是 ContainerSuiteLog 的一部分，独立成文件没有理由。
+
+动作：
+
+把 Mark(string id, bool ok, ...) / Mark(string id, string status, ...) / Bp(string name, ...) 三个方法逐字搬进 ContainerSuiteLog。
+
+保留 [REG] / [REG.BP] 输出格式一字不改（regress.ps1 机器解析依赖它）。
+
+删 RegMark.cs。
+
+全库替换 RegMark.Mark( → ContainerSuiteLog.Reg(、RegMark.Bp( → ContainerSuiteLog.RegBp(。
+
+或更省事：在 ContainerSuiteLog 里保留 Mark / Bp 同名方法，零调用点改动。
+
+禁止：
+
+不要改 [REG] / [REG.BP] 的输出格式（checks.json 里 22 条断言依赖）。
+
+不要把 RegMark 的门控改成无条件输出——它现在是 DiagEnabled 门控，regress.ps1 会在 -Launch 前自动打开 z1_DiagLog。
+
+验收：regress.ps1 的所有 [REG] 标记仍在，格式一致。
+
+🟢 T-A4：删除重复实现（经复核，只保留两条）
+优先级：低｜预估省：~50 行｜风险：低｜依赖：无
+
+⚠️ 重要：上一轮方案里"FillHealthyByRow / FillHealthyByCount 选一套"的条目经复核不成立，已撤回。
+注释明确写"两套策略本质不同，都有实机验证，不强行统一"（见 GridFx.cs 文件头）。
+不要删任何一个。
+
+保留的两条：
+
+子项	文件	动作
+SplitIds 重复	DiyUpgradeMod.Config.cs 的 private static string[] SplitIds	删本地实现，调用改 IdMatch.SplitIds（语义等价，IdMatch 版是 public）
+TrimCache<T> 包装	DiyUpgradeMod.State.cs 的 private static void TrimCache<TKey,TValue>(dict)	删方法，调用点改 CacheLimits.Trim(dict, CacheLimits.Large)
+验收：grep -n "TrimCache" ContainerSuite.DIYUpgrade/ 为空（或只剩合法调用）。
+
+🟡 T-A5：删除组拖「事件丢失」对账（可选）
+优先级：低｜预估省：~80 行｜风险：低（纯日志）｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgradeMod.GroupDrag.cs 的 ReconcileGroupDragArm + 三个字段 + DiyUpgradeMod.Core.cs 的调用点。
+
+现状：ReconcileGroupDragArm 是 T3（2026-10-12）加的"只观测不干预"对账——武装后鼠标抬起 N 帧仍没等到 EndGroupDrag 就打一行 Warning。
+
+判断：它的价值是"下次再出问题时能查"。删掉只是少一行日志，功能零影响。但它成本也极低（未武装时一行 bool 判断）。
+
+动作：
+
+方案 A：保留。跳过本卡。
+
+方案 B：删 ReconcileGroupDragArm + _groupDragMouseUpFrames / _groupDragLostLogged / GroupDragLostAfterUpFrames + Core.cs 的调用。在 GroupDrag.cs 文件头留一行注释说明"T3 对账已于 2026-10-13 移除，需要时见 git 历史"。
+
+建议：选 A。省 80 行不值得牺牲可观测性（L9）。
+
+🟡 T-B1：冻结 cfg 迁移表的历史条目
+优先级：中｜预估省：~400 行｜风险：中｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgrade.CfgMigration.Rename.cs 的 KeyRenames（142 条）
+
+现状：KeyRenames 收录两代旧名：
+
+第 0 代（≤1.7.3）：裸名，如 "EnableMod" / "UpgradeHotkey" / "CageHpPerCell"。
+
+第 1 代（1.7.4~1.7.7）：带第 1 代前缀，如 "0A_MaterialJunk" / "21_UpgradeHotkey" / "4A_BoxEnable"。
+
+关键事实：SuiteVersion.MinSupportedFrom = "1.7.4"——早于 1.7.4 的用户本来就不再迁移（三段并一段整段删除）。所以第 0 代裸名映射永远不会被命中。
+
+动作（必须按此顺序）：
+
+先写脚本列出候选（不删）：
+
+powershell
+# 从 KeyRenames 里筛出"key 是裸名"的条目（无 [0-9A-Za-z]+_ 前缀）
+# 输出到 _shared/keyrenames-candidates.txt 供人工核对
+判据：key 不匹配 ^[0-9A-Za-z]+_。
+
+人工核对候选：确认每条的两侧都是"1.7.4 之前的名"。
+
+若某条的 key 是第 1 代名（0A_ / 21_ / 4A_ / 5D_ / 7A_ / 8A_ / z1_ 等），保留。
+
+若某条的 key 是裸名，删。
+
+删除前先确认清理逻辑不受影响：
+
+RemoveRenamedKeyLines / DropRenamedKeysFromMelon 用 KeyRenames.Keys 做清理。删掉裸名映射 = 裸名不再被清理。
+
+影响评估：裸名只可能存在于 ≤1.7.3 的 cfg（三段格式），而 RemoveRenamedKeyLines 只在 [CustomInfrastructure] 段内删——那些裸名不在这个段里，本来就删不到。所以删除无副作用。
+
+执行删除，dotnet build 通过。
+
+在 KeyRenames 文件头补一句：
+
+2026-10-13：已冻结 1.7.4 之前的历史名（第 0 代裸名）—— 迁移终止线是 1.7.4，那些映射永不可能命中。
+
+禁止：
+
+不要删第 1 代映射（那是 1.7.4~1.7.7 用户唯一的迁移路径）。
+
+不要删 RemovedKeys 里的任何条目（那是"已删除键"的清理清单，与服务对象无关）。
+
+不要顺手改 RenameMarkerPath() 的标记文件名（改了会让已迁移用户重跑迁移）。
+
+验收：
+
+dotnet build 通过。
+
+保留的映射条数 ≥ 60（第 1 代条目数）。
+
+未改动任何 RemovedKeys 条目。
+
+🟡 T-B2：保留 PerIdLimits，只加标注
+优先级：低｜预估省：0｜风险：低｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgradeMod.PerIdLimits.cs
+
+复核结论：2026-10-13 作者刚把白名单和上限从外挂文件搬回 cfg（见文件头"为什么改完不需要重启"和"为什么不另外出一份文件"），说明这是有意保留的功能。
+
+动作：
+
+不动代码。
+
+在文件头注释里加一句（若尚无）：
+
+★ 本功能刻意不在面板显示（string 项且 ModManager 只收 bool/数字/Hotkey）——90% 的人用不到，改的人只看 cfg 注释就够。
+
+禁止：不要"顺手提升到面板可见"（会制造 200 条噪音项）。
+
+🟡 T-B3：删 OffsetResolver 的纯诊断入口
+优先级：低｜预估省：~80 行｜风险：低｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgradeMod.Utils.cs 的 WarmUpOffsetDiag / LogOffsetDiag / LogOffsetDiagOne + DiyUpgradeMod.Core.cs 的调用点。
+
+现状：这三个方法只输出诊断文本，不参与任何逻辑。FieldOffset 主体的运行时反查机制（真正的价值）保留。
+
+动作：
+
+删 LogOffsetDiag / LogOffsetDiagOne。
+
+WarmUpOffsetDiag 删除或保留但只留"预热"部分（它顺手预热了 identifier / state 两个偏移，有实际价值）：
+
+若保留：把函数名改为 WarmUpOffsets，删掉里面所有 LogOffsetDiagOne 调用。
+
+Core.cs 里：
+
+csharp
+WarmUpOffsetDiag();
+if (_diagLog != null && _diagLog.Value) LogOffsetDiag();  // ← 这行删
+第一行保留（改名后），第二行删。
+
+禁止：不要动 OffsetResolver.FieldOffset / MarkDistrusted / IsDistrusted——那是运行时偏移反查的主体。
+
+验收：grep -n "LogOffsetDiag" ContainerSuite.DIYUpgrade/ 为空。
+
+🟡 T-B4：RechargerSprites 注释搬迁
+优先级：中｜预估省：~150 行｜风险：低｜依赖：无
+
+涉及：ContainerSuite.DIYUpgrade/DiyUpgradeMod.RechargerSprites.cs
+
+现状：~180 行，其中 ~140 行是反汇编取证注释（原生 RVA、字节码、调用点链）。代码本体只有 ShouldDraw（3 个判据）+ Probe + 一个 Patch 类。
+
+动作：
+
+新建 docs/diy-recharger-sprite.md，把文件头部 ~140 行注释逐字搬过去。
+
+源码里文件头改为：
+
+csharp
+// 充能器贴图钳制 —— 升级后只显示前 4 颗电池。
+// 完整取证（反汇编 RVA / 字节码 / 调用点链 / 为什么挂 UpdateInnateModSprite）：
+//   docs/diy-recharger-sprite.md
+保留 ShouldDraw 里的关键单行注释（如"必须无条件钳制，不能加 ShouldDefer"那条理由）。
+
+禁止：不要把代码里的判据理由注释一起搬走（读者需要就地知道"为什么 x < 64"）。
+
+验收：文件行数 ≤ 60（含 using）。
+
+🟡 T-B5：CrashProbe 调用点降噪
+优先级：低｜预估省：~0 行（但可读性提升）｜风险：低｜依赖：无
+
+涉及：ContainerSuite.Infrastructure/Mod.cs 的 OnUpdate（~20 处 CrashProbe.Enter/Exit）+ SaveBagExpand/mod.cs 的 Tick（~10 处）+ DiyUpgradeMod.Core.cs 的 Tick（~8 处）
+
+现状：每个子步骤都包一对 CrashProbe.Enter/Exit。DIAG 构建才有实现，Release 走 [Conditional] 空实现——所以运行时零开销，但源码里是噪音。
+
+动作：
+
+方案 A（推荐）：不动。它是崩溃取证的唯一手段，删了下次出 0x80131506 就只能靠猜。
+
+方案 B：每个模块只保留一对（Mod.OnUpdate 里 CIWarmup / Arbiter / SBE / DIY / CfgSelfCheck 各一对已经够定位到模块，子步骤对只在"模块内哪一步崩"时才有用）。
+
+建议：选 A。这是取证密度问题，不是行数问题。
+
+🔴 T-C1：拆 SaveBagPaging.cs
+优先级：高｜预估省：0 行（但维护成本大降）｜风险：中｜依赖：无
+
+涉及：ContainerSuite.SaveBag/SaveBagPaging.cs（~1,400 行，单文件）
+
+现状：一个文件塞了 6 个主题：
+
+主题	约行数	现状符号
+分页核心（切页 / 快照 / 放置）	~400	TryCycleNext / SwitchPage / SnapshotCurrentPage / Place / PlaceAll
+页归属自愈（S9）	~200	EnsureGridOwnershipClean / HasForeignPageId / CurrentPageOwns / ForeignPageOf
+拖拽假体复原（2026-10-12）	~120	ReassertDragGhostIfDragging / TickDragGhostReassert / ProbeTabDrag
+合并丢失检测（B1）	~180	CollectStored / DetectMergeLoss / WriteMergeLossFile
+ID 旁路文件（S8u-4 + T4 runKey）	~250	ReadIdsLines / WriteIdsLines / BuildIdsLine / FindIdsLine / TryParseSlotHead / LoadIdSets / SaveIdSets / IdsFileSelfTest
+JIT 预热 + 存档钩子	~250	WarmupJit / BeforeSave / AfterSave / AfterLoad / SaveBagPagingSavePatch
+动作：按上表拆成 6 个 partial 文件：
+
+text
+SaveBagPaging.cs                  ← 类声明 + 字段 + Initialize + Tick（保留）
+SaveBagPaging.Core.cs             ← 分页核心
+SaveBagPaging.Reconcile.cs        ← 页归属自愈
+SaveBagPaging.DragGhost.cs        ← 拖拽假体复原
+SaveBagPaging.MergeLoss.cs        ← 合并丢失检测
+SaveBagPaging.IdsFile.cs          ← ID 旁路文件
+SaveBagPaging.Warmup.cs           ← JIT 预热 + 存档钩子
+执行方式：
+
+先给类加 public static partial class SaveBagPaging（现在不是 partial）。
+
+逐主题机械剪切（Ctrl+X → Ctrl+V），不改一行逻辑。
+
+每个新文件顶部加 using（照抄原文件）。
+
+每一步都编译，通过后再搬下一个主题。
+
+禁止：
+
+不要顺手重命名任何方法/字段。
+
+不要在搬迁过程中"顺便"改逻辑（搬迁 + 改逻辑必须分两次提交）。
+
+不要拆 SaveBagPagingSavePatch 的 Harmony 类（那是独立的 [HarmonyPatch] 类，跟着它挂的方法走）。
+
+验收：
+
+每个新文件 ≤ 350 行。
+
+dotnet build 通过。
+
+用 git diff --stat 确认是"移动"而非"改写"（行数守恒 ±5%）。
+
+🔴 T-C2：论证并简化恢复链的三层节流
+优先级：中｜预估省：~100 行｜风险：中｜依赖：先做 T-C1（不必须，但建议）
+
+涉及：
+
+ContainerSuite.DIYUpgrade/DiyUpgradeMod.Restore.cs 的 _restoreMemo + RestoreStateSignature
+
+ContainerSuite.DIYUpgrade/DiyUpgradeMod.Meta.cs 的 _lastReapplyFromMetaTime
+
+ContainerSuite.Shared/RestoreArbiter.cs 的 Entry 冷却
+
+现状：三层都在防"重复恢复"，语义重叠：
+
+层	机制	作用域	TTL
+Arbiter	队列 + 冷却帧（1 帧）	全进程	帧级
+_lastReapplyFromMetaTime	指针 → 时间戳	单物品	3 秒
+_restoreMemo	指针 → 状态签名	单物品	会话
+分析：
+
+_lastReapplyFromMetaTime 的 3 秒 TTL 是纯节流（防同物品反复重跑），但它不判"有没有活干"——所以它会让"3 秒内的第二次真实恢复请求"被误拒（虽然 Arbiter 已经在前面挡住了大部分）。
+
+_restoreMemo 是语义判据（签名相同 = 无事可做），比时间判据更准。
+
+结论：_lastReapplyFromMetaTime 是冗余的——_restoreMemo 能覆盖它的全部有效场景，而 Arbiter 能覆盖"同帧重复"。
+
+动作（必须先论证再动手）：
+
+阶段一：只加观测，不改逻辑。
+
+在 _lastReapplyFromMetaTime 命中（< 3000ms）时，额外调一次 _restoreMemo 判据；若 memo 判定"本可跳过"，说明这条 TTL 拒掉的是本来就要拒的，无副作用。
+
+跑一次游戏，抓 3~5 次读档日志，确认"TTL 拒掉但 memo 不拒"的次数为 0（或极少）。
+
+阶段二：若阶段一确认无副作用，删 _lastReapplyFromMetaTime 及其 TTL 判定，只留 force 参数语义（Arbiter 传 force: true 时仍绕过）。
+
+阶段三：跑回归，regress.ps1 的 sbe.reconcile / diy.restore.ready 必须 PASS。
+
+禁止：
+
+不要先删后验。
+
+不要动 RestoreStateSignature 的三项（targets / 网格形状 / 窗口像素）——注释明确说"三者缺一都会造成静默失效"。
+
+验收：阶段一的观测数据 + 阶段三的回归结果，都附在 commit 说明里。
+
+🔴 T-C3：WorldReadyGate 状态变量收敛（评估后可能不动）
+优先级：低｜预估省：~80 行｜风险：高｜依赖：无
+
+涉及：ContainerSuite.Shared/WorldReadyGate.cs
+
+现状：6 个状态字段：
+
+_ready / _readyFrame / _slotAtReady / _invalidatedAt：内部状态
+
+LastReadyAt / FirstReadyAt：两个对外的"开门时间戳"
+
+分析：LastReadyAt（S8u-2）和 FirstReadyAt（S9）的差异是有意的——注释写得很清楚：
+
+SecondsSinceLastReady 取"最晚一次"——被"恢复最慢的那个 mod"绑架。
+SecondsSinceFirstReady 只认本轮第一次放行——上界稳定。
+
+SBE 用 SecondsSinceFirstReady（S9 改的），其它地方仍可能用 LastReadyAt。
+
+判断：这条不建议动。两个时间戳服务两个不同语义，合并会重新引入"被最慢 mod 绑架"的 bug。
+
+动作：
+
+方案 A（推荐）：不删。只在文件头补一句："两个时间戳语义不同，不要合并。"
+
+方案 B：若实测发现 LastReadyAt 的所有消费者都可以改用 FirstReadyAt，才考虑删。需要 grep 全部消费者 + 逐个论证。
+
+建议：选 A。省 80 行不值得冒 S9 回归的风险。
+
+🔴 T-C4：注释搬迁（收益最大的一项）
+优先级：高｜预估省：~1,500 行（含注释总数）｜风险：低｜依赖：无
+
+涉及：全库文件头部的长注释块。
+
+判据（什么算"设计文档"vs"代码注释"）：
+
+设计文档：描述背景 / 取证过程 / 决策理由 / 历史沿革 / 踩坑记录——≥ 20 行且不含当前代码的具体行为描述。
+
+代码注释：解释"这行为什么这么写" / "别改成 X" / "契约是什么"——保留就地。
+
+动作：
+
+新建 docs/ 目录。
+
+对下列文件，把文件头部的长注释逐字搬到对应 .md，源码留 3~5 行摘要 + 指针：
+
+源文件	目标 doc	预估搬运行数
+DiyUpgradeMod.Resizer.cs	docs/diy-resizer.md	~60
+DiyUpgradeMod.Resizer.Cursor.cs	docs/diy-resizer.md（合并）	~10
+DiyUpgradeMod.RechargerSprites.cs	docs/diy-recharger-sprite.md	~140（见 T-B4）
+DiyUpgradeMod.GroupDrag.cs	docs/diy-groupdrag.md	~80
+SaveBagPaging.cs	docs/sbe-paging.md	~120
+SaveBagExpandWindowDrag.cs	docs/sbe-window-drag.md	~60
+ContainerExpander.cs	docs/ci-expander.md	~60
+ContainerExpandPatch.cs	docs/ci-expander.md（合并）	~30
+SkipXiaowoBayRestore.cs	docs/cross-mod-xiaowo.md	~100
+SkipWageUpgradeRestore.cs	docs/cross-mod-wage.md	~120
+WarmupRegistry.cs	docs/jit-warmup.md	~80
+CrashProbe.cs	docs/crash-probe.md	~60
+SaveBagExpandConfig.cs	docs/cfg-migration.md（合并）	~40
+AssemblyInfo.cs	docs/harmony-dontpatchall.md	~50
+源码头部改成：
+
+csharp
+// <一行摘要>
+// 完整背景 / 取证 / 决策理由：docs/<name>.md
+禁止：
+
+不要搬走铁律级的注释（如 GridFx 的"对称判据实测推翻"、ContainerExpandPatch 的"读档期禁用 Postfix"）——那些必须就地可见。
+
+不要改注释文字（逐字搬，避免搬运中引入错误）。
+
+不要删注释——只搬。
+
+验收：
+
+每个 .md 内容与搬走前逐字一致（用 git diff 核对）。
+
+源码行数下降，但 grep -c "0x80131506" 的行数不变（说明铁律没被搬走）。
+
+3. 执行批次
+批次 1（零风险，可并行）：
+
+T-A1（方案 A）
+
+T-A2（方案 A）
+
+T-A3
+
+T-A4
+
+T-B4
+
+批次 2（低风险，串行）：
+
+T-B1（迁移冻结，需人工核对）
+
+T-B3
+
+批次 3（结构性，需分提交）：
+
+T-C1（拆 SaveBagPaging，6 个 commit）
+
+T-C4（注释搬迁，逐文件 commit）
+
+批次 4（需论证，可选）：
+
+T-C2（三层节流）
+
+T-A5 / T-B5 / T-C3（建议全部选"保留"）
+
+每批次结束：跑 §1.2 的总验收。
+
+4. 全局验收清单
+markdown
+- [ ] `dotnet build -c Release` 无错误、无新增警告
+- [ ] `check-forbidden.ps1` R1~R6 全 PASS
+- [ ] `check-suite-version.ps1` PASS
+- [ ] `regress.ps1` 所有 [REG] status=PASS
+- [ ] `grep -rn "DateTime.UtcNow" ContainerSuite.*/` 无新增（L1）
+- [ ] `grep -rn "Count > " ContainerSuite.*/` 无新增裸上限（L2）
+- [ ] 新增/删除的缓存字段已在 `CacheRegistry` 登记（L3）
+- [ ] `grep -rn "SetShape" ContainerSuite.*/ | grep -v ShouldDefer` 无新增加载期调用（L6）
+- [ ] `grep -rn 'CreateEntry<string>("' ContainerSuite.*/` 无字面量键名（L8）
+- [ ] 所有被删代码在 `git log` 里可追溯（不要 force push）
+5. 回滚策略
+每个任务卡一个 commit，commit message 格式：
+
+text
+[refactor/<task-id>] <一句话>
+
+省 N 行。验收：<验证命令与结果>
+批次 1~2 的失败回滚：git revert <commit>。
+
+批次 3（搬迁）的失败回滚：搬迁 commit 必须能用 git revert 干净回滚——所以搬迁不得与逻辑改动混在同一个 commit。
+
+批次 4 的失败回滚：因为有阶段一观测数据，回滚前先看数据是否支持"确实无副作用"。
+
+6. 附录：测量脚本
+powershell
+# 按文件统计行数（含/不含注释）
+Get-ChildItem -Recurse -Filter *.cs ContainerSuite.*/ |
+  Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' } |
+  ForEach-Object {
+    $all = (Get-Content $_.FullName).Count
+    $code = (Get-Content $_.FullName | Where-Object {
+      $t = $_.Trim()
+      $t -ne '' -and -not $t.StartsWith('//') -and -not $t.StartsWith('///')
+    }).Count
+    [PSCustomObject]@{ File = $_.Name; All = $all; Code = $code }
+  } | Sort-Object All -Descending | Format-Table -AutoSize
+
+# 全库合计
+(Get-ChildItem -Recurse -Filter *.cs ContainerSuite.*/ |
+  Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' } |
+  Get-Content).Count
+7. AI 执行前 Checklist
+接手本方案的 AI，动手前必须能回答：
+
+□ 我读完了 §0.2 的 10 条铁律，且知道每条对应哪个文件里的实例。
+□ 我知道 0x80131506 是什么、为什么会发生、本项目用什么防它。
+□ 我知道"三处摘"是哪三处、为什么只删磁盘行不够。
+□ 我知道为什么不能用 DateTime.UtcNow 做节流。
+□ 我知道 FillHealthyByRow / FillHealthyByCount 不能二选一。
+□ 我确认本方案不碰 §0.3 的全部禁区。
+□ 我每次改动都会跑 §1.2 的验收。
+□ 我做的每个任务卡都是独立 commit，且搬迁类 commit 不夹带逻辑改动。
+方案完。 执行时若发现任务卡与代码现状不符（例如符号已改名、行数差异 >30%），停下来记录到本文件末尾的"执行偏差"一节，不要自行"修正"任务卡。

@@ -1,6 +1,0 @@
-﻿A) t0 = now -> stale log MUST be rejected (pre-fix it false-matched)
-   LastWriteTime < t0 ? True   expect True
-B) t0 = filetime - 5s -> should be accepted
-   LastWriteTime < t0b ? False   expect False
-   shared-read bytes = 61088   expect > 0 (game holds the file)
-   warmup marker present = True
