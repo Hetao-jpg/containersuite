@@ -710,7 +710,7 @@ public static partial class DiyUpgradeMod
             CollectGgisFromWindow(item.contentWindow, list);
         }
         catch (System.Exception ex) { CatchLogOnce.Warn("GridWindow:collect-ggi", ex); list = new List<GameGridInventory>(); }
-        if (intPtr != IntPtr.Zero) { TrimCache(_ggiCache); _ggiCache[intPtr] = (PollThrottle.NowMs, list); }   // T1：单调毫秒
+        if (intPtr != IntPtr.Zero) { CacheLimits.Trim(_ggiCache, CacheLimits.Large); _ggiCache[intPtr] = (PollThrottle.NowMs, list); }   // T1：单调毫秒
         return list;
     }
     private static void CollectGgisFromWindow(PixelWindow win, List<GameGridInventory> outList)

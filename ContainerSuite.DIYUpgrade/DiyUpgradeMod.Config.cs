@@ -208,20 +208,12 @@ public static partial class DiyUpgradeMod
     /// </summary>
     private static void RefreshIdLists()
     {
-        _box.IdList = SplitIds(_box.Ids.Value);
-        _backpack.IdList = SplitIds(_backpack.Ids.Value);
-        _cage.IdList = SplitIds(_cage.Ids.Value);
-        _multiSlot.IdList = SplitIds(_multiSlot.Ids.Value);
-        _multiSlotModule.IdList = SplitIds(_multiSlotModule.Ids.Value);
+        _box.IdList = IdMatch.SplitIds(_box.Ids.Value);
+        _backpack.IdList = IdMatch.SplitIds(_backpack.Ids.Value);
+        _cage.IdList = IdMatch.SplitIds(_cage.Ids.Value);
+        _multiSlot.IdList = IdMatch.SplitIds(_multiSlot.Ids.Value);
+        _multiSlotModule.IdList = IdMatch.SplitIds(_multiSlotModule.Ids.Value);
         try { _resizableCache.Clear(); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-    }
-    private static string[] SplitIds(string raw)
-    {
-        if (string.IsNullOrEmpty(raw)) return Array.Empty<string>();
-        string[] parts = raw.Split(new char[4] { ',', '，', ';', '；' }, StringSplitOptions.RemoveEmptyEntries);
-        string[] trimmed = new string[parts.Length];
-        for (int i = 0; i < parts.Length; i++) trimmed[i] = parts[i].Trim();
-        return trimmed;
     }
     private static void RefreshUpgradeKey()
     {

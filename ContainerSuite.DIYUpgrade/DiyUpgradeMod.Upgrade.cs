@@ -118,7 +118,7 @@ public static partial class DiyUpgradeMod
         bool canPrepare = PrepareUpgradeInternal(container, cat, out apply, out reason);
         if (ptr != IntPtr.Zero)
         {
-            TrimCache(_prepareCache);   // S8u
+            CacheLimits.Trim(_prepareCache, CacheLimits.Large);   // S8u
             _prepareCache[ptr] = new PrepareCacheEntry { Time = PollThrottle.NowMs, Can = canPrepare, Reason = reason };
         }
         return canPrepare;
@@ -464,7 +464,7 @@ public static partial class DiyUpgradeMod
                     + "出现本行说明存在未预料的双重入口，请上报。", warning: true);
                 return false;
             }
-            TrimCache(_upgradeStampCache);
+            CacheLimits.Trim(_upgradeStampCache, CacheLimits.Large);
             _upgradeStampCache[ptr] = frame;
             return true;
         }

@@ -142,7 +142,7 @@ public static partial class DiyUpgradeMod
         if (baseWTag > 0 && baseHTag > 0)
         {
             (int, int, int) meta = (baseWTag, baseHTag, spentTag);
-            TrimCache(_metaCache);      // S8u
+            CacheLimits.Trim(_metaCache, CacheLimits.Large);      // S8u
             _metaCache[key] = meta;
             return meta;
         }
@@ -151,7 +151,7 @@ public static partial class DiyUpgradeMod
     internal static void SaveMeta(GameItem item, int baseW, int baseH, int spent)
     {
         string key = MetaKey(item);
-        TrimCache(_metaCache);                     // S8u
+        CacheLimits.Trim(_metaCache, CacheLimits.Large);                     // S8u
         _metaCache[key] = (baseW, baseH, spent);
         TagUtil.SetItemTag(item, "DIY_UPGRADE_SPENT_TAG", spent);
         TagUtil.SetItemTag(item, "DIY_UPGRADE_BASE_W_TAG", baseW);
@@ -268,7 +268,7 @@ public static partial class DiyUpgradeMod
             if (!force
                 && _lastReapplyFromMetaTime.TryGetValue(ptr, out var lastMs)
                 && PollThrottle.ElapsedMs(lastMs) < 3000) return;
-            TrimCache(_lastReapplyFromMetaTime);                  // S8u
+            CacheLimits.Trim(_lastReapplyFromMetaTime, CacheLimits.Large);                  // S8u
             _lastReapplyFromMetaTime[ptr] = PollThrottle.NowMs;
         }
         CrashProbe.Enter("Meta.Resizer.Attach");

@@ -270,10 +270,6 @@ public static partial class DiyUpgradeMod
     //     全部统一到 ContainerSuite.Shared.CacheLimits 的 Large/Medium/Small 三级。
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>大缓存（本类）的统一清理入口，等价于 CacheLimits.Large。</summary>
-    private static void TrimCache<TKey, TValue>(Dictionary<TKey, TValue> dict)
-        => CacheLimits.Trim(dict, CacheLimits.Large);
-
     // ═══════════════════════════════════════════════════════════════════════
     // A3（2026-10-07）：补丁数量的唯一阈值来源。
     //   此前人类日志用 14、[REG] 断言用 20 —— 实测数量∈[14,19] 时会
