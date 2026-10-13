@@ -267,7 +267,16 @@ public static partial class DiyUpgradeMod
             //   表现为读档/窗口重开的形状恢复被静默跳过）。
             if (!force
                 && _lastReapplyFromMetaTime.TryGetValue(ptr, out var lastMs)
-                && PollThrottle.ElapsedMs(lastMs) < 3000) return;
+                && PollThrottle.ElapsedMs(lastMs) < 3000)
+            {
+#if DIAG
+                // T-C2 阶段一（2026-10-13）：只观测、不改逻辑。本 TTL 这次拒掉的请求，
+                //   若 _restoreMemo 语义判据也拒（签名未变且上次无事可做），则这条 3 秒节流
+                //   是冗余的。观测入口在 Release 里整体不存在（#if DIAG）。
+                ObserveTtlRejectVsMemo(item);
+#endif
+                return;
+            }
             CacheLimits.Trim(_lastReapplyFromMetaTime, CacheLimits.Large);                  // S8u
             _lastReapplyFromMetaTime[ptr] = PollThrottle.NowMs;
         }

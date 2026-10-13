@@ -133,6 +133,79 @@ public static partial class DiyUpgradeMod
         _restoreMemo.Clear();
     }
 
+#if DIAG
+    // ═══════════════════════════════════════════════════════════════════
+    // T-C2 阶段一（2026-10-13）：三层节流冗余性观测 —— **只观测，不改逻辑**。
+    //   语义：ReapplyFromMeta 的 3 秒 TTL（_lastReapplyFromMetaTime）一次拒绝发生时，
+    //         顺便问一句 _restoreMemo 语义判据会不会也拒。若"也拒"，这条被 TTL
+    //         拒掉的请求本来也做不了事 ⇒ TTL 冗余、无副作用（阶段二可删的依据）。
+    //   判据完全复刻 RestoreShapeCore 的 memo 命中条件（sigBefore == memo.Sig
+    //         且 memo.Changed==0 且 memo.Ok），不新增任何写操作。
+    //   仅 #if DIAG：Release 里本方法与方法内计数器整体不存在，零开销零残留。
+    // ═══════════════════════════════════════════════════════════════════
+    private static int _ttlRejectTotal;              // TTL 拒绝总次数（观测窗内）
+    private static int _ttlRejectMemoAlsoSkip;       // 其中 memo 判据也会拒（= 本次拒绝无副作用）
+    private static int _ttlRejectMemoHasEntryNoSkip; // memo 有档但判不跳过（= 值得警惕）
+    private static int _ttlRejectMemoNoEntry;        // memo 无档，判不了（数据不足）
+
+    /// <summary>见上方 T-C2 阶段一注释。由 ReapplyFromMeta 的 TTL 命中分支调用。</summary>
+    internal static void ObserveTtlRejectVsMemo(GameItem item)
+    {
+        try
+        {
+            if (item == null) return;
+            IntPtr ptr = IntPtr.Zero;
+            try { ptr = ((Il2CppObjectBase)item).Pointer; } catch { ptr = IntPtr.Zero; }
+            if (ptr == IntPtr.Zero) return;
+
+            RestoreMemoEntry memo;
+            bool memoHasEntry = _restoreMemo.TryGetValue(ptr, out memo);
+
+            bool sigKnown = false;
+            bool memoWouldSkip = false;
+            try
+            {
+                GridDef def = GetGridDefForItem(item);
+                if (def != null)
+                {
+                    List<GameGridInventory> invs = GetAllGridInventories(item);
+                    if (invs.Count > 0)
+                    {
+                        List<(int Index, int W, int H)> targets = RestoreCollectTargets(item, def, invs);
+                        if (targets.Count > 0)
+                        {
+                            PixelWindow win = null;
+                            try { win = item.contentWindow; } catch { win = null; }
+                            string sig = RestoreStateSignature(targets, invs, win);
+                            if (sig != null)
+                            {
+                                sigKnown = true;
+                                memoWouldSkip = memoHasEntry && memo.Changed == 0 && memo.Ok
+                                    && string.Equals(memo.Sig, sig, StringComparison.Ordinal);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { CatchLogOnce.Warn("T-C2.Observe", ex); }
+
+            _ttlRejectTotal++;
+            if (!sigKnown) _ttlRejectMemoNoEntry++;
+            else if (memoWouldSkip) _ttlRejectMemoAlsoSkip++;
+            else if (memoHasEntry) _ttlRejectMemoHasEntryNoSkip++;
+            else _ttlRejectMemoNoEntry++;
+
+            ContainerSuiteLog.Msg("[T-C2] TTL 拒绝一次 Reapply：memo 有档=" + memoHasEntry
+                + " 签名可判=" + sigKnown + " memo 也拒=" + memoWouldSkip
+                + " ｜累计 TTL 拒=" + _ttlRejectTotal
+                + "，其中 memo 也拒=" + _ttlRejectMemoAlsoSkip
+                + "，有档判不拒=" + _ttlRejectMemoHasEntryNoSkip
+                + "，无档/判不了=" + _ttlRejectMemoNoEntry);
+        }
+        catch { /* 纯观测：任何失败均不干扰主流程，也不留痕（避免自身成为噪音源） */ }
+    }
+#endif
+
     private static bool RestoreShapeCore(GameItem item, out int changed)
     {
         changed = 0;
