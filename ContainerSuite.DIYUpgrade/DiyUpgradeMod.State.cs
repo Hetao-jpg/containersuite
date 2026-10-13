@@ -235,7 +235,6 @@ public static partial class DiyUpgradeMod
     //   原存 DateTime：时钟回拨时 `Elapsed < TTL` 恒真 ⇒ 缓存命中一个**过期的**判据
     //   （最坏情况：_prepareCache 里存着"不能升"，玩家就会长时间升不动且没有任何报错）。
     private static readonly Dictionary<string, (int BaseW, int BaseH, int Spent)> _metaCache = new Dictionary<string, (int, int, int)>();
-    private static readonly Dictionary<IntPtr, long> _lastReapplyFromMetaTime = new Dictionary<IntPtr, long>();
     private static readonly Dictionary<IntPtr, (long Time, List<GameGridInventory> List)> _ggiCache = new Dictionary<IntPtr, (long, List<GameGridInventory>)>();
     private static readonly Dictionary<IntPtr, (long Time, bool Value)> _resizableCache = new Dictionary<IntPtr, (long, bool)>();
     private const int ResizableCacheMillis = 300;    // 原 ResizableCacheSeconds = 0.3

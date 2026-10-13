@@ -195,7 +195,6 @@ public static partial class DiyUpgradeMod
     private static void RegisterSceneCaches()
     {
         CacheRegistry.Register("_metaCache", () => _metaCache.Clear());
-        CacheRegistry.Register("_lastReapplyFromMetaTime", () => _lastReapplyFromMetaTime.Clear());
         CacheRegistry.Register("_ggiCache", () => _ggiCache.Clear());
         CacheRegistry.Register("_prepareCache", () => _prepareCache.Clear());
         CacheRegistry.Register("_resizableCache", () => _resizableCache.Clear());

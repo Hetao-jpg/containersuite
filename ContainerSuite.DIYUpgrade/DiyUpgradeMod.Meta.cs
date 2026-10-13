@@ -224,7 +224,6 @@ public static partial class DiyUpgradeMod
         try { ptr = ((Il2CppObjectBase)item).Pointer; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         if (ptr != IntPtr.Zero)
         {
-            _lastReapplyFromMetaTime.Remove(ptr);
             // 【2026-10-10 P3】连带作废恢复链 memo。
             //   本方法正是"该物品状态已被外部改写"的统一信号（迁移 / 移交 / 窗口重开
             //   都调它）⇒ memo 必须一起清，否则会拿旧签名跳过本该做的恢复。
@@ -257,29 +256,12 @@ public static partial class DiyUpgradeMod
             }
         }
         catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        IntPtr ptr = IntPtr.Zero;
-        try { ptr = ((Il2CppObjectBase)item).Pointer; } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-        if (ptr != IntPtr.Zero)
-        {
-            // Arbiter 事务自己已做节流，force 时绕过 3 秒 TTL —— 否则同一容器
-            // 被 Show / LoadGame / ValidateShapeState 反复请求时，只有第一次能生效。
-            // T1（2026-10-12）：TTL 与时间戳改单调钟（时钟回拨时原写法会让这条 3 秒闸门卡死，
-            //   表现为读档/窗口重开的形状恢复被静默跳过）。
-            if (!force
-                && _lastReapplyFromMetaTime.TryGetValue(ptr, out var lastMs)
-                && PollThrottle.ElapsedMs(lastMs) < 3000)
-            {
-#if DIAG
-                // T-C2 阶段一（2026-10-13）：只观测、不改逻辑。本 TTL 这次拒掉的请求，
-                //   若 _restoreMemo 语义判据也拒（签名未变且上次无事可做），则这条 3 秒节流
-                //   是冗余的。观测入口在 Release 里整体不存在（#if DIAG）。
-                ObserveTtlRejectVsMemo(item);
-#endif
-                return;
-            }
-            CacheLimits.Trim(_lastReapplyFromMetaTime, CacheLimits.Large);                  // S8u
-            _lastReapplyFromMetaTime[ptr] = PollThrottle.NowMs;
-        }
+        // T-C2 阶段二（2026-10-13）：原「3 秒 TTL」节流（_lastReapplyFromMetaTime）已删除。
+        //   阶段一实机观测确认「TTL 拒掉但 _restoreMemo 不拒」次数为 0 ⇒ 该 TTL 是冗余节流：
+        //   _restoreMemo（状态签名判据，见 RestoreShapeCore）覆盖其全部有效场景，
+        //   RestoreArbiter（队列 + 冷却帧，全进程）覆盖同帧/近帧重复。
+        //   force 参数保留（签名不变，Arbiter 的 (item)=>ReapplyFromMeta(item, force:true)
+        //   调用点零改动）—— 删掉 TTL 后它已无事可绕，仅作历史语义占位。
         CrashProbe.Enter("Meta.Resizer.Attach");
         try { ContainerWindowResizer.Attach(item); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         CrashProbe.Exit("Meta.Resizer.Attach");
