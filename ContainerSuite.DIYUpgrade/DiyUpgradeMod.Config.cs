@@ -68,6 +68,8 @@ public static partial class DiyUpgradeMod
                 + "会**永久**移交本 mod（之后蛙哥的逐格解锁对该颗珠子永久失效，无法手动换回）。"
                 + "只有在你不想让出主权时才关闭本项——关闭后虚空珠无条件归本 mod，"
                 + "蛙哥的逐格解锁立刻完全失效（这是 S8j 的旧行为）。");
+            SetLabel<bool>(_sweepZombieHandles, "[升级] 避让·清扫残留手柄(排查用)",
+                "清理 XIAOWO 残留拖拽手柄（熄火式：SetActive(false)）。默认关：旧崩溃未复验，置 true 前请先实机确认不崩。");
             ApplyGridLabels(_box, "箱子");
             ApplyGridLabels(_backpack, "背包");
             ApplyGridLabels(_cage, "笼子");
