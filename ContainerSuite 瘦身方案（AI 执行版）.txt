@@ -591,3 +591,84 @@ Get-ChildItem -Recurse -Filter *.cs ContainerSuite.*/ |
 □ 我每次改动都会跑 §1.2 的验收。
 □ 我做的每个任务卡都是独立 commit，且搬迁类 commit 不夹带逻辑改动。
 方案完。 执行时若发现任务卡与代码现状不符（例如符号已改名、行数差异 >30%），停下来记录到本文件末尾的"执行偏差"一节，不要自行"修正"任务卡。
+
+════════════════════════════════════════════════════════════════════════════
+8. 执行偏差（2026-10-13 审查，阿枢）
+════════════════════════════════════════════════════════════════════════════
+审查基准：Suite 1.7.8 + 2026-10-13「配置收敛」commit 2037c2d 之后的源码树。
+逐条把 14 张任务卡对照当前代码核对，结论如下。⚠️ 只记录偏差，不修正任务卡。
+
+【偏差 1｜阻断级】门禁脚本 _shared/ 目录根本不存在
+  - 方案 §1.2 / §0.2 / §0.4 反复依赖 `_shared\check-forbidden.ps1`（R1~R6 门禁）
+    和 `_shared\check-suite-version.ps1`。
+  - 实测：仓库里没有 `_shared/` 目录，两个 .ps1 均不存在；`find` 全库未命中。
+  - 影响：§1.2 的验收 ②③、铁律 L3 引用的「R6 编译期报错」、§0.4 的「R6 门禁」
+    全部落空。方案引以为防线的门禁当前不可执行。
+  - 处置：执行任何任务卡前，必须先补齐这两个脚本（或确认它们在其他路径），
+    否则「R1~R6 全 PASS」的验收无法成立。
+
+【偏差 2｜数量不符】行数基线与方案 §1.1 有出入
+  - 方案 §1.1 写「顶层文件数 53、源码行数 ≈16,400（含注释）」。
+  - 实测（不含 bin/obj）：顶层 .cs 共 55 个；四目录合计
+    Shared 3154 + Infrastructure 1289 + SaveBag 4418 + DIYUpgrade 9430 = 18,291 行。
+  - 结论：方案基线已过时（可能写于合并 DLL 前）。量化目标 §1.1 需按新基线重算，
+    否则「减 ~18%」无对照意义。
+
+【偏差 3｜T-B1 前提已消失】KeyRenames 已无「第 0 代裸名」
+  - 方案 T-B1 描述 KeyRenames 有 142 条、含第 0 代裸名（如 EnableMod / UpgradeHotkey）。
+  - 实测：KeyRenames 现为 `Dictionary<string,string>`（第 63 行起），
+    只剩 4 个「无数字前缀」的 key：MultiSlotT0Enable / MultiSlotModuleT0Enable /
+    MultiSlotModuleT2Enable / z4_DisableCfgKeepAlive。
+    其中 MultiSlotT* 是「每槽开关」系列（文件头注释说第 1 代删了 8 个每槽开关、
+    净剩 69），z4_ 则是第 2 代（renamed20261013）的当前键名，都不是 1.7.4 前的裸名。
+  - 结论：T-B1 要冻结的「第 0 代裸名」在当前代码里已不存在（配置收敛时已处理）。
+    该任务卡可视为已完成/无需执行，省行数预期（~400 行）不再成立。
+
+【偏差 4｜T-B2 已变更】PerIdLimits 状态与方案描述不符
+  - 方案 T-B2 说「保留 PerIdLimits，只加标注」「作者刚把白名单和上限从外挂文件
+    搬回 cfg」。这与 2026-10-13 配置收敛一致。
+  - 实测：DiyUpgradeMod.PerIdLimits.cs 是**新文件**（commit 2037c2d 新增），
+    且原 DiyUpgradeMod.FileConfig.cs（861 行）已被删除。
+  - 结论：T-B2「只加标注」的动作仍成立，但要注意它依赖的「外挂文件」已删，
+    文件头注释里若还有指向旧 FileConfig 的描述需一并清理。
+
+【偏差 5｜T-A4 部分已过时】SplitIds 已统一，TrimCache 仍在
+  - 方案 T-A4 两条子项：
+    · SplitIds 重复：实测 DiyUpgradeMod.Config.cs 第 218 行仍有
+      `private static string[] SplitIds(string raw)`，但调用点（211~215 行）
+      仍调本地版；而 CfgMigration.DefaultIds.cs 已改用 IdMatch.SplitIds。
+      ⇒ 本地 SplitIds 尚未删，任务卡仍有效，可直接执行。
+    · TrimCache<T> 包装：实测 State.cs 第 274 行 `TrimCache<TKey,TValue>` 仍在，
+      且被 GridWindow.cs / Meta.cs / Upgrade.cs 多处调用。
+      ⇒ 任务卡仍有效，可直接执行。
+  - 结论：T-A4 两条都还有效，无偏差。
+
+【偏差 6｜行数差异 >30%】SaveBagPaging.cs 远超方案描述
+  - 方案 T-C1 写「SaveBagPaging.cs ~1,400 行」。
+  - 实测：1,987 行（且类仍是 `public static class`，非 partial；第 18 行）。
+  - 结论：行数比方案多 ~42%，拆分粒度预估需按 1,987 行重算；6 个主题的
+    行数占比也与方案表不同。拆文件动作本身仍值得做，但「每个新文件 ≤350 行」
+    的验收阈值在 1,987 行总量下可能需放宽。
+
+【偏差 7｜其他任务卡核对结果（符号均存在，与方案一致）】
+  - T-A1（Cursor）：440 行，DrawLine/_appliedCursor 均在，方案行数预估（~150）
+    与现状略偏（实际文件更大），动作仍有效。
+  - T-A2（CfgSelfCheck）：CfgSelfCheck.cs 仍在，Mod.cs 有调用，可删。
+  - T-A3（RegMark）：RegMark.cs 仍在，可合并进 ContainerSuiteLog。
+  - T-A5（GroupDrag 对账）：ReconcileGroupDragArm + 3 字段均在，方案建议「选 A 保留」
+    仍成立。
+  - T-B3（OffsetResolver 诊断）：WarmUpOffsetDiag/LogOffsetDiag/LogOffsetDiagOne 均在，
+    可删诊断入口。
+  - T-B4（RechargerSprites）：166 行，方案写 ~180 行/~140 行注释，量级相符，可搬。
+  - T-B5 / T-C2 / T-C3 / T-C4：涉及符号（CrashProbe 调用点、_restoreMemo/
+    RestoreStateSignature/_lastReapplyFromMetaTime、WorldReadyGate 6 字段、
+    各文件头长注释）均与方案描述一致，动作有效。
+
+【总处置建议】
+  1. 补齐 _shared/ 门禁脚本（check-forbidden.ps1 + check-suite-version.ps1）——
+     这是所有验收的地基，优先级最高。
+  2. 按新基线（55 文件 / 18,291 行）重算 §1.1 量化目标。
+  3. T-B1 标记为「已完成」，跳过。
+  4. T-C1 按 1,987 行实际规模重新规划拆分子文件与行数阈值。
+  5. 其余任务卡（T-A1~A4、T-A5、T-B2~B5、T-C2~C4）符号均与方案一致，可按原计划执行。
+════════════════════════════════════════════════════════════════════════════
