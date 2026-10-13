@@ -161,8 +161,14 @@ public static partial class DiyUpgradeMod
                         DrawLine(tex, 6, 26, 6, 18, 1, white); DrawLine(tex, 6, 26, 14, 26, 1, white);
                         break;
                     case Kind.Forbidden:
-                        DrawCircle(tex, 16, 16, 12, 2, black); DrawCircle(tex, 16, 16, 12, 1, color);
-                        DrawLine(tex, 8, 8, 24, 24, 2, black); DrawLine(tex, 8, 8, 24, 24, 1, color);
+                        // 2026-10-13（T-A1 方案A）：原「红圈 + 斜线」改为「矩形边框 + 对角叉」，
+                        //   全部用 DrawLine 画，去掉 DrawCircle。视觉差异仅"圈变框"，玩家无感。
+                        DrawLine(tex, 5, 5, 26, 5, 2, black); DrawLine(tex, 26, 5, 26, 26, 2, black);
+                        DrawLine(tex, 26, 26, 5, 26, 2, black); DrawLine(tex, 5, 26, 5, 5, 2, black);
+                        DrawLine(tex, 5, 5, 26, 26, 2, black); DrawLine(tex, 5, 26, 26, 5, 2, black);
+                        DrawLine(tex, 5, 5, 26, 5, 1, color); DrawLine(tex, 26, 5, 26, 26, 1, color);
+                        DrawLine(tex, 26, 26, 5, 26, 1, color); DrawLine(tex, 5, 26, 5, 5, 1, color);
+                        DrawLine(tex, 5, 5, 26, 26, 1, color); DrawLine(tex, 5, 26, 26, 5, 1, color);
                         break;
                 }
                 tex.Apply(false, false);
@@ -189,23 +195,6 @@ public static partial class DiyUpgradeMod
                         continue;
                     }
                     break;
-                }
-            }
-
-            private static void DrawCircle(Texture2D tex, int cx, int cy, int radius, int thickness, Color color)
-            {
-                for (int i = 0; i < 64; i++)
-                {
-                    float angle = (float)((double)i * 2.0 * Math.PI / 64.0);
-                    int px = cx + (int)Math.Round((double)radius * Math.Cos(angle));
-                    int py = cy + (int)Math.Round((double)radius * Math.Sin(angle));
-                    for (int j = -thickness; j <= thickness; j++)
-                        for (int k = -thickness; k <= thickness; k++)
-                        {
-                            int x = px + j;
-                            int y = py + k;
-                            if (x >= 0 && x < tex.width && y >= 0 && y < tex.height) tex.SetPixel(x, y, color);
-                        }
                 }
             }
         }
