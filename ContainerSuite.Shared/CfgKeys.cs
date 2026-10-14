@@ -121,6 +121,17 @@ namespace ContainerSuite.Shared
         /// </summary>
         public const string PerIdSizeLimits = "8A_PerIdSizeLimits";
 
+        /// <summary>
+        /// 「不要再自动补回来」的物品 id 清单。字符串项（面板不显示，只能手改 cfg）。
+        /// <para>
+        /// 背景：<c>EnsureDefaultIds</c> 每次启动都会把「代码默认清单里有、你的 *Ids 里没有」
+        /// 的 id 追加回去（保证版本新增的容器不会被静默漏掉）—— 副作用是**你有意删掉的**
+        /// id 也会被加回来。把那些 id 写到这里即可永久豁免。
+        /// </para>
+        /// <para>写法：<c>rat_cage, some_custom_box</c>（逗号/分号/空白分隔，忽略大小写）。</para>
+        /// </summary>
+        public const string DefaultIdsVeto = "8B_DefaultIdsVeto";
+
         // ══════════════════════════════════════════════════════════════
         // z_ 诊断与实验（永远垫底）
         // ══════════════════════════════════════════════════════════════

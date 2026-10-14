@@ -44,6 +44,14 @@ public sealed class Mod : MelonMod
 
         try
         {
+            // ─── cfg 体检（2026-10-14）必须最先跑 ───
+            //   理由：MelonLoader 在**所有 mod 之前**就把 MelonPreferences.cfg 解析成了
+            //   常驻内存快照，而各条目真正的取值发生在下面的 CreateEntry 里。要在
+            //   "条目静默回落默认值"发生之后还能把玩家写的值救回来，就必须先自己读一遍
+            //   文件原文（快照是唯一依据）。宁可它失败，也不能晚于 CI.Init。
+            try { CfgDoctor.Preflight(); }
+            catch (Exception ex) { CatchLogOnce.Warn("Mod.OnInitializeMelon.CfgPreflight", ex); }
+
             // ─── CI 自身初始化 ───
             CustomInfrastructureConfig.Init();
             // ★ 2026-10-09 修正（顺序 bug）：诊断开关的 provider 必须在这里就注入。
@@ -113,6 +121,13 @@ public sealed class Mod : MelonMod
             {
                 Log.Error("初始化 DIY 模块失败：" + ex);
             }
+
+            // ─── cfg 体检收尾报告（2026-10-14）───
+            //   无条件输出（不进 DiagLog 闸门）：这是"我改了 cfg 怎么没生效"的第一现场。
+            //   放在三个模块 Init 之后 —— 那时才收集齐"哪些键的写法被宽容采纳 / 读不出"。
+            try { CfgDoctor.Report(); }
+            catch (Exception ex) { CatchLogOnce.Warn("Mod.OnInitializeMelon.CfgReport", ex); }
+
             ContainerSuite.Shared.ContainerSuiteLog.Mark("suite.ready", true, "version=" + SuiteVersion.Suite);
         }
         catch (Exception ex)

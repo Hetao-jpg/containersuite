@@ -21,6 +21,13 @@ _S9*/
 # ---- 回归输出（regress.ps1 生成的报告/JSON，不入库）----
 _regress/out/
 
+# ---- 取证目录（2026-10-14）----
+# _probe 里的自测工程（tomltest / cfgdoctortest）与说明要进库：
+#   它们是"这条结论怎么来的""改完有没有跑偏"的可复现现场。
+# 但 MelonLoader 的反编译产物不进库 —— 一条 ilspycmd 命令就能重新生成，
+# 重新生成方法见 _probe/README.md。
+_probe/melon/
+
 # ---- 系统杂项 ----
 Thumbs.db
 .DS_Store

@@ -1,6 +1,6 @@
 容器套件 · ContainerSuite
 作者：核桃
-版本：1.7.9
+版本：1.8.0
 游戏：Probably Stolen 0.46D
 环境：MelonLoader 0.7.4+
 
@@ -87,6 +87,8 @@ BoxIds / BackpackIds / CageIds / MultiSlotIds / MultiSlotModuleIds …
 · 逗号分隔的物品 id。想加一个容器：把它的 id 加到对应那一行末尾，前面补逗号。
 · 想去掉一个：把它的 id 从那一行删掉。⚠ 留空 = 这一类全部不能升级。
 · 每条里面出现过的类别，都已由代码自动补齐新容器（只加不删，日志会说补了什么）。
+· ⚠ 正因为"只加不删"，你**有意删掉**的默认 id 下次启动会被自动加回来。
+  想让它永远别回来：把它写进下面的 8B_DefaultIdsVeto。
 
 第三层 8A_PerIdSizeLimits 单个容器上限（最细，手改 cfg）
 写成一行：8A_PerIdSizeLimits = "storage_bay=30x20, evidence_box=24x24"
@@ -100,10 +102,19 @@ BoxIds / BackpackIds / CageIds / MultiSlotIds / MultiSlotModuleIds …
 「[容器升级] 单独设了上限的容器共 N 件：storage_bay=30x20（储藏区）…」
 一条都没配就是「没有为单个容器单独设上限 → 全部使用「容器升级·分类」里的上限」。
 
+第三层补丁 8B_DefaultIdsVeto 否决清单（手改 cfg，v1.8.0 新增）
+写成一行：8B_DefaultIdsVeto = "rat_cage, my_custom_box"
+· 只拦一件事：**不再自动补齐**这里列出的 id。多个用逗号/分号/空白隔开，忽略大小写。
+· 它不会删你 *Ids 里已经写着的任何东西；留空 = 不否决（默认）。
+· 用途：你主动从 BoxIds 里删掉某个默认容器、不想让它下次启动被加回来时，把 id 写这里。
+
 改完生效时机
 · 7x_ 分类上限：面板（ModManager）里改 → 点「应用配置」后同帧生效，不用重启；
-  直接手改 cfg 也可以，但要重启游戏。
-· <类别>Ids 名单 / 8A_PerIdSizeLimits：都是字符串项，面板里看不到，只能手改 cfg → 重启生效。
+  直接手改 cfg 也能被采纳（MelonLoader 自带 FileWatcher 会重读已注册的键）。
+· <类别>Ids 名单 / 8A_PerIdSizeLimits / 8B_DefaultIdsVeto：都是字符串项，面板里看不到，
+  只能手改 cfg → 重启最稳。
+· 无论哪种，启动后看日志里的 [cfg体检] 一行就知道你的手改有没有被读到；
+  写法有不规范的会被逐条点名（见下面「已知问题」第 1 条）。
 
 重要限制
 主仓库分页第 2 页及以后，游戏原版检测不到：
@@ -122,12 +133,23 @@ BoxIds / BackpackIds / CageIds / MultiSlotIds / MultiSlotModuleIds …
 - 容器升级的名单与上限只在 [CustomInfrastructure] 段一处维护，不要再去找 containers.txt
   （2026-10-13 起该功能已取消；留着的旧文件不生效，可以删掉）
 
-已知问题：改了 cfg 重启后不生效 / 退出后配置丢失
-多半是 MelonPreferences.cfg 里有非法 TOML（例：值里内层双引号未转义 `A = "{ x = "F8" }"`、
-裸值含逗号 `A = a,b,c`）。MelonLoader 解析失败后整份 cfg 进入 Fallback，此后**所有 mod**
-的保存都会被静默丢弃，玩家在 ModManager 里改的配置退出后全部不生效——而启动日志里只有一行
-ERROR，极易被淹没。排查：用文本编辑器逐段检查该文件，重点是别家 mod 写的段（本套件 2026-10-13
-起不再内置自检探针）。
+已知问题：手改 cfg 后「没生效 / 值变回了默认」（v1.8.0 起有专门的体检日志）
+1) 写法不规范 —— 最常见。MelonLoader 读不懂时**不报错**，只会悄悄改用代码默认值，
+   而本套件启动时会把 cfg 写回，于是你看到"我的手改被默认值覆盖了"。三种典型：
+     · 数字/开关被引号包住：  2D_SaveBagWidth = "30"   ✗    2D_SaveBagWidth = 30      ✓
+     · 开关写成 1/0 或 yes/no： z1_DiagLog = 1          ✗    z1_DiagLog = true         ✓
+     · 键名/段名大小写不符：   [custominfrastructure]   ✗    [CustomInfrastructure]    ✓
+   ★ v1.8.0 起启动会做「cfg 体检」：这类写法按你的**本意**接纳并逐条打进日志（搜 [cfg体检]）。
+     本套件**不会**改你的文件 —— 想消掉提示就按日志里的建议改成规范写法。
+2) 非法 TOML —— 后果最重。字符串值必须整体加引号，最常漏的是 *Ids 与 8A：
+     8A_PerIdSizeLimits = storage_bay=30x20    ✗（漏引号 → 整份 cfg 解析失败）
+     8A_PerIdSizeLimits = "storage_bay=30x20"  ✓
+   MelonLoader 一旦判定整份失败（Fallback），**所有 mod** 的配置都会停在默认值，
+   且本次运行期间任何配置改动（含面板里改的）都不再写盘 —— 日志里只有一行 ERROR，极易被淹没。
+   ★ v1.8.0 起日志会 Error 点名「疑似第 N 行」并额外备份一份
+     UserData\MelonPreferences.cfg.broken-时间戳，按提示改完重启即可。
+3) 改的是旧键名 —— 键名在 v1.7.4 / v1.7.8 重排过两次，未注册的键会被忽略、甚至被清理掉。
+   以本文档/面板里的键名为准。仓库里仍有过期文档时以启动日志的 [cfg体检] 为准。
 
 兼容性
 已避让：XIAOWOTradePerks / WagePerks（蛙哥）
@@ -139,3 +161,11 @@ ERROR，极易被淹没。排查：用文本编辑器逐段检查该文件，重
 
 看日志
 MelonLoader/Latest.log，搜 [CustomInfrastructure]
+cfg 有没有被读到，看这几行（无条件输出，不用开诊断）：
+  [cfg体检] 汇总：体检 86 项，宽容采纳 0 项，读不出 0 项；写盘 0 次（跳过 3 次） — cfg 未被改写
+  [cfg体检]    · 第 132 行 2D_SaveBagWidth = "30"（MelonLoader 读不懂）→ 已按 30 生效；建议去掉引号写成 30
+  [cfg体检] ✗ MelonPreferences.cfg 整份解析失败（MelonLoader 已进入 Fallback）。
+  [cfg体检]   疑似非法 TOML → 第 831 行 · 裸值不被 TOML 接受（字符串必须整体加引号）：8B_DefaultIdsVeto = rat_cage
+  [cfg体检]   已额外备份一份待排查文件：UserData\MelonPreferences.cfg.broken-20261014-130441
+★ 「写盘 N 次」是本套件这一轮把 cfg 写回去的次数：**0 次 = 你的文件原封未动**
+  （v1.8.0 前是每次启动固定 4 次全量重写 —— 那正是手改内容被冲掉的方式之一）。

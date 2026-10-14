@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>fallbacktest</AssemblyName>
+    <RootNamespace>fallbacktest</RootNamespace>
+    <NoWarn>NETSDK1138</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CustomInfrastructure">
+      <HintPath>..\..\ContainerSuite.Infrastructure\bin\Release\CustomInfrastructure.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MelonLoader">
+      <HintPath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\net6\MelonLoader.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Tomlet">
+      <HintPath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo\MelonLoader\net6\Tomlet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

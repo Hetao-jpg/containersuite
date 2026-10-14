@@ -116,6 +116,9 @@ public static partial class DiyUpgradeMod
         //   ★ 刻意放在**所有 GridDef 之后** —— 它在逻辑上是"比分类更细的一层"，
         //     注册顺序决定了它写进 cfg 时也排在末尾（面板里同理），符合由总到分。
         RegisterPerIdSizeLimits(category);
+        // 2026-10-14（方案 P1-3）：8B_DefaultIdsVeto —— 让"我手删掉的 id 又被自动加回来"
+        //   有一个明确的出口。必须早于下面的 EnsureDefaultIds（否决清单要参与那次补齐）。
+        RegisterDefaultIdsVeto(category);
         // 键名迁移（两代叠加，见 CfgMigration.Rename.KeyRenames）：把旧键名
         //   （BoxEnable 等历史名 / 上一代的编号名）的值搬到 CfgKeys 里的当前键名。
         //   ★ 必须排在 MigrateIncKeys 之前 —— 它先把「全局 IncW/IncH/ModIncW/ModIncH」
@@ -128,7 +131,12 @@ public static partial class DiyUpgradeMod
         MigrateDiagKeys(category);            // 2026-10-07：三个模块的诊断开关合并为一个总开关（OR 迁移 + 清旧键）
         // 2026-10-08：把代码默认新增的物品ID追加进各 *Ids（只追加，不动玩家手改的值）。
         EnsureDefaultIds(category);
-        category.SaveToFile(true);
+
+        // ★ 2026-10-14：这里原来是无条件 category.SaveToFile(true)。
+        //   现在**整条 Init 只保留一次落盘**，位置挪到下面 RefreshPerIdLimitsComment()
+        //   之后（见那里的注释）：一次写盘就能同时覆盖"迁移/补齐改过的值"与"重建过的注释"，
+        //   而"什么都没改"的启动一次都不写（方案 P0-3）。
+        //   迁移与补齐都是幂等的、每次都重读文件，所以万一中途抛异常也不会永久丢值。
         RefreshIdLists();
         RefreshUpgradeKey();
         ((MelonEventBase<LemonAction<string, string>>)(object)_box.Ids.OnEntryValueChanged).Subscribe((LemonAction<string, string>)delegate { RefreshIdLists(); }, 0, false);
@@ -142,7 +150,9 @@ public static partial class DiyUpgradeMod
         //   ★ 必须在 ApplyConfigLabels()（会覆盖 Description）之后、且 RefreshIdLists() 之后
         //     （IdList 才就绪）；写完立刻落盘，否则 CreateEntry 时的旧注释会留在文件里。
         RefreshPerIdLimitsComment();
-        category.SaveToFile(true);
+        // 2026-10-14：这里原来是无条件 SaveToFile(true)。RefreshPerIdLimitsComment()
+        //   只在注释文本真的变了时才 MarkDirty，所以这次调用在"注释没变"的启动里会跳过。
+        CfgDoctor.SaveIfNeeded(category);
         WarnAboutUnlabeledEntries(category);   // 自检：漏标中文名会在面板里露出英文键名
         LogPerIdLimitsSummary();               // 每容器上限到底配成了什么样（无条件输出）
 

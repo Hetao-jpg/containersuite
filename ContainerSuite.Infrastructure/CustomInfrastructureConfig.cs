@@ -101,11 +101,19 @@ internal static class CustomInfrastructureConfig
     "true = 输出【全部模块】的诊断日志（基础设施容器扩展 / 主仓库分页 / 容器升级 / 读档仲裁）。"
     + "一个开关管三家，面板改完立即生效，无需重启。排查问题时才开，正常玩保持 false。");
 
-    Subscribe(TrashcanEnable); Subscribe(TrashcanWidth); Subscribe(TrashcanHeight);
+        Subscribe(TrashcanEnable); Subscribe(TrashcanWidth); Subscribe(TrashcanHeight);
         Subscribe(DossierEnable); Subscribe(DossierWidth); Subscribe(DossierHeight);
         Subscribe(CassettePlayerEnable); Subscribe(CassettePlayerWidth); Subscribe(CassettePlayerHeight);
 
-        Category.SaveToFile(true);
+        // 2026-10-14：cfg 体检 —— 本模块的条目刚建完，先做宽容采纳。
+        //   本模块没有"Init 期读快照"的动作（尺寸都是运行时读 .Value），
+        //   但三个模块统一放在同一位置，避免以后新增快照时漏掉。
+        ContainerSuite.Shared.CfgDoctor.ApplyTo(Category);
+
+        // 2026-10-14：只在真有变化时写盘。
+        //   原为无条件 SaveToFile(true)：那会把"MelonLoader 读不懂 → 静默回落默认值"
+        //   的结果立刻落盘，玩家手写的原文就此消失（方案 P0-3）。
+        ContainerSuite.Shared.CfgDoctor.SaveIfNeeded(Category);
     }
 
     private static void Subscribe<T>(MelonPreferences_Entry<T> entry)

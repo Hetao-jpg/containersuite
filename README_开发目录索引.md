@@ -25,7 +25,10 @@ ContainerSuite/
 ├── ContainerSuite 瘦身方案（AI 执行版）.txt  ← 待执行的重构计划
 ├── ContainerSuite.sln               ← 解决方案（只含一个编译入口）
 ├── pack.ps1 / pack.bat              ← 一键打包脚本
-└── _verify_cfgkeys.py               ← cfg 键名一致性校验脚本
+├── _verify_cfgkeys.py               ← cfg 键名一致性校验脚本（离线：迁移表 vs CfgKeys vs 真实 cfg）
+└── _shared\check-doc-keys.ps1       ← 文档键名门禁（编译期：玩家文档里的键名必须在 CfgKeys 里）
+                                      三个门禁都挂在 csproj 的 BeforeTargets="Build" 上：
+                                      check-forbidden / check-suite-version / check-doc-keys
 ```
 
 ## 二、四个源码目录的分工
@@ -33,7 +36,7 @@ ContainerSuite/
 | 目录 | 角色 | 关键文件（举几例） |
 |---|---|---|
 | `ContainerSuite.Infrastructure/` | 编译入口 + CI（垃圾桶/档案箱/磁带机扩容） | `ContainerSuite.Infrastructure.csproj`、`Mod.cs`、`ContainerExpander.cs` |
-| `ContainerSuite.Shared/` | 地基，无独立功能 | `ContainerSuiteLog.cs`、`PollThrottle.cs`、`CacheLimits.cs`、`WorldReadyGate.cs`、`SuiteVersion.cs` |
+| `ContainerSuite.Shared/` | 地基，无独立功能 | `ContainerSuiteLog.cs`、`CfgDoctor.cs`（cfg 体检）、`PollThrottle.cs`、`CacheLimits.cs`、`WorldReadyGate.cs`、`SuiteVersion.cs` |
 | `ContainerSuite.SaveBag/` | SBE：主仓库分页/滚动/扩容/地面窗口拖动 | `SaveBagPaging.cs`、`SaveBagExpandWindowDrag.cs` |
 | `ContainerSuite.DIYUpgrade/` | DIY：容器升级/批量升级/拖边改尺寸/跨mod避让 | `DiyUpgradeMod.Core.cs`、`DiyUpgradeMod.Restore.cs`、`SkipXiaowoBayRestore.cs` |
 
@@ -51,8 +54,8 @@ ContainerSuite/
 一键打包：
 
 ```powershell
-.\pack.ps1          # 打包发布版 → dist/ContainerSuite-v1.7.8/
-.\pack.ps1 -Dev     # 打包开发版 → dist/ContainerSuite-dev-v1.7.8/
+.\pack.ps1          # 打包发布版 → dist/ContainerSuite-v1.8.0/
+.\pack.ps1 -Dev     # 打包开发版 → dist/ContainerSuite-dev-v1.8.0/
 ```
 
 **诊断代码都写在 `#if DIAG` 块里**（源码里有 10+ 处），Release 编译时连 IL 都不生成，所以「精简代码量」靠编译期裁剪，不靠手工删文件。
@@ -60,12 +63,13 @@ ContainerSuite/
 ## 四、维护时的关键规则
 
 1. **改版本号**：只改 `ContainerSuite.Shared/SuiteVersion.cs` 的 `Suite` 常量；README 标题和 AssemblyInfo 要同步（`pack.ps1` 会校验版本一致性，不一致拒绝打包）。
-2. **改 cfg 键名**：只从 `ContainerSuite.Shared/CfgKeys.cs` 取常量，禁止写字符串字面量（改名漏一处 = 静默丢配置）。
-3. **节流**：必须用 `PollThrottle`（单调钟），禁用 `DateTime.UtcNow` 差值。
-4. **缓存上限**：用 `CacheLimits.Trim(x, ...)`，禁止裸写 `if (Count > N) Clear()`。
-5. **每次改动记 `mod维护日志.md`**，异常必须留痕（`CatchLogOnce` / `LogOnce`）。
-6. **回归**：改完跑 `_regress/regress.ps1`（需要游戏环境）。
-7. **不要移动 4 个源码目录**，也不要改 csproj 里的相对路径 —— 会破坏编译和 git 历史。
+2. **改 cfg 键名**：只从 `ContainerSuite.Shared/CfgKeys.cs` 取常量，禁止写字符串字面量（改名漏一处 = 静默丢配置）。改名要同步 **4 处**：`CfgKeys.cs` 常量、`DiyUpgrade.CfgMigration.Rename.KeyRenames`、`RenameMarkerPath()` 的标记日期、以及**玩家文档**（`_shared\check-doc-keys.ps1` 会在编译期挡住漏掉最后一处的情况）。
+3. **改 cfg 读取/保存时序**：条目的"取值"发生在各模块 `Init` 的 `CreateEntry` 里（MelonLoader 的 `Entry<T>.Load` 把读不动的值**静默**换成代码默认值）。所以任何"Init 期读快照"的新代码都必须排在 `CfgDoctor.ApplyTo(...)` **之后**，任何"写盘"都必须走 `CfgDoctor.SaveIfNeeded(...)` 而不是 `SaveToFile()`。详见 `docs/cfg-handedit-rootcause-and-fix.md`。
+4. **节流**：必须用 `PollThrottle`（单调钟），禁用 `DateTime.UtcNow` 差值。
+5. **缓存上限**：用 `CacheLimits.Trim(x, ...)`，禁止裸写 `if (Count > N) Clear()`。
+6. **每次改动记 `mod维护日志.md`**，异常必须留痕（`CatchLogOnce` / `LogOnce`）。
+7. **回归**：改完跑 `_regress/regress.ps1`（需要游戏环境）。
+8. **不要移动 4 个源码目录**，也不要改 csproj 里的相对路径 —— 会破坏编译和 git 历史。
 
 ## 五、待办：瘦身重构
 

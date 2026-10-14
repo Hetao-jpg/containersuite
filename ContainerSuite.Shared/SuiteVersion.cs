@@ -18,7 +18,7 @@ namespace ContainerSuite.Shared;
 public static class SuiteVersion
 {
     /// <summary>对外显示的套件版本。</summary>
-    public const string Suite = "1.7.9";                  // ← 1.7.8 改（组件版本号改为仅 DIAG 构建显示）
+    public const string Suite = "1.8.0";                  // ← 1.8.0 改（cfg 体检 CfgDoctor + 8B 否决清单 + 文档键名守卫）
 
     /// <summary>
     /// CFG 迁移的**最低支持来源版本**（迁移终止线）：只把「≥ 本版本」的配置自动迁移到当前格式，
@@ -28,13 +28,13 @@ public static class SuiteVersion
     public const string MinSupportedFrom = "1.7.4";
 
     /// <summary>共享库组件版本。</summary>
-    public const string ComponentShared = "1.0.0";        // ← 不动（本轮 Shared 未改）
+    public const string ComponentShared = "1.1.0";        // ← 1.1.0 改（新增 CfgDoctor：cfg 体检/宽容采纳/SaveIfNeeded）
 
     /// <summary>自定义基础设施大小组件版本。</summary>
-    public const string ComponentInfrastructure = "1.2.2";  // ← 1.2.1 改（键名加 6A/6B/6C/z1 前缀）
+    public const string ComponentInfrastructure = "1.2.3";  // ← 1.2.3 改（Init 接线 CfgDoctor + 无条件 SaveToFile 收敛）
 
     /// <summary>自定义仓库（扩容 / 分页）组件版本。</summary>
-    public const string ComponentSaveBag = "1.3.2";         // ← 1.3.1 改（键名加域号前缀）
+    public const string ComponentSaveBag = "1.3.3";         // ← 1.3.3 改（Init 接线 CfgDoctor + 无条件 SaveToFile 收敛）
 
     /// <summary>自定义容器升级组件版本。</summary>
     /// <remarks>
@@ -47,8 +47,9 @@ public static class SuiteVersion
     /// 1.8.2 = 白名单新增 bottle_printer（水瓶打印机）+ EnsureDefaultIds 一次性补齐
     ///          + CageIds 默认值去重；*Ids 默认值收敛到 DefaultIdLists 单一事实源
     /// 1.8.3 = 修拖拽缩放网格残留/乱格（对照小窝同款 SetShape+ForceRecompute）+ 清 XIAOWO 残留手柄 + 补 Top 手柄
+    /// 1.9.0 = cfg 体检接线（宽容采纳 + 只在真有变化时落盘）+ 8B_DefaultIdsVeto 否决清单
     /// </remarks>
-    public const string ComponentDiyUpgrade = "1.8.3";      // ← 1.8.2 改
+    public const string ComponentDiyUpgrade = "1.9.0";      // ← 1.8.3 改
 
     /// <summary>启动横幅。Release 只显示套件版本；DIAG 构建额外显示组件版本（排障用）。</summary>
     public static string Banner

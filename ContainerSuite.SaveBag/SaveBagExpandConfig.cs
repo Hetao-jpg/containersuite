@@ -150,10 +150,15 @@ internal static class SaveBagExpandConfig
             "「地面」窗口相对游戏原版停靠位的垂直偏移（anchoredPosition 像素，正=上）。" +
             "★ 由拖动自动写入，一般不用手改；改为 0 可复位到原版位置。窗口会先被钳制在屏幕内。");
 
+        // 2026-10-14：cfg 体检 —— 必须在迁移 / 读快照之前做宽容采纳，
+        //   否则"文件里有值、条目却停在默认值"的项会被后面的逻辑当成玩家没配。
+        ContainerSuite.Shared.CfgDoctor.ApplyTo(cat);
+
         // ── 迁移（一次性）──
         try { RunMigrationOnce(); } catch (Exception ex) { CatchLogOnce.Warn("cfg.RunMigrationOnce", ex); }
 
-        cat.SaveToFile();
+        // 2026-10-14：只在真有变化时写盘（原为无条件 cat.SaveToFile()）—— 见方案 P0-3。
+        ContainerSuite.Shared.CfgDoctor.SaveIfNeeded(cat);
 
         // ★ 直接编辑 cfg 文件，删除残留旧 key（幂等）。
         //   内部用 SaveBagExpand.cfgcleaned 标记版本，同版本启动不再重跑。

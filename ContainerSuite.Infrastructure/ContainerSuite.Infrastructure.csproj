@@ -169,4 +169,23 @@
           IgnoreExitCode="false" />
   </Target>
 
+  <!-- ═══════════════════════════════════════════════════════════════════
+       文档一致性门禁（2026-10-14 补齐）。
+
+       · check-doc-keys.ps1 —— 新增。玩家文档里出现的 cfg 键名必须在 CfgKeys.cs 里
+         存在。起因：2026-10-13 键名重排后，开发用户须知.md 留下了 23 个旧键名，
+         照它手改 cfg 的玩家 100% 落默认值（"我改了配置没生效"的真实成因之一）。
+         详见 docs/cfg-handedit-rootcause-and-fix.md
+
+       同时废弃了 check-readme-defaults.ps1（已移到 _archive\门禁脚本-已废弃\）：
+       它比对的是 v1.7.6 版 README 里那张「7A..7F 宽高默认值」表，而 README 在
+       2026-10-13 已重写、不再有那张表 —— 挂回来只会立刻 `No default-size rows found`
+       而挡住编译。已知缺口（值级文档漂移不再有守卫）记在 check-doc-keys.ps1 头部 TODO。
+       ═══════════════════════════════════════════════════════════════════ -->
+  <Target Name="CheckDocConsistency" BeforeTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-doc-keys.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+          ContinueOnError="false"
+          IgnoreExitCode="false" />
+  </Target>
+
 </Project>

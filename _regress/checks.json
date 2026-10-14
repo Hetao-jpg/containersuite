@@ -47,9 +47,9 @@
   },
   {
    "id": "no.suite.error",
-   "desc": "本套件无 [ERROR]",
+   "desc": "本套件自身无 [ERROR]（[cfg体检] 的报错不算 —— 那是玩家 cfg 文件的问题，由 cfg.doctor.ok 专门断言）",
    "kind": "absent",
-   "pattern": "\\[ERROR\\].*(CustomInfrastructure|SaveBagExpand|DIYUpgrade|ContainerSuite)"
+   "pattern": "\\[ERROR\\](?!.*\\[cfg体检\\]).*(CustomInfrastructure|SaveBagExpand|DIYUpgrade|ContainerSuite)"
   },
   {
    "id": "no.patch.fail",
@@ -190,6 +190,30 @@
    "kind": "bp",
    "bpName": "jitwarmup.missing",
    "optional": true
+  },
+  {
+   "id": "cfg.doctor.run",
+   "desc": "cfg 体检已执行（v1.8.0 新增，无条件输出，不用开 DiagLog）",
+   "kind": "exists",
+   "pattern": "\\[cfg体检\\]"
+  },
+  {
+   "id": "cfg.doctor.ok",
+   "desc": "cfg 体检未报非法 TOML（Fallback）——本机配置环境的健康断言",
+   "kind": "absent",
+   "pattern": "整份解析失败（MelonLoader 已进入 Fallback）"
+  },
+  {
+   "id": "cfg.write.summary",
+   "desc": "cfg 体检的落盘统计已输出（「写盘 N 次（跳过 M 次）」；N=0 表示 cfg 未被改写）",
+   "kind": "exists",
+   "pattern": "\\[cfg体检\\].*写盘 \\d+ 次（跳过 \\d+ 次）"
+  },
+  {
+   "id": "cfg.veto.registered",
+   "desc": "8B_DefaultIdsVeto 条目已注册（写进 cfg 才有 8B 那一行）",
+   "kind": "exists",
+   "pattern": "8B_DefaultIdsVeto"
   },
   {
    "id": "cfg.section.fix.lm",

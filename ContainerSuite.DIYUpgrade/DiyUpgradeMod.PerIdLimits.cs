@@ -88,6 +88,13 @@ public static partial class DiyUpgradeMod
             (string)null, DefaultPerIdSizeLimitsComment,
             false, false, (ValueValidator)null, (string)null);
 
+        // ★ 2026-10-14：cfg 体检的宽容采纳必须在这里做（且只在这里）。
+        //   理由：它是**最后一个**注册的条目 —— 此刻全部 85 个条目都已存在（类型与默认值
+        //   都已知，够 CfgDoctor 判断"文件里有值、条目却停在默认值"），而它又早于
+        //   下面的 LoadPerIdSizeLimits()（本文件唯一的"Init 期读快照"）以及 Core.Init 里的
+        //   RefreshIdLists()。位置放错就等于白采纳：值救回来了，可解析结果仍是旧默认值。
+        CfgDoctor.ApplyTo(cat);
+
         ((MelonEventBase<LemonAction<string, string>>)(object)_perIdSizeLimits.OnEntryValueChanged)
             .Subscribe((LemonAction<string, string>)delegate { LoadPerIdSizeLimits(); }, 0, false);
 
@@ -277,7 +284,18 @@ public static partial class DiyUpgradeMod
         try
         {
             if (_perIdSizeLimits == null) return;
-            ((MelonPreferences_Entry)_perIdSizeLimits).Description = BuildPerIdLimitsCommentBody();
+            var entry = (MelonPreferences_Entry)_perIdSizeLimits;
+            string next = BuildPerIdLimitsCommentBody();
+            // 2026-10-14：注释没变就不重写 Description。
+            //   ★ 这里**刻意不标记"必须落盘"**：本方法每次启动都会走到（因为上面的
+            //     ApplyConfigLabels 会先把 8A 的 Description 改回短说明），若在这里
+            //     MarkDirty 就等于"每次启动必然写一次盘"——实机 2026-10-14 12:54 印证了
+            //     这一点（日志 [cfg体检] 写盘：...（已标记：8A 注释重建））。
+            //   注释变更由 CfgDoctor.SaveIfNeeded 的**注释比对**负责触发写盘：它拿
+            //   文件里该键上方的注释块与这里的 Description 逐字比，不一致才写。所以
+            //   "玩家改了白名单/单件上限 → 注释真的变了" 仍然会落盘，无需在此强制。
+            if (string.Equals(entry.Description, next, StringComparison.Ordinal)) return;
+            entry.Description = next;
         }
         catch (Exception ex) { CatchLogOnce.Warn("PerIdLimits:comment", ex); }
     }

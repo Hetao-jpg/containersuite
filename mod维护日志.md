@@ -45,7 +45,12 @@ ContainerSuite · mod 维护日志（开发端）
     任一失败 = MSB3073 构建失败，pack.ps1 走构建时打包前必过）：
     · P4  check-suite-version.ps1    SuiteVersion.cs 与 AssemblyInfo.cs 版本必须一致
                                     （合并前 5 处、合并后 2 处，只改一处编不过）。
-    · DOC check-readme-defaults.ps1  README「默认尺寸」表须 == SaveBagExpandConfig.CreateEntry 默认值。
+    · DCK check-doc-keys.ps1        玩家文档（README.md.txt / README_mobile.txt / 开发用户须知.md）
+                                    里出现的 cfg 键名必须在 CfgKeys.cs 里存在（2026-10-14 新增，
+                                    挡的是键名重排后的文档漂移 —— 照过期文档改 cfg 必定落默认值）。
+                                    ★ 原 DOC check-readme-defaults.ps1 已废弃归档到
+                                      _archive\门禁脚本-已废弃\：它解析的是 v1.7.6 版 README 的
+                                      「7A..7F 宽高默认值」表，而 README 已于 10-13 重写、不再有那张表。
     · FBD check-forbidden.ps1        禁止事项 #21（Validate 实参须走命名常量）
                                     + #22（网格重操作文件须引用 WorldReadyGate 或 $allowGate 登记）
                                     + #25（禁止 RuntimeHelpers.PrepareMethod 做 JIT 预热）
@@ -59,6 +64,130 @@ ContainerSuite · mod 维护日志（开发端）
 ================================================================================
 七、维护日志（倒序）
 ================================================================================
+  ───────────────────────────────────────────────────────────────────────────
+  2026-10-14  v1.8.0 · cfg 体检 CfgDoctor：修「手改 cfg 被代码默认值覆盖」
+  ───────────────────────────────────────────────────────────────────────────
+  【问题】有用户反馈：手改 UserData\MelonPreferences.cfg 之后，值会被代码默认值覆盖。
+  【取证】反编译本机 MelonLoader 0.7.4-ci.2586（MelonPreferences / _Category /
+    Preferences.IO.File / Watcher / Entry<T>）+ 用游戏自带 Tomlet 6.2.0 跑 14 组
+    手写写法用例（工程 _probe/tomltest，dotnet run 可复现）。三条成因（按命中率）：
+      ① 写法不规范但仍是**合法 TOML**：数字被引号包住（"30"）/ 写成 30.0 / 开关写 1 /
+         键名或段名大小写不符 —— Entry<T>.Load 的 3 个 catch 全是空实现 ⇒ 条目**静默**
+         保持代码默认值；而三模块每次启动共 4 次无条件 SaveToFile 全量重写 cfg ⇒ 默认值
+         随即落盘。这就是"被代码默认覆盖"的字面形态。
+      ② **非法 TOML**（*Ids / 8A 漏引号最典型）⇒ ParseFile 抛异常 ⇒ WasError=true ⇒
+         整份文档为空（**所有条目**落默认）+ IsSaving=false（本次运行**所有 mod** 的
+         配置改动都不再写盘），日志只有一行 ERROR。
+      ③ 改的是已改名/已删除的旧键 ⇒ 未注册 ⇒ 落默认、行还会被清理掉。仓库
+         开发用户须知.md 当时有 23 个过期键名（键名 10-07 / 10-13 重排过两代）。
+  【改动】
+    · P0-1 Shared/CfgDoctor.cs 新增：Preflight（启动最早期读 cfg 原文快照 + 反射读
+      WasError 判断 Fallback）/ ApplyTo（对"文件里有值、条目却停在代码默认值"的条目做
+      无损宽容采纳：去多余引号、30.0→30、1/0/yes/no→bool、大小写归一）/ SaveIfNeeded
+      （只在"值变了/缺键/注释变了"时写盘）/ Report（无条件汇总 + Fallback 行号定位 +
+      broken-*.bak 备份）。
+    · Mod.cs 首（Preflight）尾（Report）接线；CI / SBE / DIY 三处 Init 接线 ——
+      ★ DIY 的 ApplyTo 放在 RegisterPerIdSizeLimits 内部（它是最后一个注册的条目，
+      且必须早于 LoadPerIdSizeLimits 与 RefreshIdLists 这两个"Init 期读快照"）。
+    · P0-3 三模块 4 次无条件 SaveToFile 收敛为按需（正常启动 0 次落盘）。
+    · P1-3 CfgKeys.DefaultIdsVeto = 8B_DefaultIdsVeto：EnsureDefaultIds 跳过否决 id，
+      给"我手删的 id 又被自动加回来"一个明确出口。
+    · P1-1 _shared/check-doc-keys.ps1 新门禁（挂进 csproj BeforeTargets=Build）+
+      修正 开发用户须知.md 的 23 个过期键名（共 29 处替换）与段名前缀 7A/7B/7C/7D/7E。
+  【两条硬边界】体检**绝不改玩家的 cfg 文件**（唯二动文件的地方是 Fallback 时额外复制一份
+    broken-*.bak）；解析不出来就保持默认值 + Error 点名，**绝不替玩家猜值**。
+  【取舍】值级文档守卫 check-readme-defaults.ps1 废弃并归档到 _archive\门禁脚本-已废弃\
+    （解析的是旧 README 版式，挂回去会立刻 No default-size rows found 挡编译）；
+    缺口记在 _shared\check-doc-keys.ps1 头部 TODO。
+  【验证】Release 构建 0 警告 0 错误；三门禁通过（FBD 60 files / P4 1.8.0 / DCK 86 keys）；
+    _verify_cfgkeys.py 一致性通过（注册 86 键、真实 cfg 无孤儿键）。
+    · 新增 `_probe/cfgdoctortest`（离线单测，反射调用**已编译产物**里的 CfgDoctor 私有方法：
+      SnapshotFile / TryLenient）—— **22 PASS / 0 FAIL**，覆盖引号包数字、小数给 int、
+      开关写 1/开/"true"、键名与段名大小写、行内注释、引号内的 #、转义引号、全角逗号、
+      负数、重复键、以及两条"必须读不出（绝不猜）"的负向用例。
+    ⚠ **仍需实机验证**（离线测不到）：① `DetectFallback` 反射读 MelonLoader 的
+      `WasError`/`IsSaving` 是否命中；② `ApplyTo` 与真实 Entries 的交互；
+      ③ `SaveIfNeeded` 的实际落盘次数。三者都要进游戏跑一次
+      `_regress\regress.ps1` 并看 `[cfg体检]` 行才能确认。
+
+  取证现场与自测工程都在 `_probe/`（不参与编译与打包，可随时整目录删除；
+  里面有 melon 反编译源码 / tomltest 14 组口径实测 / cfgdoctortest 22 条单测）。
+
+  ───────────────────────────────────────────────────────────────────────────
+  2026-10-14  v1.8.0 故障测试（故意写坏 cfg）+ 提交
+  ───────────────────────────────────────────────────────────────────────────
+  【思路】CfgDoctor 三条"只在故障时才走"的路径（Fallback 探测 / 行号定位 / broken 备份）
+    没法靠正常启动覆盖。做法：把**真实 cfg 备份后**注入一个玩家最常见的错法
+    （第 831 行 `8B_DefaultIdsVeto = ""` → `8B_DefaultIdsVeto = rat_cage`，裸值 = 非法 TOML，
+    描述文案里那个例子），启动游戏跑一遍，验完再把 cfg 还原并逐字节校验。
+  【实机故障轮结果】全部按设计触发：
+    · `[ERROR] [cfg体检] ✗ MelonPreferences.cfg 整份解析失败（MelonLoader 已进入 Fallback）。`
+      ⇒ 反射读 MelonLoader 私有 `WasError` **命中**（此前列为"未验证"）。
+    · `已确认 MelonLoader 关闭了写盘（IsSaving=false）` ⇒ 反射读 `IsSaving`（字段）也命中。
+    · `疑似非法 TOML → 第 831 行 · 裸值不被 TOML 接受（字符串必须整体加引号）：8B_DefaultIdsVeto = rat_cage`
+      ⇒ **行号精确命中**，且报的是"裸值"而不是别的噪声（前面 830 行全部无嫌疑）。
+    · `已额外备份一份待排查文件：UserData\MelonPreferences.cfg.broken-20261014-130441` ⇒ 备份生成。
+    · `本次运行不保存任何配置改动（Fallback）：修好上面点名的行、重启游戏后一切恢复。`
+    · 宽容采纳在 Fallback 下把 12 项值救回内存 —— 含 `z1_DiagLog = true`（第 627 行），
+      否则该轮 Diag 总闸会回落成代码默认 false，回归里依赖 [REG] 的断言会大面积误判。
+    · cfg 本体在整轮运行后**本段 226 行逐行未变**（文件级哈希变化全来自别家 mod：
+      [DIY捕鼠夹]/[良心商人] 的段名加引号规范化、UnityExplorer 的注释折行）。
+  【故障轮暴露 3 个问题，均已修】
+    ① `Report()` 的 Fallback 分支直接 return，把"落盘统计"那行吞了 —— 而故障时更该看见它。
+       改为**无条件输出一行汇总**：`[cfg体检] 汇总：体检 N 项，宽容采纳 A 项，读不出 U 项；写盘 S 次（跳过 K 次）`。
+       同时修掉 `_regress/checks.json` 新断言 `cfg.write.summary` 的漏匹配。
+    ② 裸字符串的提示文案是"建议改成 8 字符的带引号写法"，玩家看不懂 →
+       改为"建议整体加上双引号（内层引号要写成 \"）"。
+    ③ `no.suite.error`（absent `\[ERROR\].*(CustomInfrastructure|…)`）会把"玩家 cfg 有非法 TOML"
+       判成套件自身出错 —— 语义混淆。改为负向先行断言排除 `[cfg体检]` 行；cfg 环境健康改由
+       `cfg.doctor.ok` 专门断言（故障轮里它正确地报了 FAIL，这就是它该干的活）。
+  【离线测试工具重做（沙箱里"红测"是坏测试）】`_probe/fallbacktest`：原先 6 条用例想调
+    `MelonPreferences.Load()` 在进程外复现 Fallback —— 做不到：MelonLoader 的日志走原生 host
+    （`BootstrapInterop.Library` 为 null），它**在把 WasError 置位之前**就抛 NRE。
+    改为三段**沙箱真能证**的东西，现在 **12 PASS / 0 FAIL**：
+      · 前提：6 种写法直接问 Tomlet（合法 2 种解析通过、非法 4 种分别抛
+        TomlInvalidValue/TomlMissingNewline/TomlKeyRedefinition）—— 证明"故障轮失败的原因就是它"；
+      · 反射管道：强行把私有 `_waserror`/`IsSaving` 置成三种组合，验 DetectFallback 如实回报；
+      · 行号定位 + broken 备份（纯函数）。
+    ★ 踩坑：`DetectFallback(out bool)` 是**通过 out 参数**回传的，测试里读静态字段永远 false ——
+      我因此误判了一轮，记在这里免得下次再犯。
+  【提交前门禁】健康轮 `regress.ps1 -Launch`：**PASS=34 / FAIL=0 / WARN=0**；
+    加载的 DLL SHA256 = 3A530C24…（与本仓库 dist 产物一致）；
+    日志 `[cfg体检] 汇总：…；写盘 0 次（跳过 3 次） — cfg 未被改写`；本套件落盘计数 0。
+
+  ───────────────────────────────────────────────────────────────────────────
+  2026-10-14  v1.8.0 实机一轮（手动启动）+ 修掉 1 次"误落盘"
+  ───────────────────────────────────────────────────────────────────────────
+  【实机结果】Release 产物（日志 SHA256 = DF562A4E…，与 bin\Release 一致）进游戏跑完一轮：
+    · `ContainerSuite v1.8.0`；`[cfg体检] cfg 无异常（86 项全部按文件取值）`
+      ⇒ 宽容采纳 0、读不出 0：本机 cfg 本来规范，体检链路按预期走通（没有误报）。
+    · `8B_DefaultIdsVeto = ""` 已写进 cfg 且带中文注释；`8B 否决清单为空 → …` 已无条件打印
+      ⇒ P1-3 与"配置生效摘要"都到位。
+    · 回归标记全绿：ci.patch=2 / sbe.patch=7 / diy.patch=18 / wage.avoid=7/7 / suite.ready=1.8.0，
+      无本套件 ERROR（[ERROR] 只有别家 MelonExchangeReminder 缺依赖那条）。
+      DiyUpgradeMod.Restore/Meta 的 NullReferenceException [catch] 是既有的（改前日志同样有）。
+    · 本套件落盘 **1 次**（12:54:11.963）：比改前的固定 4 次少，但**不是 0**。
+  【发现】那次写盘的原因写在下一行：`写盘：CustomInfrastructure（已标记：8A 注释重建）`。
+    根因是我自己引入的：`RefreshPerIdLimitsComment` 里加了 MarkDirty，而它**每次启动必被触发** ——
+    `ApplyConfigLabels()` 会先把 8A 的 Description 改回短说明，于是"注释变了"永远成立
+    ⇒ 等价于保留了一次无条件写盘。
+  【修正】删掉 `CfgDoctor.MarkDirty`（连同 `_dirty/_dirtyReason` 字段一起删，不留死代码）。
+    注释变更改由 `SaveIfNeeded` 的**注释比对**触发 —— 它拿文件里该键上方的注释块与 Description
+    逐字比，不一致才写。⇒ 预期下一轮 **写盘 0 次**。
+  【新增常态可见性】收尾报告改为 `[cfg体检] … ；写盘 N 次（跳过 M 次）[ — cfg 未被改写]`，
+    **无条件输出**（不开 DiagLog 也看得见）。原实现下"这次到底有没有改写玩家文件"只有开诊断
+    才知道 —— 实机那行"跳过写盘"之所以能看见，是因为 Diag 的 provider 在 CI.Init **之后**才注入
+    的既有顺序副作用。README.md.txt / README_mobile.txt 的日志示例已同步。
+  【离线单测 22 → 25 条】新增"注释比对保真度"3 条：用 Tomlet **真的写一遍**（模拟 MelonLoader
+    落盘），再用 `CfgDoctor.CommentAbove` 从原文读回，覆盖单行 / 多行含空行+缩进+全角 / 空注释。
+    **25 PASS / 0 FAIL** ⇒ "注释没变就跳过写盘"这条判据可靠（这正是上面修正的依据）。
+  【重新交付】修正版重新构建打包并部署（同版本号 1.8.0，靠 DLL 哈希区分两轮）：
+    修正前 SHA256 前缀 DF562A4E…（实机第一轮那个）；
+    修正后 SHA256 前缀 6B2BF3B9…（已装进 Mods\，旧的一份备份在
+    _deploy_backup\CustomInfrastructure.dll.bak-20261014-DF562A4E）。
+    ⇒ 下一轮启动时日志里的 SHA256 应是 6B2BF3B9…，并应看到
+      `[cfg体检] ... 写盘 0 次（跳过 3 次） — cfg 未被改写`。
+
   ───────────────────────────────────────────────────────────────────────────
   2026-10-13  注释精简 · 批次4：Release+DIAG 双构建 + 门禁 + regress（结案）
   ───────────────────────────────────────────────────────────────────────────
