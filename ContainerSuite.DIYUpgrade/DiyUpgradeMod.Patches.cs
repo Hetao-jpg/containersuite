@@ -381,6 +381,13 @@ public static partial class DiyUpgradeMod
                     {
                         int cfgMaxW = (gridDefForTooltip.MaxW != null && gridDefForTooltip.MaxW.Value > 0) ? gridDefForTooltip.MaxW.Value : 0;
                         int cfgMaxH = (gridDefForTooltip.MaxH != null && gridDefForTooltip.MaxH.Value > 0) ? gridDefForTooltip.MaxH.Value : 0;
+                        // 8A_PerIdSizeLimits 写了就完全覆盖分类上限（与 TryGetGridShapeLimits / 升级路径同口径）。
+                        // 原先这里只读 GridDef.MaxW/MaxH，配了单件上限时「最终上限」仍显示分类值（如 50x30）。
+                        if (TryGetPerIdLimit(__instance, out int idMaxW, out int idMaxH))
+                        {
+                            cfgMaxW = idMaxW;
+                            cfgMaxH = idMaxH;
+                        }
                         bool cfgWDifferent = (cfgMaxW > 0 && cfgMaxW != maxW);
                         bool cfgHDifferent = (cfgMaxH > 0 && cfgMaxH != maxH);
                         if (cfgWDifferent || cfgHDifferent)

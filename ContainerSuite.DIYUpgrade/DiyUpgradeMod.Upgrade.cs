@@ -65,6 +65,13 @@ public static partial class DiyUpgradeMod
         maxW = 0; maxH = 0;
         GridDef gridDefForItem = GetGridDefForItem(item);
         if (gridDefForItem != null) { maxW = gridDefForItem.MaxW.Value; maxH = gridDefForItem.MaxH.Value; }
+        // 8A_PerIdSizeLimits 优先（与 TryGetGridShapeLimits / 升级路径同口径）：
+        // 没配 perId 的仍用分类上限。
+        if (TryGetPerIdLimit(item, out int idMaxW, out int idMaxH))
+        {
+            maxW = idMaxW;
+            maxH = idMaxH;
+        }
     }
     private static bool IsAllowedMaterial(GameItem source)
     {
