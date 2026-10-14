@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- ═══════════════════════════════════════════════════════════════════
+	<!-- ═══════════════════════════════════════════════════════════════════
        ContainerSuite —— 2026-10-06 起合并为单 DLL。
 
        合并前是 4 个工程 / 4 个 DLL（ContainerSuite.Shared / CustomInfrastructure /
@@ -24,125 +24,118 @@
         换游戏目录：改下面 GamePath 一处，或构建时 -p:GamePath="..." 覆盖。
         ═══════════════════════════════════════════════════════════════════ -->
 
-  <!-- ① 游戏路径与派生目录 -->
-  <PropertyGroup Condition="'$(GamePath)' == ''">
-    <GamePath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo</GamePath>
-  </PropertyGroup>
-  <PropertyGroup>
-    <MLNet>$(GamePath)\MelonLoader\net6</MLNet>
-    <MLIl2Cpp>$(GamePath)\MelonLoader\Il2CppAssemblies</MLIl2Cpp>
-  </PropertyGroup>
+	<!-- ① 游戏路径与派生目录 -->
+	<PropertyGroup Condition="'$(GamePath)' == ''">
+		<GamePath>D:\SteamLibrary\steamapps\common\Probably Stolen Demo</GamePath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<MLNet>$(GamePath)\MelonLoader\net6</MLNet>
+		<MLIl2Cpp>$(GamePath)\MelonLoader\Il2CppAssemblies</MLIl2Cpp>
+	</PropertyGroup>
 
-  <!-- ② 通用编译属性 -->
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <PlatformTarget>x64</PlatformTarget>
-    <Prefer32Bit>false</Prefer32Bit>
-    <!-- 输出到 bin/<配置>/<Dll>.dll（不带 net6.0 子目录），部署脚本好找 -->
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-  </PropertyGroup>
+	<!-- ② 通用编译属性 -->
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<PlatformTarget>x64</PlatformTarget>
+		<Prefer32Bit>false</Prefer32Bit>
+		<!-- 输出到 bin/<配置>/<Dll>.dll（不带 net6.0 子目录），部署脚本好找 -->
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
 
-  <!-- ③ 诊断脚手架的条件编译总闸：
-       Release 默认不含；开启：dotnet build -c Release -p:Diag=true -->
-  <PropertyGroup Condition="'$(Diag)' == 'true'">
-    <DefineConstants>$(DefineConstants);DIAG</DefineConstants>
-  </PropertyGroup>
+	<!-- ③ 诊断脚手架的条件编译总闸：
+       默认**开启** DIAG（打包/直编默认带诊断日志，方便用户反馈 bug）。
+       要出纯净版（无 #if DIAG 探针）：
+           dotnet build -c Release -p:Diag=false
+       注意：无论开不开 DIAG，产物文件名都是 CustomInfrastructure.dll。 -->
+	<PropertyGroup Condition="'$(Diag)' != 'false'">
+		<DefineConstants>$(DefineConstants);DIAG</DefineConstants>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <AssemblyName>CustomInfrastructure</AssemblyName>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <RootNamespace>CustomInfrastructure</RootNamespace>
-  </PropertyGroup>
+	<PropertyGroup>
+		<AssemblyName>CustomInfrastructure</AssemblyName>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<RootNamespace>CustomInfrastructure</RootNamespace>
+	</PropertyGroup>
 
-  <!-- 开发版 / 发布版产物区分（文件名区分，配合 pack.ps1 -Dev）：
-       发布版：dotnet build -c Release          → CustomInfrastructure.dll
-       开发版：dotnet build -c Release -p:Diag=true → CustomInfrastructure-dev.dll
-       DIAG 宏在 ③ 已定义（-p:Diag=true 时）；这里让开发版的 DLL 文件名带 -dev 后缀，
-       保证两个产物不会互相覆盖、一眼可辨。AssemblyName 会影响 MelonInfo 里登记的
-       Mod 名，故仅在 DIAG 构建下追加后缀，Release 保持不变。 -->
-  <PropertyGroup Condition="'$(Diag)' == 'true'">
-    <AssemblyName>CustomInfrastructure-dev</AssemblyName>
-  </PropertyGroup>
+	<!-- ── 源码：本工程自己的 + 另外 3 个目录的（bin/obj 排除） ── -->
+	<ItemGroup>
+		<Compile Include="..\ContainerSuite.Shared\**\*.cs"
+				 Exclude="..\ContainerSuite.Shared\bin\**;..\ContainerSuite.Shared\obj\**" />
+		<Compile Include="..\ContainerSuite.SaveBag\**\*.cs"
+				 Exclude="..\ContainerSuite.SaveBag\bin\**;..\ContainerSuite.SaveBag\obj\**" />
+		<Compile Include="..\ContainerSuite.DIYUpgrade\**\*.cs"
+				 Exclude="..\ContainerSuite.DIYUpgrade\bin\**;..\ContainerSuite.DIYUpgrade\obj\**" />
+	</ItemGroup>
 
-  <!-- ── 源码：本工程自己的 + 另外 3 个目录的（bin/obj 排除） ── -->
-  <ItemGroup>
-    <Compile Include="..\ContainerSuite.Shared\**\*.cs"
-             Exclude="..\ContainerSuite.Shared\bin\**;..\ContainerSuite.Shared\obj\**" />
-    <Compile Include="..\ContainerSuite.SaveBag\**\*.cs"
-             Exclude="..\ContainerSuite.SaveBag\bin\**;..\ContainerSuite.SaveBag\obj\**" />
-    <Compile Include="..\ContainerSuite.DIYUpgrade\**\*.cs"
-             Exclude="..\ContainerSuite.DIYUpgrade\bin\**;..\ContainerSuite.DIYUpgrade\obj\**" />
-  </ItemGroup>
+	<!-- ── 引用：4 个原工程的并集。全部 Private=False，绝不把依赖拷进输出目录 ── -->
+	<ItemGroup>
+		<Reference Include="MelonLoader">
+			<HintPath>$(MLNet)\MelonLoader.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="0Harmony">
+			<HintPath>$(MLNet)\0Harmony.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Il2CppInterop.Runtime">
+			<HintPath>$(MLNet)\Il2CppInterop.Runtime.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Il2CppInterop.Common">
+			<HintPath>$(MLNet)\Il2CppInterop.Common.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Il2CppInterop.HarmonySupport">
+			<HintPath>$(MLNet)\Il2CppInterop.HarmonySupport.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Il2Cppmscorlib">
+			<HintPath>$(MLIl2Cpp)\Il2Cppmscorlib.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Assembly-CSharp">
+			<HintPath>$(MLIl2Cpp)\Assembly-CSharp.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.CoreModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.CoreModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- GridFx / Tooltip / 拖拽 都用到 UI -->
+		<Reference Include="UnityEngine.UI">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.UI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UIModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.UIModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- 分页 OnGUI：GUIStyle / GUI / FontStyle / TextAnchor -->
+		<Reference Include="UnityEngine.IMGUIModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.IMGUIModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.TextRenderingModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.TextRenderingModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- 键盘输入：TAB 翻页 / 快捷键 -->
+		<Reference Include="UnityEngine.InputLegacyModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.InputLegacyModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- DIY 的窗口音效 -->
+		<Reference Include="UnityEngine.AudioModule">
+			<HintPath>$(MLIl2Cpp)\UnityEngine.AudioModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
 
-  <!-- ── 引用：4 个原工程的并集。全部 Private=False，绝不把依赖拷进输出目录 ── -->
-  <ItemGroup>
-    <Reference Include="MelonLoader">
-      <HintPath>$(MLNet)\MelonLoader.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(MLNet)\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppInterop.Runtime">
-      <HintPath>$(MLNet)\Il2CppInterop.Runtime.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppInterop.Common">
-      <HintPath>$(MLNet)\Il2CppInterop.Common.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppInterop.HarmonySupport">
-      <HintPath>$(MLNet)\Il2CppInterop.HarmonySupport.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2Cppmscorlib">
-      <HintPath>$(MLIl2Cpp)\Il2Cppmscorlib.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(MLIl2Cpp)\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.CoreModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- GridFx / Tooltip / 拖拽 都用到 UI -->
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UIModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.UIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- 分页 OnGUI：GUIStyle / GUI / FontStyle / TextAnchor -->
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- 键盘输入：TAB 翻页 / 快捷键 -->
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- DIY 的窗口音效 -->
-    <Reference Include="UnityEngine.AudioModule">
-      <HintPath>$(MLIl2Cpp)\UnityEngine.AudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
+	<!-- ═══════════════════════════════════════════════════════════════════
        门禁检查（2026-10-13 恢复自 git 历史 e14dafb）。
 
        背景：_shared\check-*.ps1 门禁脚本 2026-10-12 被删除，2026-10-13 从
@@ -157,19 +150,19 @@
        注意：脚本是纯 ASCII（PS 5.1 按 ANSI 读），路径用 $(MSBuildThisFileDirectory)
        定位到 _shared\，与 csproj 的相对位置保持契约。
        ═══════════════════════════════════════════════════════════════════ -->
-  <Target Name="CheckForbiddenPatterns" BeforeTargets="Build">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-forbidden.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
-          ContinueOnError="false"
-          IgnoreExitCode="false" />
-  </Target>
+	<Target Name="CheckForbiddenPatterns" BeforeTargets="Build">
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-forbidden.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+			  ContinueOnError="false"
+			  IgnoreExitCode="false" />
+	</Target>
 
-  <Target Name="CheckSuiteVersionConsistency" BeforeTargets="Build">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-suite-version.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
-          ContinueOnError="false"
-          IgnoreExitCode="false" />
-  </Target>
+	<Target Name="CheckSuiteVersionConsistency" BeforeTargets="Build">
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-suite-version.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+			  ContinueOnError="false"
+			  IgnoreExitCode="false" />
+	</Target>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
+	<!-- ═══════════════════════════════════════════════════════════════════
        文档一致性门禁（2026-10-14 补齐）。
 
        · check-doc-keys.ps1 —— 新增。玩家文档里出现的 cfg 键名必须在 CfgKeys.cs 里
@@ -182,10 +175,10 @@
        2026-10-13 已重写、不再有那张表 —— 挂回来只会立刻 `No default-size rows found`
        而挡住编译。已知缺口（值级文档漂移不再有守卫）记在 check-doc-keys.ps1 头部 TODO。
        ═══════════════════════════════════════════════════════════════════ -->
-  <Target Name="CheckDocConsistency" BeforeTargets="Build">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-doc-keys.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
-          ContinueOnError="false"
-          IgnoreExitCode="false" />
-  </Target>
+	<Target Name="CheckDocConsistency" BeforeTargets="Build">
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\_shared\check-doc-keys.ps1&quot; -WorkspaceRoot &quot;$(MSBuildThisFileDirectory)..&quot;"
+			  ContinueOnError="false"
+			  IgnoreExitCode="false" />
+	</Target>
 
 </Project>

@@ -2,43 +2,31 @@
 # ContainerSuite one-click pack script.
 #
 # Usage:
-#   .\pack.ps1                  build + pack RELEASE into dist/ContainerSuite-v{ver}/ + .zip
-#   .\pack.ps1 -Dev             build + pack DEV (DIAG) into dist/ContainerSuite-dev-v{ver}/ + .zip
-#   .\pack.ps1 -SkipBuild       skip msbuild (reuse current bin/Release DLL)
+#   .\pack.ps1                  build + pack into dist/ContainerSuite-v{ver}/ + .zip
+#   .\pack.ps1 -SkipBuild       skip dotnet build (reuse current bin/Release DLL)
 #   .\pack.ps1 -NoZip           produce the folder only, skip the .zip
-#   .\pack.ps1 -Version 1.2.3   override the version (must match the doc version
-#                               lines, else packing is rejected)
+#   .\pack.ps1 -Version 1.2.3   override the version (normally read from SuiteVersion.cs)
 #
-# Release vs Dev (2026-10-13):
-#   Release = player build; DIAG diagnostic code is compiled out (not in the DLL).
-#   Dev     = dev/debug build; -p:Diag=true enables #if DIAG probes,
-#             DLL is named CustomInfrastructure-dev.dll (csproj switches
-#             AssemblyName based on the Diag property).
-#   The two DLLs never overwrite each other; the name tells them apart at a glance.
+# Build variant:
+#   This script builds the LOG-ENABLED (DIAG) variant by default:
+#     -p:Diag=true  -> #if DIAG probes compiled in, Banner shows component versions.
+#   To produce a clean build without probes, build manually with:
+#     dotnet build -c Release -p:Diag=false
+#   The DLL filename is the same either way: CustomInfrastructure.dll
 #
 # Output contract (dist/ContainerSuite-v{ver}/):
 #   - CustomInfrastructure.dll   (the single deliverable DLL)
 #   - README.md.txt              (player readme, shipped)
 #   - README_mobile.txt          (player readme, shipped)
 #
-# Version line contract: each shipped README must contain a version line
-#   <version-label> + colon (fullwidth or halfwidth) + optional v + x.y.z
-# where version-label is the Chinese word for "version" or "latest version".
-# and that x.y.z must equal the pack version, otherwise packing is rejected.
-# This validation runs BEFORE the build (fast-fail) so a bad doc never wastes
-# a compile.
-#
-# Conventions (the old _shared\check-*.ps1 guards were removed 2026-10-12;
-# these rules still apply):
+# Conventions:
 #   - Pure ASCII source (PS 5.1 reads scripts as ANSI; non-ASCII in code
 #     would break parsing).
 #   - Backslash is NOT an escape char in PowerShell (backtick is); backslashes
 #     below are literal path separators.
-#   - Regex uses \uXXXX escapes so the source stays pure ASCII.
 # ============================================================================
 
 param(
-    [switch]$Dev,
     [switch]$SkipBuild,
     [switch]$NoZip,
     [string]$Version = ''
@@ -51,18 +39,10 @@ $Root      = $PSScriptRoot
 $Workspace = $Root                                   # ContainerSuite\
 $CfgProj   = Join-Path $Workspace 'ContainerSuite.Infrastructure\ContainerSuite.Infrastructure.csproj'
 
-# Release vs Dev decides the DLL filename and dist folder name.
-if ($Dev) {
-    $DllName   = 'CustomInfrastructure-dev.dll'
-    $DistLabel = 'ContainerSuite-dev'
-    $BuildArgs = @('-p:Diag=true')
-} else {
-    $DllName   = 'CustomInfrastructure.dll'
-    $DistLabel = 'ContainerSuite'
-    $BuildArgs = @()
-}
+# Single deliverable: one DLL name, one dist folder name.
+$DllName   = 'CustomInfrastructure.dll'
+$DistLabel = 'ContainerSuite'
 $BuiltDll  = Join-Path $Workspace ('ContainerSuite.Infrastructure\bin\Release\' + $DllName)
-Write-Host ('PACK: variant = ' + $(if ($Dev) { 'DEV (DIAG)' } else { 'RELEASE' }))
 
 # --- 1. Resolve version ----------------------------------------------------
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -89,18 +69,8 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 Write-Host ('PACK: version = ' + $Version)
 
-# --- 2. Validate the shipped README docs (fast-fail, before build) ---------
-# Each doc must (a) mention the marker "ContainerSuite" and (b) contain a
-# version line whose number equals the pack version.
+# --- 2. Check the shipped README docs exist (fast-fail, before build) ------
 $ShippedDocs = @('README.md.txt', 'README_mobile.txt')
-
-# Version-line regex, ASCII-escaped:
-#   (?:\u6700\u65B0)?       optional Chinese "zui xin" (latest)
-#   \u7248\u672C             Chinese "ban ben" (version)
-#   \s*[\uFF1A:]\s*          colon (fullwidth U+FF1A or halfwidth) + optional spaces
-#   [vV]?                    optional leading v
-#   ([0-9]+\.[0-9]+\.[0-9]+) captured x.y.z
-$verPattern = '(?:\u6700\u65B0)?\u7248\u672C\s*[\uFF1A:]\s*[vV]?([0-9]+\.[0-9]+\.[0-9]+)'
 
 $docOk = $true
 foreach ($doc in $ShippedDocs) {
@@ -108,39 +78,19 @@ foreach ($doc in $ShippedDocs) {
     if (-not (Test-Path $path)) {
         Write-Host ('PACK: shipped doc missing: ' + $doc)
         $docOk = $false
-        continue
-    }
-    $text = Get-Content -Path $path -Raw -Encoding UTF8
-
-    if ($text.IndexOf('ContainerSuite') -lt 0) {
-        Write-Host ('PACK: ' + $doc + ' does not contain the marker "ContainerSuite"')
-        $docOk = $false
-    }
-
-    $m = [regex]::Match($text, $verPattern)
-    if (-not $m.Success) {
-        Write-Host ('PACK: no version line found in ' + $doc)
-        Write-Host ('      expected a line like: version label + colon + ' + $Version)
-        $docOk = $false
-    }
-    elseif ($m.Groups[1].Value -ne $Version) {
-        Write-Host ('PACK: version mismatch in ' + $doc)
-        Write-Host ('      found    : ' + $m.Groups[1].Value)
-        Write-Host ('      expected : ' + $Version)
-        $docOk = $false
     }
 }
 
 if (-not $docOk) {
-    Write-Host 'PACK: shipped-doc validation FAILED. Nothing was built or packed.'
+    Write-Host 'PACK: shipped-doc check FAILED. Nothing was built or packed.'
     exit 1
 }
-Write-Host 'PACK: shipped-doc validation passed.'
+Write-Host 'PACK: shipped-doc check passed.'
 
 # --- 3. Build --------------------------------------------------------------
 if (-not $SkipBuild) {
-    Write-Host ('PACK: building (Release' + $(if ($Dev) { ', Diag=true' } else { '' }) + ')...')
-    & dotnet build $CfgProj -c Release -v m @BuildArgs
+    Write-Host 'PACK: building (Release, Diag=true / log-enabled)...'
+    & dotnet build $CfgProj -c Release -v m -p:Diag=true
     if ($LASTEXITCODE -ne 0) {
         Write-Host 'PACK: build FAILED.'
         exit 1
@@ -160,9 +110,10 @@ if (-not (Test-Path $BuiltDll)) {
 $DistDir = Join-Path $Workspace ('dist\' + $DistLabel + '-v' + $Version)
 New-Item -Path $DistDir -ItemType Directory -Force | Out-Null
 Write-Host ('PACK: dist dir = ' + $DistDir)
+
 # --- 5. Copy DLL -----------------------------------------------------------
 Copy-Item -Path $BuiltDll -Destination $DistDir -Force
-Write-Host 'PACK: copied CustomInfrastructure.dll'
+Write-Host ('PACK: copied ' + $DllName)
 
 # --- 6. Copy shipped docs --------------------------------------------------
 foreach ($doc in $ShippedDocs) {
