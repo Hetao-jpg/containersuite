@@ -26,7 +26,9 @@ public static partial class DiyUpgradeMod
         // 查重：原默认串是 "animal_cage,Rat_Cage,rat_cage"，Rat_Cage 与 rat_cage
         // 仅大小写不同、经 IsAnyId 命中同一个物品，属历史冗余；且 rat_cage 并非
         // 游戏内实际存在的容器 id（2026-10-13 确认后一并删除）。新默认值只留 animal_cage。
-        new KeyValuePair<string, string>("CageIds", "animal_cage"),
+        // 2026-10-14：新增 ratlin_animal_cage（鼠布林老鼠笼）——鼠布林 mod 添加的笼子，
+        //   与原版 animal_cage 同构，按核桃要求纳入同一个 CageIds 白名单。
+        new KeyValuePair<string, string>("CageIds", "animal_cage,ratlin_animal_cage"),
         new KeyValuePair<string, string>("MultiSlotIds", "fridge,recharger,vacuum_robot"),
         // 2026-10-08：新增水瓶打印机。它的产出格是 MachineBottlePrinter 机器窗口里的
         // GameGridInventory，与 water_purifier 同构 → 归 4E 模组槽，不归 4D 多槽容器。

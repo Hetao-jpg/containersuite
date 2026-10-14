@@ -66,6 +66,7 @@ public static partial class DiyUpgradeMod
         + "backpack_small=背包（小）;backpack_medium=背包（基础）;backpack_large=背包（大）;"
         + "satchel=挎包（小）;fanny_pack=腰包;backpack_medium_military=背包（军用）;"
         + "backpack_large_military=大型军用背包;animal_cage=动物笼;"
+        + "ratlin_animal_cage=鼠布林老鼠笼;"
         + "fridge=冰箱;recharger=充能器;vacuum_robot=清洁机器人;"
         + "furnace=熔炉;desequencer=密码解序器;security_alarm=警报系统;mirage_projector=幻影投影仪;"
         + "water_purifier=净水器;moisture_farm=水分收集器;wine_rack=催陈器;bottle_printer=水瓶打印机;"
