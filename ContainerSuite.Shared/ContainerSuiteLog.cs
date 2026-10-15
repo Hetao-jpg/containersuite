@@ -33,6 +33,17 @@ public static class ContainerSuiteLog
 
     private static Func<bool> _diagProvider;
     private static bool _diagStaticFallback;
+    /// <summary>
+    /// 预热期静音 CatchLogOnce —— 哑参 invoke 触发的 NRE 是**预期噪音**
+    /// （预热只需"方法体被 JIT 编译"这一步，编译发生在方法体执行前，
+    ///   之后抛 NRE 也不影响目标达成），不该进日志。
+    /// 由 WarmupSaveLoadChain 在进入/退出时置 true/false。
+    /// <para>
+    /// ★ 只静音 CatchLogOnce —— ContainerSuiteLog.Msg / Diag / Warn / Error
+    ///   走的是不同路径，不受本开关影响（预热期的状态汇报仍会输出）。
+    /// </para>
+    /// </summary>
+    internal static bool SuppressCatchLog;
 
     /// <summary>
     /// 注入实时判据。之后 <see cref="DiagEnabled"/> 每次读都会调用它。

@@ -96,6 +96,14 @@ public static partial class DiyUpgradeMod
     // ═══════════════════════════════════════════════════════════════════════
     private static string MetaKey(GameItem item)
     {
+     // 2026-10-15：首行判空。
+     //   预热（WarmupSaveLoadChain）用 null 哑参 invoke 本方法；原实现
+     //   会一路走到 item.uniqueId / (Il2CppObjectBase)item 才抛 NRE，
+     //   且抛出的 NRE 经内层 catch → CatchLogOnce.Warn → 污染启动日志。
+     //   判空后哑参直接返回占位串，既不抛异常也不进缓存。
+     //   ★ 运行期正常调用不会传 null（调用方 IdOf / LoadMeta 均已判空），
+     //     所以这条判空对运行期行为**零影响**。
+                if (item == null) return "<null>";
         string id = IdOf(item);
         try
         {
@@ -111,6 +119,8 @@ public static partial class DiyUpgradeMod
     }
     private static (int BaseW, int BaseH, int Spent) LoadMeta(GameItem item)
     {
+        // 2026-10-15：首行判空。理由同 MetaKey —— 预热哑参不再触发 NRE 噪音。
+        if (item == null) return (0, 0, 0);
         string key = MetaKey(item);
         if (_metaCache.TryGetValue(key, out (int, int, int) cached)) return cached;
         int baseWTag = TagUtil.SafeTagInt(item, "DIY_UPGRADE_BASE_W_TAG", 0);

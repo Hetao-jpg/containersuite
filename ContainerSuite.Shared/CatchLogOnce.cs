@@ -19,6 +19,17 @@ namespace ContainerSuite.Shared;
 /// 「只打印一次」的异常留痕工具。
 /// 用途：给原本完全静默的 catch 块留下痕迹，同时避免每帧路径（Tick / OnUpdate）
 /// 反复刷屏 —— 同一个 where / file:line 只打印第一次。
+/// <para>
+/// ★ 2026-10-15：新增 <c>ContainerSuiteLog.SuppressCatchLog</c> 静音开关 ——
+/// 预热期（WarmupSaveLoadChain）的哑参 invoke 会产生**预期 NRE**
+/// （预热只需"方法体被 JIT 编译"这一步，编译发生在方法体执行前；
+/// 之后抛 NRE 不影响目标达成），不该进日志。
+/// 实机 2026-10-15 Latest.log 已复现 6 条此类噪音警告。
+/// </para>
+/// <para>
+/// ★ 静音**只针对 CatchLogOnce**：ContainerSuiteLog 的 Msg / Warn / Error / Diag
+///   走不同路径，不受本开关影响 —— 预热期的"步骤打点 / 完成汇报"仍照常输出。
+/// </para>
 /// </summary>
 public static class CatchLogOnce
 {
@@ -27,6 +38,8 @@ public static class CatchLogOnce
     /// <summary>显式指定语义化位置（如 "DiyUpgradeMod.FindTypeCached"）。</summary>
     public static void Warn(string where, Exception ex)
     {
+        // 预热期静音：哑参 invoke 的 NRE 是预期噪音，见 ContainerSuiteLog.SuppressCatchLog。
+        if (ContainerSuiteLog.SuppressCatchLog) return;
         if (string.IsNullOrEmpty(where)) where = "?";
         if (!_seen.Add(where)) return;
         Emit(where, ex);
@@ -38,6 +51,8 @@ public static class CatchLogOnce
     /// </summary>
     public static void Warn(Exception ex, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
+        // 预热期静音：同上。
+        if (ContainerSuiteLog.SuppressCatchLog) return;
         string where = ShortFile(file) + ":" + line;
         if (!_seen.Add(where)) return;
         Emit(where, ex);

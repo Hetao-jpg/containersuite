@@ -624,10 +624,23 @@ public static partial class DiyUpgradeMod
         if (_saveLoadChainWarmed) return;
         _saveLoadChainWarmed = true;
 
-        // 第二轮（2026-10-09）：先把所有 [HarmonyPatch] 的 Prefix/Postfix/Transpiler
-        // 本体在浅栈一次性编译完，避免它们首次编译落在玩家交互的 detour 深栈上。
-        // 见 WarmupAllPatchMethods 注释。
-        WarmupAllPatchMethods();
+            // 2026-10-15：预热期静音 CatchLogOnce。
+            //   哑参 invoke 触发的 NRE 是预期噪音（预热只需编译，编译发生在方法体
+            //   执行前；之后抛 NRE 不影响目标达成），但 CatchLogOnce.Warn 是**全局**
+            //   工具、不受 DiagLog 门控 —— 若不加这道静音，每次启动会打出 5~6 条
+            //   `[catch] DiyUpgradeMod.Restore:NNN: NullReferenceException` 警告，
+            //   误导玩家以为出了故障（实机 2026-10-15 Latest.log 已复现）。
+            //   ★ 只静音 CatchLogOnce：ContainerSuiteLog.Msg / Diag 不受影响，
+            //     预热的"步骤打点 / 完成汇报"仍按 DiagLog 开关输出。
+            //   ★ try/finally 保证**即便预热中途抛异常也复位**，绝不让静音状态泄漏
+            //     到运行期（那会让真实的 catch 告警也静默 —— 项目最忌讳的故障形态）。
+        ContainerSuite.Shared.ContainerSuiteLog.SuppressCatchLog = true;
+        try
+        {
+            // 第二轮（2026-10-09）：先把所有 [HarmonyPatch] 的 Prefix/Postfix/Transpiler
+            // 本体在浅栈一次性编译完，避免它们首次编译落在玩家交互的 detour 深栈上。
+            // 见 WarmupAllPatchMethods 注释。
+            WarmupAllPatchMethods();
 
         // 【2026-10-10】XIAOWO 僵尸手柄清扫链的浅栈预热（集合 + 判据 + 反射成员）。
         //   清扫首次真跑发生在"世界就绪后"（TickZombieHandles 门禁 + 2s 消抖），
@@ -706,6 +719,12 @@ public static partial class DiyUpgradeMod
         sw.Stop();
         // ★ 保持无条件（2026-10-09）：与 [SBE-JIT] 预热完成 同理 —— 这是"预热成功"的结论行，
         //   属于加载状态汇报，不是逐步诊断。
-        _log?.Msg($"[DIY-JIT] 预热完成：steps={steps} 耗时={sw.ElapsedMilliseconds}ms");
+         _log?.Msg($"[DIY-JIT] 预热完成：steps={steps} 耗时={sw.ElapsedMilliseconds}ms");
+        }
+        finally
+        {
+        // 无论预热成功/异常/中途 return，都要复位 —— 见方法开头注释。
+         ContainerSuite.Shared.ContainerSuiteLog.SuppressCatchLog = false;
+        }
     }
 }
