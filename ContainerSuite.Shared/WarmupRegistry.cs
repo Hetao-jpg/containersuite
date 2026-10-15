@@ -62,7 +62,7 @@ internal static class WarmupRegistry
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>扫描整个程序集，把所有带 <see cref="JitWarmupAttribute"/> 的静态方法登记进预热表。</summary>
-    /// <returns>本次新登记的方法数（已登记过的会被 Register 去重，不重复计数）。</returns>
+    /// <returns>本次**扫到**的带 [JitWarmup] 的方法数（含已登记过的；本方法只在启动时调一次，故等于新登记数）。</returns>
     internal static int ScanAndRegister(Assembly asm)
     {
         int found = 0;

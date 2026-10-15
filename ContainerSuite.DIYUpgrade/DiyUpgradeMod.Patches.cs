@@ -354,8 +354,11 @@ public static partial class DiyUpgradeMod
                     spentTimes = ((spent > 0) ? spent : 0);
                     metaBaseW = baseW; metaBaseH = baseH;
                 }
-                GetMaxSizeForItem(__instance, out var maxW, out var maxH);
+                // RF：先走 TryGetGridShapeLimits（含 perId / 升级进度 / 上限）；
+                // 成功则不再调 GetMaxSizeForItem（原先会多读一次 GridDef.MaxW/MaxH）。
+                int maxW = 0, maxH = 0;
                 int minW = 1, minH = 1;
+                bool haveLimits = false;
                 try
                 {
                     if (TryGetGridShapeLimits(__instance, out var mc, out var mr, out var xc, out var xr))
@@ -364,9 +367,15 @@ public static partial class DiyUpgradeMod
                         minH = Math.Max(1, mr);
                         if (xc > 0) maxW = xc;
                         if (xr > 0) maxH = xr;
+                        haveLimits = true;
                     }
                 }
                 catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
+                if (!haveLimits)
+                {
+                    try { GetMaxSizeForItem(__instance, out maxW, out maxH); }
+                    catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
+                }
                 string rangeText = ((maxW > 0 && maxH > 0) ? (maxW + "x" + maxH) : "无");
                 __result.Add("升级 " + spentTimes + " 次  ");
                 __result.Add("当前 " + curW + "x" + curH + "  ");
@@ -381,6 +390,13 @@ public static partial class DiyUpgradeMod
                     {
                         int cfgMaxW = (gridDefForTooltip.MaxW != null && gridDefForTooltip.MaxW.Value > 0) ? gridDefForTooltip.MaxW.Value : 0;
                         int cfgMaxH = (gridDefForTooltip.MaxH != null && gridDefForTooltip.MaxH.Value > 0) ? gridDefForTooltip.MaxH.Value : 0;
+                        // 8A_PerIdSizeLimits 写了就完全覆盖分类上限（与 TryGetGridShapeLimits / 升级路径同口径）。
+                        // 原先这里只读 GridDef.MaxW/MaxH，配了单件上限时「最终上限」仍显示分类值（如 50x30）。
+                        if (TryGetPerIdLimit(__instance, out int idMaxW, out int idMaxH))
+                        {
+                            cfgMaxW = idMaxW;
+                            cfgMaxH = idMaxH;
+                        }
                         bool cfgWDifferent = (cfgMaxW > 0 && cfgMaxW != maxW);
                         bool cfgHDifferent = (cfgMaxH > 0 && cfgMaxH != maxH);
                         if (cfgWDifferent || cfgHDifferent)
@@ -422,27 +438,49 @@ public static partial class DiyUpgradeMod
     // ─────────────────────────────────────────────────────────────────────
     // 布局 getter 覆写：不读游戏状态，也不应该在加载期被 gate 拦截 ——
     // 它们只在自己 ApplyWindowSize 设置 _layoutWindow 期间生效，其余时刻
-    // 直接放行原版逻辑。所以这三个 Patch 不加 WorldReadyGate 检查。
+    // 直接放行原版逻辑。所以这些 Patch 不加 WorldReadyGate 检查。
+    //
+    // RF：这 4 个 getter 每帧可被读上万次。Postfix 首行只读一个
+    //     volatile 静态门闩（RF_LayoutOverrideActive），非布局窗口期间
+    //     几乎零成本；真正比较指针只在 ApplyWindowSize 窗口内发生。
     // ─────────────────────────────────────────────────────────────────────
+    internal static volatile bool RF_LayoutOverrideActive;
+
     [HarmonyPatch(typeof(PixelWindow), "get_widthPixels")]
     internal static class WindowWidthPatch
     {
-        private static void Postfix(PixelWindow __instance, ref int __result) { TryOverrideWindowWidth(__instance, ref __result); }
+        private static void Postfix(PixelWindow __instance, ref int __result)
+        {
+            if (!RF_LayoutOverrideActive) return;
+            TryOverrideWindowWidth(__instance, ref __result);
+        }
     }
     [HarmonyPatch(typeof(PixelWindow), "get_heightPixels")]
     internal static class WindowHeightPatch
     {
-        private static void Postfix(PixelWindow __instance, ref int __result) { TryOverrideWindowHeight(__instance, ref __result); }
+        private static void Postfix(PixelWindow __instance, ref int __result)
+        {
+            if (!RF_LayoutOverrideActive) return;
+            TryOverrideWindowHeight(__instance, ref __result);
+        }
     }
     [HarmonyPatch(typeof(GameGridInventory), "get_widthPixels")]
     internal static class GridWidthPatch
     {
-        private static void Postfix(GameGridInventory __instance, ref int __result) { TryOverrideChildWidth(__instance, ref __result); }
+        private static void Postfix(GameGridInventory __instance, ref int __result)
+        {
+            if (!RF_LayoutOverrideActive) return;
+            TryOverrideChildWidth(__instance, ref __result);
+        }
     }
     [HarmonyPatch(typeof(GameGridInventory), "get_heightPixels")]
     internal static class GridHeightPatch
     {
-        private static void Postfix(GameGridInventory __instance, ref int __result) { TryOverrideChildHeight(__instance, ref __result); }
+        private static void Postfix(GameGridInventory __instance, ref int __result)
+        {
+            if (!RF_LayoutOverrideActive) return;
+            TryOverrideChildHeight(__instance, ref __result);
+        }
     }
 
     [HarmonyPatch(typeof(MaterialDirectory), "OnIngotTarget")]
@@ -518,8 +556,15 @@ public static partial class DiyUpgradeMod
             int metaBefore = 0;
             try { metaBefore = _metaCache.Count; } catch { }
             try { CacheRegistry.ClearForLoadGame(); } catch (System.Exception ex) { CatchLogOnce.Warn("Patches:loadgame-clear-caches", ex); }
-            // ★ A-2 留痕（无条件，不走 Diag）：这是「uid 跨档污染」前提的**唯一证据来源**；
-            //   长期恒为 0 即可据此回退本改动。完整说明见 docs/silent-failure.md
+            // ★ A-2 补（2026-10-15）：_cachedIdOffset 不在 CacheRegistry 里，必须显式清。
+            //   _offsetCache 声明了 survivesLoadGame:true（读档有意不清），
+            //   但 OffsetResolver 的 distrust 状态可能在读档路径上变化
+            //   （VerifyDragOffset 自校验失败 → MarkDistrusted）。
+            //   若不清 _cachedIdOffset，IdOffset() 会直接返回旧值，
+            //   绕过 OffsetResolver.FieldOffset 开头的 `if (_distrusted) return fallback`，
+            //   导致工具句柄继续用过期偏移 —— 静默失效。
+            //   场景切换路径已在 OnSceneLoaded 里手动清，此处补读档路径。
+            _cachedIdOffset = -1;
             if (metaBefore > 0)
                 ContainerSuiteLog.Msg("[容器升级] 读档清缓存：_metaCache " + metaBefore
                     + " 条 → 0（不处理会让同 uid 容器读到上一存档的升级次数）");

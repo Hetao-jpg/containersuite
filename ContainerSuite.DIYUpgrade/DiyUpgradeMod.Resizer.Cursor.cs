@@ -210,6 +210,9 @@ public static partial class DiyUpgradeMod
         private static bool _lastHadHover = false;
         private static int _forceTickCountdown = 0;
         private const int ForceTickEvery = 6;
+        // RF：States 存活清理节流（原先每帧；现每 10 帧，约 0.17s @60fps）。
+        private static int _cleanupCountdown;
+        private const int CleanupEveryNFrames = 10;
 
         internal static bool IsDragging => _activeDragCount > 0;
 
@@ -281,25 +284,34 @@ public static partial class DiyUpgradeMod
             }
             if (States.Count > 0)
             {
-                _cleanupBuffer.Clear();
-                foreach (KeyValuePair<IntPtr, ResizeState> state in States)
+                // RF：存活清理从「每帧」改为每 10 帧（~0.17s @60fps）。
+                // IsResizableContainer 仍带 300ms 缓存，但每帧遍历 + Pointer 读取
+                // 在多容器同时可见时是 Tick 里的大头；10 帧一次对「窗口关掉后
+                // 手柄残留」的感知延迟玩家无感。
+                _cleanupCountdown--;
+                if (_cleanupCountdown <= 0)
                 {
-                    ResizeState rs = state.Value;
-                    // Window/指针读取包进 try：已销毁的互操作对象访问 .Pointer 可能抛异常，
-                    // 若任其逃逸会中断整个 Tick。读取失败即视为该 state 已失效（windowDead）。
-                    bool windowDead;
-                    try { windowDead = rs.Window == null || rs.Window.rectTransform == null || ((Il2CppObjectBase)rs.Window).Pointer == IntPtr.Zero; }
-                    catch (System.Exception ex) { CatchLogOnce.Warn("Resizer:tick-cleanup-window", ex); windowDead = true; }
-                    bool itemDead = false;
-                    try { itemDead = rs.Item == null || !IsResizableContainer(rs.Item); }
-                    catch (System.Exception ex) { CatchLogOnce.Warn("Resizer:tick-cleanup-item", ex); }
-                    if (windowDead || itemDead)
+                    _cleanupCountdown = CleanupEveryNFrames;
+                    _cleanupBuffer.Clear();
+                    foreach (KeyValuePair<IntPtr, ResizeState> state in States)
                     {
-                        try { rs.DestroyHandles(); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
-                        _cleanupBuffer.Add(state.Key);
+                        ResizeState rs = state.Value;
+                        // Window/指针读取包进 try：已销毁的互操作对象访问 .Pointer 可能抛异常，
+                        // 若任其逃逸会中断整个 Tick。读取失败即视为该 state 已失效（windowDead）。
+                        bool windowDead;
+                        try { windowDead = rs.Window == null || rs.Window.rectTransform == null || ((Il2CppObjectBase)rs.Window).Pointer == IntPtr.Zero; }
+                        catch (System.Exception ex) { CatchLogOnce.Warn("Resizer:tick-cleanup-window", ex); windowDead = true; }
+                        bool itemDead = false;
+                        try { itemDead = rs.Item == null || !IsResizableContainer(rs.Item); }
+                        catch (System.Exception ex) { CatchLogOnce.Warn("Resizer:tick-cleanup-item", ex); }
+                        if (windowDead || itemDead)
+                        {
+                            try { rs.DestroyHandles(); } catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
+                            _cleanupBuffer.Add(state.Key);
+                        }
                     }
+                    for (int i = 0; i < _cleanupBuffer.Count; i++) States.Remove(_cleanupBuffer[i]);
                 }
-                for (int i = 0; i < _cleanupBuffer.Count; i++) States.Remove(_cleanupBuffer[i]);
             }
             if (_enableDragResize.Value && States.Count > 0)
             {

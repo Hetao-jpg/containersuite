@@ -127,6 +127,22 @@ public static partial class DiyUpgradeMod
         return sb.ToString();
     }
 
+    /// <summary>
+    /// P3-2（2026-10-15）：为"确认当前不可管"的物品生成最小状态签名。
+    /// 只读 wb_stage 与虚空珠移交 tag —— 这两者是"能不能管"唯一会变的外部输入；
+    /// 变了 ⇒ 签名变 ⇒ memo miss ⇒ 重跑恢复链（这是想要的行为）。
+    /// </summary>
+    private static string SafeIdleSig(GameItem item)
+    {
+        try
+        {
+            if (item == null) return "null";
+            int wb = TagUtil.SafeTagInt(item, "wb_stage", -1);
+            int handover = DiyUpgradeMod.VoidBeadHandedOver(item) ? 1 : 0;
+            return "wb=" + wb + ";ho=" + handover;
+        }
+        catch { return "err"; }
+    }
     /// <summary>场景切换 / 新档加载时清空恢复链 memo（旧指针全部失效）。</summary>
     internal static void ClearRestoreMemo()
     {
@@ -149,7 +165,20 @@ public static partial class DiyUpgradeMod
 
             RestoreMigrateWage(item);
             def = GetGridDefForItem(item);
-            if (def == null) return false;
+            if (def == null)
+            {
+                // P3-2（2026-10-15）：未满级妙妙箱 / 未移交虚空珠会反复走到这里。
+                //   记一条"已知不可管"的 memo，避免每次 Show 都重跑 RestoreMigrateWage
+                //   （里面 _ggiCache.Clear + GetAllGridInventories 不便宜）。
+                //   Sig 用 item 指针之外的信息：只用 item.Pointer 会漏掉"玩家刚喂材料
+                //   让妙妙箱满级"这种状态变化。用 wb_stage / 移交 tag 拼一份最小签名。
+                if (memoPtr != IntPtr.Zero)
+                {
+                    string idleSig = "IDLE:" + SafeIdleSig(item);
+                    _restoreMemo[memoPtr] = new RestoreMemoEntry { Sig = idleSig, Changed = 0, Ok = true };
+                }
+                return false;
+            }
         }
 
         CrashProbe.Enter("Core.GetAllGrids");
@@ -513,8 +542,10 @@ public static partial class DiyUpgradeMod
 
             // ★ 无条件打印（不再走 Diag 闸门）：否则"预热到底跑没跑、跑了几个"零线索
             //   —— 本套件吃过「静默失效」的亏，这条是崩溃防线，必须始终可见。
-            _log?.Msg($"[DIY-JIT] 补丁方法预热完成：[JitWarmup] 声明 {declared} 个 + 手动注册 {manual} 个 "
-                + $"+ [HarmonyPatch] {n} 个 —— 其中手动+声明共 {manual} 个已在浅栈编译"
+            // 2026-10-15：原文案"手动注册 {manual} 个"会让读日志的人以为 manual 是纯手动注册数，
+            //   实际它含第零路扫到的声明式叶子。改成"登记表共 invoke {manual} 个"，语义准确。
+            _log?.Msg($"[DIY-JIT] 补丁方法预热完成：[JitWarmup] 声明 {declared} 个 "
+                + $"+ [HarmonyPatch] {n} 个；登记表共 invoke {manual} 个"
                 + $"（登记表容量 {ContainerSuite.Shared.WarmupRegistry.Count}）");
         }
         catch (Exception ex) { _log?.Warning("[DIY-JIT] 补丁方法预热异常: " + ex.Message); }

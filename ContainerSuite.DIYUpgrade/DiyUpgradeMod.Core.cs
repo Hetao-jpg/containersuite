@@ -82,14 +82,22 @@ public static partial class DiyUpgradeMod
         // 2026-10-07 键名重排：只加域号前缀变成 3C_SkipVoidBead，名字本身不动；
         //   语义以描述文案为准。
         _skipVoidBead = category.CreateEntry<bool>(CfgKeys.SkipVoidBead, true, (string)null, "避让·蛙哥虚空珠。⚠ 语义与其他 Skip* 项相反：true=蛙哥主权（保原版逐格解锁；按住升级键拖材料到虚空珠=永久移交 DIY），false=无条件归 DIY（排查冲突才用）", false, false, (ValueValidator)null, (string)null);
-        // 【2026-10-10】僵尸手柄清扫开关。★ **唯一权威默认值写在这里** —— 其余文件只引用本处、
-        //   不得各写一份数字（曾经 3 处各写一份且互相矛盾，见 容器优化方案.md P0-1）。
-        //   默认 **false（不清扫）**：09:17 实测「门禁 + 2s 消抖都生效、世界就绪后 2.5 秒执行
-        //   仍然崩 0x80131506」⇒ 崩点坐实为清扫动作本身，与深栈/时机无关。
-        //   17:40 虽把清扫改为「熄火」（SetActive(false)，不再反射调 XIAOWO 的 DestroyHandles），
-        //   但该改动**尚未经新一次实机 A/B 证明不崩**，故在拿到新证据前保持 fail-safe：不清扫。
-        //   排查/复验时置 true：开=崩、关=不崩 即为坐实崩点的最小实验。
-        _sweepZombieHandles = category.CreateEntry<bool>(CfgKeys.SweepZombieHandles, false, (string)null, "清理 XIAOWO 残留拖拽手柄（熄火式：SetActive(false)）。默认关：旧崩溃未复验，置 true 前请先实机确认不崩", false, false, (ValueValidator)null, (string)null);
+        // 【2026-10-10 / 2026-10-15 复验】僵尸手柄清扫开关。★ **唯一权威默认值写在这里** ——
+        //   其余文件只引用本处、不得各写一份数字（曾经 3 处各写一份且互相矛盾，见 容器优化方案.md P0-1）。
+        //
+        //   默认 **false（不清扫）** —— 保守方向：
+        //     · 历史：2026-10-10 的 09:17 曾实测「门禁 + 2s 消抖都生效、世界就绪后 2.5 秒执行
+        //       仍然崩 0x80131506」；17:40 改为「熄火」（SetActive(false)，不再反射调 XIAOWO 的
+        //       DestroyHandles），但当时无新一次 A/B 证据。
+        //     · 2026-10-15 复验：**与 XIAOWO（小窝 / 精工扩舱）一起运行时，开启本项实测不崩**。
+        //       故描述文案改为「和小窝 mod 一起使用时建议开启」——这是本项真正解决的场景：
+        //       两套拖拽手柄重叠、抢 raycast。
+        //     · 默认仍保持 false 的理由：清理手柄本身会触发 GameObject.SetActive(false)，
+        //       属于"动 UI 对象"的动作；没有 XIAOWO 时根本不需要它，保持 fail-safe 方向
+        //       （不做动作）更稳。想开启的玩家按 cfg 描述自助开启即可。
+        //
+        //   失败形态（历史记录，保留供后人核对）：开=崩、关=不崩 —— 排查时用的最小实验判据。
+        _sweepZombieHandles = category.CreateEntry<bool>(CfgKeys.SweepZombieHandles, false, (string)null, "清理 XIAOWO（小窝/精工扩舱）残留拖拽手柄（熄火式：SetActive(false)，不销毁）。★ 和小窝 mod 一起使用时建议开启 —— 避免两套手柄重叠、抢鼠标。默认关（保守）。", false, false, (ValueValidator)null, (string)null);
         // 2026-10-07：原「每类别每槽」升级增量提升为全局两级（详见 DiyUpgradeMod.State.cs 字段注释）。
         //   必须先于任何 CreateGridDef 创建 —— CreateGridDef 内部会把各槽的 IncW/IncH 指向这两个共享条目。
         _incW = category.CreateEntry<int>(CfgKeys.IncW, 1, (string)null, (string)null, false, false, (ValueValidator)null, (string)null);
@@ -279,30 +287,20 @@ public static partial class DiyUpgradeMod
         // 【2026-10-09 读档崩溃定位】启动期（主菜单、门禁判断之前）一次性预热
         //   读档恢复链的 JIT —— 与 SBE 的 WarmupJit 同理，必须早于任何读档，
         //   否则首次编译正好落在"读档深栈 + MonoMod CompileMethodHook"上而崩。
-        ContainerSuite.Shared.CrashProbe.Enter("DIY.WarmupSaveLoadChain");
+        // RF：_saveLoadChainWarmed 后空返回，常态零成本。
         WarmupSaveLoadChain();
-        ContainerSuite.Shared.CrashProbe.Exit("DIY.WarmupSaveLoadChain");
 
         // S4-2：RestoreArbiter.Tick 移交给 CI 的 OnUpdate 统一调用。
         // 原因：SBE 也用 RestoreArbiter，若 DIY 和 CI 各 tick 一次，会处理两遍。
-        ContainerSuite.Shared.CrashProbe.Enter("DIY.ContainerWindowResizer.Tick");
         ContainerWindowResizer.Tick();
-        ContainerSuite.Shared.CrashProbe.Exit("DIY.ContainerWindowResizer.Tick");
 
         // S8n：清理 XIAOWO 残留拖拽手柄（2 秒节流，开关关着时内部直接返回）。
         // 必须放在 DIY 自己的手柄 tick 之后 —— 先让本 mod 把手柄摆到前面，
         // 再把对面的清掉，避免同一帧内两边互相 BringHandlesToFront 抢 sibling 顺序。
-        // 【2026-10-10】外层再包一层兜底：Tick 是每帧热路径，任何未预期异常都不该
-        //   从 Tick 里冒出来打断后续逻辑（内部实现虽已全 try/catch，但未来改动可能
-        //   引入新裸路径）。这是"防回归"而非"修当前 bug"——当前实现已安全。
-        ContainerSuite.Shared.CrashProbe.Enter("DIY.TickZombieHandles");
         try { SkipXiaowoBayRestore.TickZombieHandles(); }
         catch (Exception ex) { CatchLogOnce.Warn("Tick:SkipXiaowoBayRestore", ex); }
-        ContainerSuite.Shared.CrashProbe.Exit("DIY.TickZombieHandles");
 
-        ContainerSuite.Shared.CrashProbe.Enter("DIY.TryFlushPrefs");
         TryFlushPrefs();
-        ContainerSuite.Shared.CrashProbe.Exit("DIY.TryFlushPrefs");
 
         // T3（2026-10-12）：组拖"事件丢失"对账（已武装 + 鼠标抬起 N 帧却没等到 EndGroupDrag）。
         //   未武装时方法内第一行就返回，常态零开销；内部全 try/catch，异常不外溢。

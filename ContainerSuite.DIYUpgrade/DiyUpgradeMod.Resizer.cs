@@ -59,7 +59,10 @@ public static partial class DiyUpgradeMod
                     try
                     {
                         if (Window == null || Window.rectTransform == null) return false;
-                        if (!_enableDragResize.Value) return true;
+                        // 2026-10-15：加 null 检查。配置未就绪时 _enableDragResize 可能为 null，
+                        //   原写法 .Value 抛 NRE 被外层 catch 吞掉 → 返回 false → 被当成"已死"
+                        //   → Attach 反复重建手柄。语义上"读不到配置"应视为"不启用拖拽"（返回 true）。
+                        if (_enableDragResize == null || !_enableDragResize.Value) return true;
                         return _handles.Count == ExpectedHandleCount && LiveHandleCount == ExpectedHandleCount;
                     }
                     catch { return false; }

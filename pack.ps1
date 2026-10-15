@@ -89,8 +89,8 @@ Write-Host 'PACK: shipped-doc check passed.'
 
 # --- 3. Build --------------------------------------------------------------
 if (-not $SkipBuild) {
-    Write-Host 'PACK: building (Release, Diag=true / log-enabled)...'
-    & dotnet build $CfgProj -c Release -v m -p:Diag=true
+    Write-Host 'PACK: building (Release, Diag=false / perf)...'
+    & dotnet build $CfgProj -c Release -v m -p:Diag=false
     if ($LASTEXITCODE -ne 0) {
         Write-Host 'PACK: build FAILED.'
         exit 1

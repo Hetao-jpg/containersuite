@@ -301,12 +301,14 @@ internal static class SkipXiaowoBayRestore
     {
         // 开关关着就不扫 —— 这时 XIAOWO 的手柄是合法的，不该清。
         if (!DiyUpgradeMod.SkipXiaowoBayEnabled) return;
-        // ★★★ 【2026-10-10】专用清扫开关（3D_SweepZombieHandles）。
+        // ★★★ 【2026-10-10 / 2026-10-15 复验】专用清扫开关（3D_SweepZombieHandles）。
         //   默认值**只在 DiyUpgradeMod.Core.cs 的 CreateEntry 写一次**，此处不重复数字。
-        //   现行默认 false 的依据（历史实测，仍是当前判据）：门禁 + 2s 消抖都生效、
-        //   世界就绪后 2.5 秒执行**仍然崩** 0x80131506（09:17 时间线）⇒ 崩点坐实为
-        //   清扫动作本身，与深栈/时机无关。17:40 起清扫虽改「熄火」，但尚无新实机
-        //   A/B 证据，故默认仍不清扫。排查时置 true 可复现（开=崩、关=不崩）。
+        //   2026-10-15 复验：与 XIAOWO 一起运行时开启实测不崩 —— 本项真正解决的场景
+        //   就是"两套拖拽手柄重叠、抢 raycast"，cfg 描述已改为「和小窝 mod 一起使用时建议开启」。
+        //   默认仍 false：没有 XIAOWO 时用不上，保持 fail-safe（不做动作）方向。
+        //   历史依据（保留供后人核对）：2026-10-10 的 09:17 时间线曾实测
+        //   「门禁 + 2s 消抖都生效、世界就绪后 2.5 秒执行仍然崩 0x80131506」；
+        //   17:40 改为「熄火」后未复验。
         if (!DiyUpgradeMod.SweepZombieHandlesEnabled) return;
         // ★★★ 加载期 / 读档期（深栈）一律不清：清手柄 = 反射调 XIAOWO/游戏方法 + 销毁
         //   GameObject，首次 JIT 落在 detour 深栈上必崩（见方法头 09:12 实测）。

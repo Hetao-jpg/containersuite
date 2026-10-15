@@ -129,7 +129,16 @@ public static partial class DiyUpgradeMod
         if (_lastLogTimeByKey.Count <= limit) return;
         int target = limit - (limit >> 2);   // 一次淘汰到 3/4，避免"每加一条就淘汰一次"
         var keys = new List<string>(_lastLogTimeByKey.Keys);
-        keys.Sort((a, b) => _lastLogTimeByKey[a].CompareTo(_lastLogTimeByKey[b]));
+        // 2026-10-15：加 tie-break。同一毫秒内多个 key 时间戳相同，
+        //   原比较器返回 0 时 List.Sort 不保证顺序 → 可能淘汰刚写进去的 key
+        //   → 该 key 下次会重新打印（去重失效）。用 key 字符串做二次排序，
+        //   保证同一毫秒内的淘汰顺序**确定**（虽然仍是"任意挑几个"，但不随机）。
+        keys.Sort((a, b) =>
+        {
+            int c = _lastLogTimeByKey[a].CompareTo(_lastLogTimeByKey[b]);
+            if (c != 0) return c;
+            return string.CompareOrdinal(a, b);
+        });
         int remove = keys.Count - target;
         for (int i = 0; i < remove; i++) _lastLogTimeByKey.Remove(keys[i]);
     }

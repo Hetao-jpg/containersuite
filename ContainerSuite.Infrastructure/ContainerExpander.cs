@@ -65,7 +65,17 @@ internal static class ContainerExpander
         if (ptr == IntPtr.Zero) return;
 
         if (_pendingExpand.ContainsKey(ptr)) return;        // 同帧/跨帧去重
-        if (_pendingExpand.Count >= MaxPendingExpand) return;
+        if (_pendingExpand.Count >= MaxPendingExpand)
+        {
+            // 2026-10-15：队列满时留痕。这是安全阀，正常情况不会触发；
+            //   一旦真的触发，说明某帧游戏一次性验证了远超 256 个容器 ——
+            //   需要知道这件事（否则"某容器没被扩展"会查无实据）。
+            //   LogOnce 3 秒去重，不会刷屏。
+            ContainerSuite.Shared.ContainerSuiteLog.Diag(
+                "[容器扩展] 待处理队列已满（" + MaxPendingExpand + "），本次请求被丢弃。"
+                + "若频繁出现请反馈（通常由一次性验证上千容器触发）。");
+            return;
+        }
         _pendingExpand[ptr] = container;
         _pendingExpandOrder.Enqueue(ptr);
     }

@@ -236,37 +236,29 @@ public static class SaveBagExpandCore
             // S8u-3（2026-10-06）：主菜单第一帧预热 Bind 链 JIT。
             // 必须放在门禁判断【之前】——加载期门是关的，而预热必须在
             // 任何读档发生前完成（见 SaveBagPaging.WarmupJit 注释）。
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.WarmupJit");
+            // RF：WarmupJit 内部 _warmedUp 后是空返回，调用本身极便宜。
             SaveBagPaging.WarmupJit();
-            ContainerSuite.Shared.CrashProbe.Exit("SBE.WarmupJit");
 
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.RefreshConfigCacheThrottled");
             RefreshConfigCacheThrottled();
-            ContainerSuite.Shared.CrashProbe.Exit("SBE.RefreshConfigCacheThrottled");
             if (!Enabled) return;
 
             // S8u 双保险（2026-10-05 补录）：加载期整段跳过 ——
             // 分页绑定 / TAB / 滚轮在 WorldReadyGate 放行前都无意义，
             // 且其中 Bind 是 0x80131506 崩溃链的起点（见禁止事项 #22）。
+            // RF：ShouldDefer 已按帧缓存，此处从「可能走 IL2CPP」变成一次 bool 读。
             if (ContainerSuite.Shared.WorldReadyGate.ShouldDefer) return;
 
             // 2026-10-12：拖拽中切页后的"物品假体"复原重试（未切过页时首行即返回，
             //   常态零开销）。必须在本块之上——它不依赖分页开关/容器窗口实例。
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.TickDragGhostReassert");
             SaveBagPaging.TickDragGhostReassert();
-            ContainerSuite.Shared.CrashProbe.Exit("SBE.TickDragGhostReassert");
 
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.EmporiumEntry.Instance");
             var entry = EmporiumEntry.Instance;
-            ContainerSuite.Shared.CrashProbe.Exit("SBE.EmporiumEntry.Instance");
             if (entry == null) return;
 
             // 1) 分页：每秒轮询绑定
             if (_cfgPagingEnabled)
             {
-                ContainerSuite.Shared.CrashProbe.Enter("SBE.SaveBagPaging.Tick");
                 SaveBagPaging.Tick(entry.invElement);
-                ContainerSuite.Shared.CrashProbe.Exit("SBE.SaveBagPaging.Tick");
 
                 bool bound = SaveBagPaging.IsBound;
                 if (bound)
@@ -280,13 +272,10 @@ public static class SaveBagExpandCore
 
             // 2) 「地面」窗口鼠标拖动（独立于滚动/分页；本地块内的早退不影响它，
             //    因为它在本块**之前**调用）。
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.TickWindowDrag");
             TickWindowDrag(entry);
-            ContainerSuite.Shared.CrashProbe.Exit("SBE.TickWindowDrag");
 
             // 3) 其它容器滚动
             if (!_cfgScrollEnabled) return;
-            ContainerSuite.Shared.CrashProbe.Enter("SBE.Scroll");
             float scroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) < 0.01f) return;
 

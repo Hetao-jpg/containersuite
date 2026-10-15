@@ -33,9 +33,10 @@ public sealed class Mod : MelonMod
     private const int PerfReportFrames = 300;           // ≈ 5 秒
 
     // 崩点探针武装标志（见 OnUpdate 头注释）。读档时置位，窗口过后自动解除。
-    // P1-3：CrashProbe 的实现在 Release 下被条件编译删除，但 [Conditional] 调用仍需
-    //   绑定其实参，故该字段在 Release 里也保留（internal，无未使用告警）。
+    // RF：仅 DIAG 构建存在；Release（Diag=false）无 CrashProbe，字段一并剔除。
+#if DIAG
     internal static bool _crashProbeArmed;
+#endif
     public override void OnInitializeMelon()
     {
         Log = LoggerInstance;
@@ -154,9 +155,12 @@ public sealed class Mod : MelonMod
         //   ★ 只在读档后 CrashProbeWindowSeconds 秒内记录（避免全程刷盘）；
         //     平时零开销（一个 bool 判断）。
         // ═══════════════════════════════════════════════════════════════════
+        // RF：DIAG 构建下才需要 CrashProbe 门闩；Release（Diag=false）整段编译剔除。
+#if DIAG
         CrashProbe.Enter("FrameStart");
         CrashProbe.TickFrame(ref _crashProbeArmed);
         CrashProbe.Exit("FrameStart");
+#endif
 
         // ═══════════════════════════════════════════════════════════════════
         // 【2026-10-10 P1】CI 容器扩展的**唯一安全执行点**。
@@ -168,42 +172,28 @@ public sealed class Mod : MelonMod
         // 顺序：放在 Arbiter 之前 —— 先扩尺寸、再让 DIY 恢复链基于最终尺寸做恢复，
         //   与历史顺序（Postfix 同步执行 → 恢复链随后）一致。
         // ═══════════════════════════════════════════════════════════════════
-        CrashProbe.Enter("CIExpandQueue");
         try { ContainerExpander.ProcessExpandQueue(); }
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.CIExpandQueue", ex); }
-        CrashProbe.Exit("CIExpandQueue");
 
         // TD-09：只在 DiagLog 开启时计时，关闭时零开销
         bool perf = ContainerSuiteLog.DiagEnabled;
 
-        CrashProbe.Enter("Arbiter");
         if (perf) _swArbiter.Restart();
         try { ContainerSuite.Shared.RestoreArbiter.Tick(); }
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.Arbiter", ex); }
         if (perf) _swArbiter.Stop();
-        CrashProbe.Exit("Arbiter");
 
-        CrashProbe.Enter("SBE");
         if (perf) _swSbe.Restart();
         try { SaveBagExpand.SaveBagExpandCore.Tick(); }
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.SBE", ex); }
         if (perf) _swSbe.Stop();
-        CrashProbe.Exit("SBE");
 
-        CrashProbe.Enter("DIY");
         if (perf) _swDiy.Restart();
         try { DIYUpgrade.DiyUpgradeMod.Tick(); }
         catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.DIY", ex); }
         if (perf) _swDiy.Stop();
-        CrashProbe.Exit("DIY");
 
-        CrashProbe.Enter("Perf");
         if (perf) AccumulateTickPerf();
-        CrashProbe.Exit("Perf");
-
-        // 帧结束标记：本行之后再无本 mod 代码。若探针停在 `-> ONUPDATE-END`
-        // 而下一帧的 `-> FrameStart` 从未出现 ⇒ 崩溃在 OnUpdate 之外（游戏帧逻辑）。
-        CrashProbe.Enter("ONUPDATE-END");
     }
     public override void OnSceneWasLoaded(int index, string sceneName)
     {

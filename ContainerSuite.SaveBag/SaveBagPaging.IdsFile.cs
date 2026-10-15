@@ -76,6 +76,19 @@ public static partial class SaveBagPaging
         string head = lines[first].Trim();
         if (head[0] != '#') { lines.Insert(first, IdsFileVersion); return; }   // 老文件无头 → 补
 
+        // 2026-10-15：显式升级已知的旧版本头。
+        //   原行为是"不改动玩家文件的版本行"——那会留下永久隐患：
+        //   将来出现 #v2 时无法区分"真 v1 文件"与"v0 文件假装 v1"。
+        //   这里只升级**已知的**旧版本号；未知的 #vX 仍保持原样（避免误伤未来格式）。
+        //   ★ 之所以敢改这一行：版本头是**我们自己写的**元数据，不属于玩家内容，
+        //     升级它不会丢任何玩家数据。
+        if (string.Equals(head, "#v0", StringComparison.Ordinal))
+        {
+            lines[first] = IdsFileVersion;
+            return;
+        }
+
+
         if (!string.Equals(head, IdsFileVersion, StringComparison.Ordinal) && !_idsVerWarned)
         {
             _idsVerWarned = true;

@@ -46,12 +46,12 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	</PropertyGroup>
 
-	<!-- ③ 诊断脚手架的条件编译总闸：
-       默认**开启** DIAG（打包/直编默认带诊断日志，方便用户反馈 bug）。
-       要出纯净版（无 #if DIAG 探针）：
-           dotnet build -c Release -p:Diag=false
+	<!-- ③ 诊断脚手架的条件编译总闸（RF 性能重构版）：
+       默认**关闭** DIAG（无 CrashProbe 实现/调用、无 DIAG 探针，压每帧耗时）。
+       要诊断版：
+           dotnet build -c Release -p:Diag=true
        注意：无论开不开 DIAG，产物文件名都是 CustomInfrastructure.dll。 -->
-	<PropertyGroup Condition="'$(Diag)' != 'false'">
+	<PropertyGroup Condition="'$(Diag)' == 'true'">
 		<DefineConstants>$(DefineConstants);DIAG</DefineConstants>
 	</PropertyGroup>
 

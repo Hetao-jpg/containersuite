@@ -97,10 +97,16 @@ public static partial class DiyUpgradeMod
     private static MelonPreferences_Entry<bool> _skipVoidBead;
 
     /// <summary>
-    /// 【2026-10-10】僵尸手柄清扫开关（cfg 3D_SweepZombieHandles）。
+    /// 【2026-10-10 / 2026-10-15 复验】僵尸手柄清扫开关（cfg 3D_SweepZombieHandles）。
     /// ★ 默认值**只在 <c>DiyUpgradeMod.Core.cs</c> 的 CreateEntry 写一次**（当前 false），此处不重复数字。
     /// 清扫实现为「熄火」（读 _handles → 每个手柄节点 SetActive(false)），不反射调 DestroyHandles。
     /// 读不到 / 未注册时返回 **false**（= 不清，fail-safe 方向是不做动作）。
+    /// <para>
+    /// 2026-10-15 复验：与 XIAOWO（小窝 / 精工扩舱）一起运行时开启实测不崩 ——
+    /// 本项真正解决的场景就是"两套拖拽手柄重叠、抢 raycast"。cfg 描述已改为
+    /// 「和小窝 mod 一起使用时建议开启」。默认仍 false：没有 XIAOWO 时用不上，
+    /// 保持 fail-safe（不做动作）方向。
+    /// </para>
     /// </summary>
     private static MelonPreferences_Entry<bool> _sweepZombieHandles;
 

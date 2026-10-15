@@ -199,7 +199,6 @@ public static class RestoreArbiter
         CrashProbe.Exit("Arbiter.Peek");
 
         int now = SafeFrameCount();
-
         // 首次处理：先设冷却，让一帧给别的 mod 写
         if (e.Phase == Phase.Pending)
         {

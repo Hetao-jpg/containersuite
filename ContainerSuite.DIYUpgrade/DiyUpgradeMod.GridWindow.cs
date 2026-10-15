@@ -521,11 +521,13 @@ public static partial class DiyUpgradeMod
             _layoutWindowHeight = height;
             _layoutChildWidth = width - borderW;
             _layoutChildHeight = height - borderH;
+            RF_LayoutOverrideActive = true;
             window.Validate();
         }
         catch (System.Exception ex) { CatchLogOnce.Warn(ex); }
         finally
         {
+            RF_LayoutOverrideActive = false;
             _layoutWindow = IntPtr.Zero;
             _layoutInventory = IntPtr.Zero;
             _layoutWindowWidth = 0;

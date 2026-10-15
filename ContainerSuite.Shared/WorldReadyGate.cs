@@ -27,6 +27,14 @@ public static class WorldReadyGate
     private static int _readyFrame = -1;
     private static int _slotAtReady = -1;
 
+    // RF-1：ShouldDefer 结果按帧缓存。
+    // 热路径（tooltip / IsResizableContainer / 多个 Prefix）每帧会问很多次；
+    // 原先每次都可能走 SaveSlotScope.GetCurrent（含 IL2CPP Instance 探测）。
+    // 同一帧内 ready/slot 不会变（变必经 Invalidate/MarkReady，会清本缓存）。
+    private static int _deferCacheFrame = int.MinValue;
+    private static bool _deferCacheValue;
+    private static bool _deferCacheValid;
+
     // ═══════════════════════════════════════════════════════════════════
     // S8x（2026-10-05）：新开存档兜底。
     //
@@ -125,20 +133,45 @@ public static class WorldReadyGate
     {
         get
         {
-            if (!_ready)
+            int frame;
+            try { frame = Time.frameCount; }
+            catch { frame = int.MinValue; }
+
+            if (_deferCacheValid && frame != int.MinValue && frame == _deferCacheFrame)
+                return _deferCacheValue;
+
+            bool defer = ComputeShouldDefer();
+            if (frame != int.MinValue)
             {
-                // S8x：超时兜底 —— 新开存档不走 LoadGame，必须靠时间窗口放行。
-                TryForceReadyOnTimeout();
-                if (!_ready) return true;
+                _deferCacheFrame = frame;
+                _deferCacheValue = defer;
+                _deferCacheValid = true;
             }
-            try
-            {
-                int cur = SaveSlotScope.GetCurrent();
-                if (cur >= 0 && _slotAtReady >= 0 && cur != _slotAtReady) return true;
-            }
-            catch { }
-            return false;
+            return defer;
         }
+    }
+
+    private static bool ComputeShouldDefer()
+    {
+        if (!_ready)
+        {
+            // S8x：超时兜底 —— 新开存档不走 LoadGame，必须靠时间窗口放行。
+            TryForceReadyOnTimeout();
+            if (!_ready) return true;
+        }
+        try
+        {
+            int cur = SaveSlotScope.GetCurrent();
+            if (cur >= 0 && _slotAtReady >= 0 && cur != _slotAtReady) return true;
+        }
+        catch { }
+        return false;
+    }
+
+    private static void InvalidateDeferCache()
+    {
+        _deferCacheValid = false;
+        _deferCacheFrame = int.MinValue;
     }
 
     /// <summary>
@@ -183,6 +216,7 @@ public static class WorldReadyGate
 
         _ready = true;
         _invalidatedAt = -1f;   // S8x：防止后续再被超时兜底重复触发
+        InvalidateDeferCache();
         try { _readyFrame = Time.frameCount; } catch { _readyFrame = 0; }
         try { LastReadyAt = Time.realtimeSinceStartup; } catch { LastReadyAt = -1f; }
         // S9：只记本轮第一次开门，之后的 MarkReady 不再覆盖
@@ -201,6 +235,7 @@ public static class WorldReadyGate
         _ready = false;
         _readyFrame = -1;
         _slotAtReady = -1;
+        InvalidateDeferCache();
         FirstReadyAt = -1f;     // S9：本轮作废，下次 MarkReady 重新记"第一次"
         try { _invalidatedAt = Time.realtimeSinceStartup; } catch { _invalidatedAt = -1f; }
 

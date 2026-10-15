@@ -18,7 +18,7 @@ namespace ContainerSuite.Shared;
 public static class SuiteVersion
 {
     /// <summary>对外显示的套件版本。</summary>
-    public const string Suite = "1.8.0";                  // ← 1.8.0 改（cfg 体检 CfgDoctor + 8B 否决清单 + 文档键名守卫）
+    public const string Suite = "1.8.1";                  // ← 1.8.1 RF：性能重构（ShouldDefer 帧缓存 / 热 getter 瘦身 / DIAG 默认关）
 
     /// <summary>
     /// CFG 迁移的**最低支持来源版本**（迁移终止线）：只把「≥ 本版本」的配置自动迁移到当前格式，
