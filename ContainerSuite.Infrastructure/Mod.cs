@@ -23,14 +23,12 @@ public sealed class Mod : MelonMod
     //   每帧都打会污染 Latest.log，且单帧抖动太大不好看。取 5 秒窗口内的
     //   均值和峰值，既平滑又不丢尖刺信号。
     // ═══════════════════════════════════════════════════════════════════
-    private static readonly Stopwatch _swArbiter = new Stopwatch();
-    private static readonly Stopwatch _swSbe = new Stopwatch();
-    private static readonly Stopwatch _swDiy = new Stopwatch();
+    private static readonly Stopwatch[] _sw = { new Stopwatch(), new Stopwatch(), new Stopwatch() };
 
-    private static long _nsArbiter, _nsSbe, _nsDiy;       // 本窗口累计纳秒
-    private static long _maxArbiter, _maxSbe, _maxDiy;    // 本窗口单帧峰值纳秒
+    private static readonly long[] _nsAccum = new long[3];
+    private static readonly long[] _nsMax = new long[3];
     private static int _perfFrames;
-    private const int PerfReportFrames = 300;           // ≈ 5 秒
+    private const int PerfReportFrames = 300;
 
     // 崩点探针武装标志（见 OnUpdate 头注释）。读档时置位，窗口过后自动解除。
     // RF：仅 DIAG 构建存在；Release（Diag=false）无 CrashProbe，字段一并剔除。
@@ -172,26 +170,13 @@ public sealed class Mod : MelonMod
         // 顺序：放在 Arbiter 之前 —— 先扩尺寸、再让 DIY 恢复链基于最终尺寸做恢复，
         //   与历史顺序（Postfix 同步执行 → 恢复链随后）一致。
         // ═══════════════════════════════════════════════════════════════════
-        try { ContainerExpander.ProcessExpandQueue(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.CIExpandQueue", ex); }
+        SafeCall("Mod.OnUpdate.CIExpandQueue", () => ContainerExpander.ProcessExpandQueue());
 
-        // TD-09：只在 DiagLog 开启时计时，关闭时零开销
         bool perf = ContainerSuiteLog.DiagEnabled;
 
-        if (perf) _swArbiter.Restart();
-        try { ContainerSuite.Shared.RestoreArbiter.Tick(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.Arbiter", ex); }
-        if (perf) _swArbiter.Stop();
-
-        if (perf) _swSbe.Restart();
-        try { SaveBagExpand.SaveBagExpandCore.Tick(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.SBE", ex); }
-        if (perf) _swSbe.Stop();
-
-        if (perf) _swDiy.Restart();
-        try { DIYUpgrade.DiyUpgradeMod.Tick(); }
-        catch (Exception ex) { CatchLogOnce.Warn("Mod.OnUpdate.DIY", ex); }
-        if (perf) _swDiy.Stop();
+        TimeTick(0, "Mod.OnUpdate.Arbiter", () => ContainerSuite.Shared.RestoreArbiter.Tick(), perf);
+        TimeTick(1, "Mod.OnUpdate.SBE", () => SaveBagExpand.SaveBagExpandCore.Tick(), perf);
+        TimeTick(2, "Mod.OnUpdate.DIY", () => DIYUpgrade.DiyUpgradeMod.Tick(), perf);
 
         if (perf) AccumulateTickPerf();
     }
@@ -257,40 +242,45 @@ public sealed class Mod : MelonMod
             CatchLogOnce.Warn("Mod.OnApplicationQuit", ex);
         }
     }
-    /// <summary>
-    /// TD-09：累计本帧 3 个 Tick 的耗时，满 300 帧打一次报告。
-    /// 报告只在 DiagEnabled=true 时输出（由 ContainerSuiteLog.Diag 内部判断）。
-    /// </summary>
+    private static void SafeCall(string tag, Action action)
+    {
+        try { action(); }
+        catch (Exception ex) { CatchLogOnce.Warn(tag, ex); }
+    }
+
+    private static void TimeTick(int index, string tag, Action action, bool perf)
+    {
+        if (perf) _sw[index].Restart();
+        SafeCall(tag, action);
+        if (perf) _sw[index].Stop();
+    }
+
     private static void AccumulateTickPerf()
     {
-        long arbNs = TicksToNs(_swArbiter.ElapsedTicks);
-        long sbeNs = TicksToNs(_swSbe.ElapsedTicks);
-        long diyNs = TicksToNs(_swDiy.ElapsedTicks);
-
-        _nsArbiter += arbNs; _nsSbe += sbeNs; _nsDiy += diyNs;
-        if (arbNs > _maxArbiter) _maxArbiter = arbNs;
-        if (sbeNs > _maxSbe) _maxSbe = sbeNs;
-        if (diyNs > _maxDiy) _maxDiy = diyNs;
+        for (int i = 0; i < 3; i++)
+        {
+            long ns = TicksToNs(_sw[i].ElapsedTicks);
+            _nsAccum[i] += ns;
+            if (ns > _nsMax[i]) _nsMax[i] = ns;
+        }
 
         if (++_perfFrames < PerfReportFrames) return;
 
-        double avgArb = _nsArbiter / (double)_perfFrames / 1000.0;   // → μs
-        double avgSbe = _nsSbe / (double)_perfFrames / 1000.0;
-        double avgDiy = _nsDiy / (double)_perfFrames / 1000.0;
-        double avgSum = avgArb + avgSbe + avgDiy;
-        double maxArb = _maxArbiter / 1000.0;
-        double maxSbe = _maxSbe / 1000.0;
-        double maxDiy = _maxDiy / 1000.0;
+        double avgSum = 0;
+        double[] avgs = new double[3];
+        for (int i = 0; i < 3; i++)
+        {
+            avgs[i] = _nsAccum[i] / (double)_perfFrames / 1000.0;
+            avgSum += avgs[i];
+        }
 
-        // 16670μs = 60fps 一帧的预算
         ContainerSuiteLog.Diag(
             $"[Perf] 最近 {_perfFrames} 帧均值：" +
-            $"Arbiter={avgArb:F1}μs  SBE={avgSbe:F1}μs  DIY={avgDiy:F1}μs  " +
+            $"Arbiter={avgs[0]:F1}μs  SBE={avgs[1]:F1}μs  DIY={avgs[2]:F1}μs  " +
             $"合计={avgSum:F1}μs（占 60fps 帧预算 {avgSum / 16670.0 * 100.0:F2}%）  " +
-            $"峰值：Arb={maxArb:F0} SBE={maxSbe:F0} DIY={maxDiy:F0}μs");
+            $"峰值：Arb={_nsMax[0] / 1000.0:F0} SBE={_nsMax[1] / 1000.0:F0} DIY={_nsMax[2] / 1000.0:F0}μs");
 
-        _nsArbiter = _nsSbe = _nsDiy = 0;
-        _maxArbiter = _maxSbe = _maxDiy = 0;
+        for (int i = 0; i < 3; i++) { _nsAccum[i] = 0; _nsMax[i] = 0; }
         _perfFrames = 0;
     }
 

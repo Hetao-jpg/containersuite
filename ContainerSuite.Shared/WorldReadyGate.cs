@@ -79,19 +79,7 @@ public static class WorldReadyGate
     /// <summary>最近一次开门的实时时间（realtimeSinceStartup）；-1 = 本会话还没开过门。</summary>
     public static float LastReadyAt { get; private set; } = -1f;
 
-    /// <summary>
-    /// 距最近一次开门经过的秒数；本会话还没开过门时返回 float.MaxValue。
-    /// 每次 MarkReady 都会刷新 —— 所以它总是从「最晚」那次开门起算。
-    /// </summary>
-    public static float SecondsSinceLastReady
-    {
-        get
-        {
-            if (LastReadyAt < 0f) return float.MaxValue;
-            try { return Time.realtimeSinceStartup - LastReadyAt; }
-            catch { return float.MaxValue; }
-        }
-    }
+    public static float SecondsSinceLastReady => SecondsSince(LastReadyAt);
 
     // ═══════════════════════════════════════════════════════════════════
     // S9（2026-10-07）：本轮【第一次】开门的时间戳。
@@ -110,19 +98,13 @@ public static class WorldReadyGate
     /// <summary>本轮第一次开门的实时时间；-1 = 本轮（自上次 Invalidate）还没开过门。</summary>
     public static float FirstReadyAt { get; private set; } = -1f;
 
-    /// <summary>
-    /// 距本轮【第一次】开门经过的秒数；本轮还没开过门时返回 float.MaxValue。
-    /// 与 <see cref="SecondsSinceLastReady"/> 的区别：本属性不会被后续的 MarkReady
-    /// 刷新，因此不会被"恢复很慢的那个 mod"拖住。
-    /// </summary>
-    public static float SecondsSinceFirstReady
+    public static float SecondsSinceFirstReady => SecondsSince(FirstReadyAt);
+
+    private static float SecondsSince(float timestamp)
     {
-        get
-        {
-            if (FirstReadyAt < 0f) return float.MaxValue;
-            try { return Time.realtimeSinceStartup - FirstReadyAt; }
-            catch { return float.MaxValue; }
-        }
+        if (timestamp < 0f) return float.MaxValue;
+        try { return Time.realtimeSinceStartup - timestamp; }
+        catch { return float.MaxValue; }
     }
 
     /// <summary>

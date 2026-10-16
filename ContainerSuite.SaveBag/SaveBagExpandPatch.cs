@@ -15,6 +15,7 @@ internal static class EmporiumEntryStartPatch
 {
     private static void Postfix(EmporiumEntry __instance)
     {
+        if (WorldReadyGate.ShouldDefer) return;
         ApplyAllResize(__instance);
         ScheduleLateRefresh(__instance);
     }
@@ -662,6 +663,7 @@ internal static class StoreShutterOpenPatch
 {
     private static void Postfix()
     {
+        if (WorldReadyGate.ShouldDefer) return;
         try
         {
             EmporiumEntry entry = EmporiumEntry.Instance;

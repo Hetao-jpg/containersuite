@@ -697,7 +697,7 @@ public static class CfgDoctor
         catch (Exception ex)
         {
             CatchLogOnce.Warn("CfgDoctor.SaveIfNeeded", ex);
-            try { category.SaveToFile(); } catch { }
+            try { category.SaveToFile(); } catch (Exception ex2) { CatchLogOnce.Warn("CfgDoctor.SaveIfNeeded.Retry", ex2); }
         }
     }
 

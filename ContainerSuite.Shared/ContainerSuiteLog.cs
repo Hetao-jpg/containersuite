@@ -77,29 +77,19 @@ public static class ContainerSuiteLog
 
     private static readonly HashSet<string> _diagSeen = new HashSet<string>(StringComparer.Ordinal);
 
-    /// <summary>Shared 内部用的日志方法（无 Mod 归属前缀）。</summary>
-    public static void Msg(string msg)
+    private static void SafeLog(Action<string> logFn, string msg)
     {
-        try { MelonLogger.Msg(msg); } catch { }
+        try { logFn(msg); } catch { }
     }
 
-    /// <summary>Shared 内部用的警告方法（无 Mod 归属前缀）。</summary>
-    public static void Warn(string msg)
-    {
-        try { MelonLogger.Warning(msg); } catch { }
-    }
+    public static void Msg(string msg) => SafeLog(MelonLogger.Msg, msg);
+    public static void Warn(string msg) => SafeLog(MelonLogger.Warning, msg);
+    public static void Error(string msg) => SafeLog(MelonLogger.Error, msg);
 
-    /// <summary>Shared 内部用的错误方法（无 Mod 归属前缀）。</summary>
-    public static void Error(string msg)
-    {
-        try { MelonLogger.Error(msg); } catch { }
-    }
-
-    /// <summary>诊断日志。DiagEnabled=false 时静默。</summary>
     public static void Diag(string msg)
     {
         if (!DiagEnabled) return;
-        try { MelonLogger.Msg(msg); } catch { }
+        SafeLog(MelonLogger.Msg, msg);
     }
 
     /// <summary>诊断日志，按 key 去重。同一个 key 只打印一次。</summary>

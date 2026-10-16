@@ -335,7 +335,6 @@ public static partial class DiyUpgradeMod
                     _tooltipSeenFrame.Clear();
                 }
                 if (_tooltipSeenFrame.ContainsKey(elementPtr)) return;
-                CacheLimits.Trim(_tooltipSeenFrame, CacheLimits.Medium);   // A1（原裸写 >256）
                 _tooltipSeenFrame[elementPtr] = frame;
 
                 if (IdFieldNull(__instance) || TagSystemFieldNull(__instance) || !__instance.IsTag("DIY_UPGRADE_W_TAG") || !__instance.IsTag("DIY_UPGRADE_H_TAG")) return;
