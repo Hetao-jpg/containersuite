@@ -1,6 +1,6 @@
 容器套件 · ContainerSuite
 作者：核桃
-版本：1.8.1
+版本：1.8.0
 游戏：Probably Stolen 0.46D
 环境：MelonLoader 0.7.4+
 

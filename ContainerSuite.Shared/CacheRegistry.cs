@@ -93,7 +93,14 @@ public static class CacheRegistry
     /// 清空所有已登记的缓存，按登记顺序执行。场景切换时调用。
     /// 单个清空动作抛异常不影响其余（逐项 try/catch + 首次留痕）。
     /// </summary>
-    public static void ClearAll() => ClearAllIn(_clearers, "CacheRegistry.ClearAll");
+    public static void ClearAll()
+    {
+        for (int i = 0; i < _clearers.Count; i++)
+        {
+            try { _clearers[i](); }
+            catch (Exception ex) { CatchLogOnce.Warn("CacheRegistry.ClearAll", ex); }
+        }
+    }
 
     /// <summary>
     /// A-2（2026-10-12）：<b>读档</b>专用清空 —— 与 <see cref="ClearAll"/> 的唯一差别是
@@ -113,14 +120,12 @@ public static class CacheRegistry
     /// ★ 场景切换（OnSceneLoaded）仍走 <see cref="ClearAll"/> 全清，行为一行未变。
     /// </para>
     /// </summary>
-    public static void ClearForLoadGame() => ClearAllIn(_loadGameClearers, "CacheRegistry.ClearForLoadGame");
-
-    private static void ClearAllIn(List<Action> list, string tag)
+    public static void ClearForLoadGame()
     {
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < _loadGameClearers.Count; i++)
         {
-            try { list[i](); }
-            catch (Exception ex) { CatchLogOnce.Warn(tag, ex); }
+            try { _loadGameClearers[i](); }
+            catch (Exception ex) { CatchLogOnce.Warn("CacheRegistry.ClearForLoadGame", ex); }
         }
     }
 

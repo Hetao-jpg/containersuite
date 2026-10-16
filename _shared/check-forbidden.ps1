@@ -138,7 +138,8 @@ $projectDirs = @(
 $allowGate = @(
     'ContainerExpander.cs',
     'DiyUpgradeMod.GridFx.cs',
-    'DiyUpgradeMod.Upgrade.cs'
+    'DiyUpgradeMod.Upgrade.cs',
+    'SaveBagExpandPatch.cs'
 )
 
 # #25: files allowed to use RuntimeHelpers.PrepareMethod (Mode B JIT compile).
